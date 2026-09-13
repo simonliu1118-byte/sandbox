@@ -1,5 +1,12 @@
 # Sandbox Governance Changelog
 
+## 1.1.0 — 2026/09/13
+
+- 共通規則同步至 2.4.0：一般 Build／Test workflow 統一採 `pull_request` + `workflow_dispatch`；Draft PR 也可正常驗收，不再把 Draft／Ready 當 CI 開關。
+- ScratchGame Windows Build workflow 移除 Draft 阻擋與多餘的 `ready_for_review` 觸發；PR 建立、reopen 或新 commit 才會執行必要驗收。
+- Local-first、集中修改、少 push、path filter 與 concurrency 繼續作為節省 Token／Actions 的主要方法；不再依賴 manual-only CI。
+- sandbox 個人用途定位、公司內容隔離、Wade–Giles、個人 copyright 與 ScratchGame 功能規則均未變更。
+
 ## 1.0.0 — 2026/09/13
 
 - sandbox 正式納入 AITeam 共通規則同步體系，採用 Common Rules 2.3.0。
