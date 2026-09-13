@@ -1,7 +1,10 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using ScratchGame.Controls;
 using ScratchGame.Data;
 using ScratchGame.Engine;
 using ScratchGame.Models;
@@ -12,11 +15,25 @@ namespace ScratchGame;
 
 public partial class MainWindow : Window
 {
+    private const double DefaultWindowWidth = 1220;
+    private const double DefaultWindowHeight = 860;
+    private const int WmSysCommand = 0x0112;
+    private const int ScSize = 0xF000;
+
+    private static readonly (double X, double Y)[] ThreeLinePositions =
+    {
+        (233, 184), (395, 184), (557, 184),
+        (233, 294), (395, 294), (557, 294),
+        (233, 404), (395, 404), (557, 404)
+    };
+
     private readonly AppDatabase _database = new();
     private readonly CatalogService _catalog;
     private readonly PrizePoolService _prizePool;
     private readonly SeedDataService _seed;
     private readonly BackupService _backup;
+    private readonly List<ScratchSurface> _scratchRegions = new();
+    private readonly HashSet<ScratchSurface> _completedScratchRegions = new();
 
     private UserProfile? _currentUser;
     private PendingTicket? _currentPending;
@@ -30,6 +47,34 @@ public partial class MainWindow : Window
         _prizePool = new PrizePoolService(_database);
         _seed = new SeedDataService(_database);
         _backup = new BackupService(_database);
+
+        SourceInitialized += MainWindow_OnSourceInitialized;
+        StateChanged += MainWindow_OnStateChanged;
+    }
+
+    private void MainWindow_OnSourceInitialized(object? sender, EventArgs e)
+    {
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+            source.AddHook(WindowMessageHook);
+    }
+
+    private IntPtr WindowMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmSysCommand && (wParam.ToInt32() & 0xFFF0) == ScSize)
+        {
+            handled = true;
+            return IntPtr.Zero;
+        }
+        return IntPtr.Zero;
+    }
+
+    private void MainWindow_OnStateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState != WindowState.Normal)
+            return;
+
+        Width = DefaultWindowWidth;
+        Height = DefaultWindowHeight;
     }
 
     private async void Window_OnLoaded(object sender, RoutedEventArgs e)
@@ -75,7 +120,7 @@ public partial class MainWindow : Window
         _currentDefinition = tickets.FirstOrDefault(t => t.Id == _currentPending.TicketId);
         if (_currentDefinition is null)
         {
-            CurrentTicketTitle.Text = "未完成彩券";
+            TicketMetaText.Text = "未完成彩券";
             StatusText.Text = "找到 Pending Ticket，但彩券定義目前不可用。";
             return;
         }
@@ -139,10 +184,22 @@ public partial class MainWindow : Window
             MessageBox.Show(this, "目前沒有尚未完成的彩券。", "全部刮開", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        ScratchLayer.RevealAll();
+
+        foreach (var region in _scratchRegions)
+            region.RevealAll();
     }
 
-    private async void ScratchLayer_OnCompleted(object? sender, EventArgs e)
+    private async void ScratchRegion_OnCompleted(object? sender, EventArgs e)
+    {
+        if (sender is not ScratchSurface surface || !_completedScratchRegions.Add(surface))
+            return;
+
+        StatusText.Text = $"已完成 {_completedScratchRegions.Count}/{_scratchRegions.Count} 個刮獎區";
+        if (_scratchRegions.Count > 0 && _completedScratchRegions.Count == _scratchRegions.Count)
+            await RedeemCurrentTicketAsync();
+    }
+
+    private async Task RedeemCurrentTicketAsync()
     {
         if (_currentPending is null || _settlementInProgress)
             return;
@@ -152,9 +209,7 @@ public partial class MainWindow : Window
         {
             var prize = await _prizePool.RedeemAsync(_currentPending.Id);
             _currentPending = null;
-            ResultText.Text = prize > 0
-                ? $"恭喜中獎　${prize:N0}"
-                : "本張未中獎";
+            ShowSettlementResult(prize);
             StatusText.Text = "已自動兌獎完成";
             await RefreshCurrentUserSummaryAsync();
         }
@@ -190,9 +245,9 @@ public partial class MainWindow : Window
         {
             await _prizePool.AbandonAsLossAsync(_currentPending.Id);
             _currentPending = null;
-            ScratchLayer.Visibility = Visibility.Collapsed;
-            ShowSimpleResult("未中獎");
-            ResultText.Text = "本張未中獎";
+            foreach (var region in _scratchRegions)
+                region.IsEnabled = false;
+            ShowSettlementResult(0, abandoned: true);
             StatusText.Text = "本張已依未中獎完成";
             await RefreshCurrentUserSummaryAsync();
         }
@@ -222,14 +277,10 @@ public partial class MainWindow : Window
 
     private void RenderPendingTicket(PendingTicket pending, TicketDefinition definition)
     {
-        CurrentTicketTitle.Text = $"{definition.DisplayName}　${definition.Price:N0}";
-        TicketCardName.Text = definition.DisplayName;
-        TicketPriceText.Text = $"${definition.Price:N0}";
-        ResultText.Text = string.Empty;
-        ScratchLayer.Visibility = Visibility.Visible;
-        ScratchLayer.ResetMask();
+        TicketMetaText.Text = $"{definition.DisplayName}　${definition.Price:N0}";
+        ResultOverlay.Visibility = Visibility.Collapsed;
+        ClearTicketOverlay();
 
-        ClearPayloadVisuals();
         using var document = JsonDocument.Parse(pending.PayloadJson);
         var root = document.RootElement;
         var ruleId = root.GetProperty("ruleId").GetString();
@@ -237,20 +288,13 @@ public partial class MainWindow : Window
         switch (ruleId)
         {
             case "ThreeLine":
-                RuleHintText.Text = "刮開九宮格，連成三星即可中獎";
+                LoadTicketArtwork("ThreeStar", "ticket.jpg");
                 RenderThreeLine(root);
                 break;
-            case "LuckyNumberMatch":
-                RuleHintText.Text = "刮開號碼區，對中幸運號碼即可中獎";
-                RenderFallbackPayload("幸運號碼", root);
-                break;
-            case "MatchThree":
-                RuleHintText.Text = "刮出三個相同結果即可中獎";
-                RenderFallbackPayload("三個相同", root);
-                break;
             default:
-                RuleHintText.Text = "刮開遊戲區";
-                RenderFallbackPayload("遊戲結果", root);
+                TicketBackgroundImage.Visibility = Visibility.Collapsed;
+                TicketPlaceholderPanel.Visibility = Visibility.Visible;
+                TicketPlaceholderText.Text = "此玩法的新版票面仍在製作中";
                 break;
         }
     }
@@ -260,101 +304,122 @@ public partial class MainWindow : Window
         var cells = root.GetProperty("cells").EnumerateArray()
             .Select(element => element.GetString() ?? string.Empty)
             .ToArray();
-
-        var grid = new Grid { Margin = new Thickness(28, 12, 28, 12) };
-        for (var i = 0; i < 3; i++)
-        {
-            grid.RowDefinitions.Add(new RowDefinition());
-            grid.ColumnDefinitions.Add(new ColumnDefinition());
-        }
+        var maskPath = GetTicketAssetPath("ThreeStar", "silver-mask.jpg");
 
         for (var i = 0; i < Math.Min(9, cells.Length); i++)
         {
-            var border = new Border
+            var position = ThreeLinePositions[i];
+            var symbol = new TextBlock
             {
-                Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 193, 142)),
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(12),
-                Margin = new Thickness(7)
-            };
-            border.Child = new TextBlock
-            {
-                Text = cells[i],
-                FontSize = cells[i] == "★" ? 48 : 30,
+                Width = 153,
+                Height = 104,
+                Text = GetDisplaySymbol(cells[i], i),
+                TextAlignment = TextAlignment.Center,
+                FontFamily = new FontFamily("Microsoft JhengHei UI"),
+                FontSize = cells[i] == "★" ? 52 : 45,
                 FontWeight = FontWeights.Bold,
                 Foreground = cells[i] == "★"
-                    ? new SolidColorBrush(Color.FromRgb(174, 34, 41))
-                    : new SolidColorBrush(Color.FromRgb(102, 75, 53)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                    ? new SolidColorBrush(Color.FromRgb(175, 28, 34))
+                    : new SolidColorBrush(Color.FromRgb(98, 58, 27))
             };
-            Grid.SetRow(border, i / 3);
-            Grid.SetColumn(border, i % 3);
-            grid.Children.Add(border);
+            symbol.Padding = new Thickness(0, 20, 0, 0);
+            Canvas.SetLeft(symbol, position.X);
+            Canvas.SetTop(symbol, position.Y);
+            TicketOverlayCanvas.Children.Add(symbol);
+
+            var scratch = new ScratchSurface
+            {
+                Width = 153,
+                Height = 104,
+                BrushRadius = 17,
+                CompletionThreshold = 0.78,
+                MaskImagePath = maskPath
+            };
+            scratch.Completed += ScratchRegion_OnCompleted;
+            Canvas.SetLeft(scratch, position.X);
+            Canvas.SetTop(scratch, position.Y);
+            TicketOverlayCanvas.Children.Add(scratch);
+            _scratchRegions.Add(scratch);
+            scratch.ResetMask();
         }
-        GameGrid.Children.Insert(0, grid);
     }
 
-    private void RenderFallbackPayload(string title, JsonElement root)
+    private static string GetDisplaySymbol(string raw, int index)
     {
-        var panel = new StackPanel
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        panel.Children.Add(new TextBlock
-        {
-            Text = title,
-            FontSize = 28,
-            FontWeight = FontWeights.Bold,
-            HorizontalAlignment = HorizontalAlignment.Center
-        });
-        panel.Children.Add(new TextBlock
-        {
-            Text = root.ToString(),
-            MaxWidth = 560,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 14, 0, 0),
-            Foreground = Brushes.DimGray
-        });
-        GameGrid.Children.Insert(0, panel);
+        if (raw == "★")
+            return "★";
+
+        var symbols = new[] { "●", "◆", "▲", "■", "♥", "✦", "⬟", "✚" };
+        var hash = index * 17;
+        foreach (var ch in raw)
+            hash = unchecked(hash * 31 + ch);
+        return symbols[(hash & 0x7FFFFFFF) % symbols.Length];
     }
 
-    private void ShowSimpleResult(string text)
+    private void LoadTicketArtwork(params string[] parts)
     {
-        ClearPayloadVisuals();
-        GameGrid.Children.Insert(0, new TextBlock
+        var path = GetTicketAssetPath(parts);
+        if (!File.Exists(path))
         {
-            Text = text,
-            FontSize = 52,
-            FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(110, 92, 78)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        });
+            TicketBackgroundImage.Visibility = Visibility.Collapsed;
+            TicketPlaceholderPanel.Visibility = Visibility.Visible;
+            TicketPlaceholderText.Text = "找不到彩券美術資源";
+            return;
+        }
+
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit();
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.UriSource = new Uri(path, UriKind.Absolute);
+        bitmap.EndInit();
+        bitmap.Freeze();
+
+        TicketBackgroundImage.Source = bitmap;
+        TicketBackgroundImage.Visibility = Visibility.Visible;
+        TicketPlaceholderPanel.Visibility = Visibility.Collapsed;
     }
 
-    private void ClearPayloadVisuals()
+    private static string GetTicketAssetPath(params string[] parts)
     {
-        var removable = GameGrid.Children
-            .Cast<UIElement>()
-            .Where(element => !ReferenceEquals(element, ScratchLayer))
-            .ToList();
-        foreach (var element in removable)
-            GameGrid.Children.Remove(element);
+        var path = Path.Combine(AppContext.BaseDirectory, "Tickets");
+        foreach (var part in parts)
+            path = Path.Combine(path, part);
+        return path;
+    }
+
+    private void ShowSettlementResult(long prize, bool abandoned = false)
+    {
+        ResultOverlay.Visibility = Visibility.Visible;
+        if (prize > 0)
+        {
+            ResultHeadline.Text = "✦ 恭喜中獎 ✦";
+            ResultAmountText.Text = $"${prize:N0}";
+        }
+        else
+        {
+            ResultHeadline.Text = abandoned ? "本張已放棄" : "本張未中獎";
+            ResultAmountText.Text = abandoned ? "視為未中獎" : "再試一張吧";
+        }
+    }
+
+    private void ClearTicketOverlay()
+    {
+        foreach (var region in _scratchRegions)
+            region.Completed -= ScratchRegion_OnCompleted;
+        _scratchRegions.Clear();
+        _completedScratchRegions.Clear();
+        TicketOverlayCanvas.Children.Clear();
     }
 
     private void ClearTicketDisplay(string message)
     {
-        CurrentTicketTitle.Text = "尚未選擇彩券";
-        TicketCardName.Text = "刮刮樂";
-        TicketPriceText.Text = "$---";
-        RuleHintText.Text = message;
-        ResultText.Text = string.Empty;
-        ScratchLayer.Visibility = Visibility.Collapsed;
-        ClearPayloadVisuals();
-        ShowSimpleResult("★");
+        ClearTicketOverlay();
+        TicketMetaText.Text = string.Empty;
+        ResultOverlay.Visibility = Visibility.Collapsed;
+        TicketBackgroundImage.Source = null;
+        TicketBackgroundImage.Visibility = Visibility.Collapsed;
+        TicketPlaceholderPanel.Visibility = Visibility.Visible;
+        TicketPlaceholderText.Text = message;
     }
 
     private async Task RefreshCurrentUserSummaryAsync()
@@ -367,7 +432,7 @@ public partial class MainWindow : Window
         if (refreshed is not null)
             _currentUser = refreshed;
 
-        UserSummaryText.Text = $"{_currentUser.DisplayName}　投入 ${_currentUser.TotalSpent:N0}　兌獎 ${_currentUser.TotalRedeemed:N0}　損益 {FormatSigned(_currentUser.Net)}";
+        UserSummaryText.Text = $"{_currentUser.DisplayName}　損益 {FormatSigned(_currentUser.Net)}";
     }
 
     private static string FormatSigned(long amount)

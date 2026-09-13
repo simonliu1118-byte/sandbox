@@ -4,11 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/ScratchGame/**'
+      - 'apps/ScratchGame/src/**'
+      - 'apps/ScratchGame/VERSION'
+      - 'apps/ScratchGame/BUILD'
       - '.github/workflows/scratchgame-build.yml'
   pull_request:
     paths:
-      - 'apps/ScratchGame/**'
+      - 'apps/ScratchGame/src/**'
+      - 'apps/ScratchGame/VERSION'
+      - 'apps/ScratchGame/BUILD'
       - '.github/workflows/scratchgame-build.yml'
   workflow_dispatch:
 
@@ -56,7 +60,7 @@ jobs:
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
-      - name: Publish Windows x64 portable single EXE
+      - name: Publish Windows x64 executable
         run: >-
           dotnet publish 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --self-contained true --no-restore
@@ -68,15 +72,19 @@ jobs:
           /p:Version=${{ steps.version.outputs.version }}
           -o 'apps/ScratchGame/dist'
 
-      - name: Verify portable output
+      - name: Verify Windows output
         run: |
-          $files = @(Get-ChildItem 'apps/ScratchGame/dist' -File)
-          if ($files.Count -ne 1 -or $files[0].Name -ne 'ScratchGame.exe') {
-            Write-Error "Expected exactly one portable ScratchGame.exe, found: $($files.Name -join ', ')"
+          if (-not (Test-Path 'apps/ScratchGame/dist/ScratchGame.exe')) {
+            Write-Error 'ScratchGame.exe was not produced.'
+            exit 1
+          }
+          $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -File -Filter '*.dll')
+          if ($looseDlls.Count -gt 0) {
+            Write-Error "Unexpected loose DLLs: $($looseDlls.Name -join ', ')"
             exit 1
           }
 
-      - name: Upload artifact
+      - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
           name: ScratchGame-${{ steps.version.outputs.display }}-win-x64

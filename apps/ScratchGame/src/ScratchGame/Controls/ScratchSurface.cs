@@ -15,11 +15,12 @@ public sealed class ScratchSurface : Image
     private int _stride;
     private long _erasedPixels;
     private bool _isScratching;
-    private bool _completed;
+    private bool _completionReported;
     private Point _lastPoint;
 
     public double BrushRadius { get; set; } = 24;
     public double CompletionThreshold { get; set; } = 0.78;
+    public string? MaskImagePath { get; set; }
 
     public event EventHandler? Completed;
 
@@ -34,26 +35,20 @@ public sealed class ScratchSurface : Image
         LostMouseCapture += (_, _) => _isScratching = false;
     }
 
-    public void ResetMask()
-    {
-        EnsureBitmap(force: true);
-    }
+    public void ResetMask() => EnsureBitmap(force: true);
 
     public void RevealAll()
     {
-        if (_bitmap is null || _pixels is null || _completed)
+        EnsureBitmap();
+        if (_bitmap is null || _pixels is null)
             return;
 
         for (var i = 3; i < _pixels.Length; i += 4)
             _pixels[i] = 0;
 
         _erasedPixels = (long)_pixelWidth * _pixelHeight;
-        _bitmap.WritePixels(
-            new Int32Rect(0, 0, _pixelWidth, _pixelHeight),
-            _pixels,
-            _stride,
-            0);
-        CompleteOnce();
+        FlushPixels();
+        ReportCompletionOnce();
     }
 
     private void EnsureBitmap(bool force = false)
@@ -66,23 +61,10 @@ public sealed class ScratchSurface : Image
         _pixelWidth = width;
         _pixelHeight = height;
         _stride = _pixelWidth * 4;
-        _pixels = new byte[_stride * _pixelHeight];
-
-        for (var y = 0; y < _pixelHeight; y++)
-        {
-            for (var x = 0; x < _pixelWidth; x++)
-            {
-                var offset = y * _stride + x * 4;
-                var variation = (byte)((x * 13 + y * 7) % 18);
-                _pixels[offset + 0] = (byte)(165 + variation); // B
-                _pixels[offset + 1] = (byte)(165 + variation); // G
-                _pixels[offset + 2] = (byte)(165 + variation); // R
-                _pixels[offset + 3] = 255;                    // A
-            }
-        }
-
+        _pixels = TryLoadTexture(width, height) ?? CreateFallbackTexture(width, height);
         _erasedPixels = 0;
-        _completed = false;
+        _completionReported = false;
+
         _bitmap = new WriteableBitmap(
             _pixelWidth,
             _pixelHeight,
@@ -90,18 +72,63 @@ public sealed class ScratchSurface : Image
             96,
             PixelFormats.Bgra32,
             null);
-        _bitmap.WritePixels(
-            new Int32Rect(0, 0, _pixelWidth, _pixelHeight),
-            _pixels,
-            _stride,
-            0);
+        FlushPixels();
         Source = _bitmap;
+    }
+
+    private byte[]? TryLoadTexture(int width, int height)
+    {
+        if (string.IsNullOrWhiteSpace(MaskImagePath) || !File.Exists(MaskImagePath))
+            return null;
+
+        try
+        {
+            var source = new BitmapImage();
+            source.BeginInit();
+            source.CacheOption = BitmapCacheOption.OnLoad;
+            source.UriSource = new Uri(MaskImagePath, UriKind.Absolute);
+            source.EndInit();
+            source.Freeze();
+
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+                dc.DrawImage(source, new Rect(0, 0, width, height));
+
+            var rendered = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            rendered.Render(visual);
+            var converted = new FormatConvertedBitmap(rendered, PixelFormats.Bgra32, null, 0);
+
+            var pixels = new byte[width * height * 4];
+            converted.CopyPixels(pixels, width * 4, 0);
+            return pixels;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static byte[] CreateFallbackTexture(int width, int height)
+    {
+        var stride = width * 4;
+        var pixels = new byte[stride * height];
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var offset = y * stride + x * 4;
+                var variation = (byte)((x * 13 + y * 7) % 18);
+                pixels[offset + 0] = (byte)(165 + variation);
+                pixels[offset + 1] = (byte)(165 + variation);
+                pixels[offset + 2] = (byte)(165 + variation);
+                pixels[offset + 3] = 255;
+            }
+        }
+        return pixels;
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (_completed)
-            return;
         EnsureBitmap();
         _isScratching = true;
         _lastPoint = e.GetPosition(this);
@@ -112,7 +139,7 @@ public sealed class ScratchSurface : Image
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isScratching || _completed || e.LeftButton != MouseButtonState.Pressed)
+        if (!_isScratching || e.LeftButton != MouseButtonState.Pressed)
             return;
 
         var point = e.GetPosition(this);
@@ -183,35 +210,32 @@ public sealed class ScratchSurface : Image
         if (_bitmap is null || _pixels is null)
             return;
 
+        FlushPixels();
+        if (!checkCompletion || _completionReported)
+            return;
+
+        var total = (long)_pixelWidth * _pixelHeight;
+        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
+            ReportCompletionOnce();
+    }
+
+    private void FlushPixels()
+    {
+        if (_bitmap is null || _pixels is null)
+            return;
+
         _bitmap.WritePixels(
             new Int32Rect(0, 0, _pixelWidth, _pixelHeight),
             _pixels,
             _stride,
             0);
-
-        if (!checkCompletion)
-            return;
-
-        var total = (long)_pixelWidth * _pixelHeight;
-        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
-        {
-            for (var i = 3; i < _pixels.Length; i += 4)
-                _pixels[i] = 0;
-            _erasedPixels = total;
-            _bitmap.WritePixels(
-                new Int32Rect(0, 0, _pixelWidth, _pixelHeight),
-                _pixels,
-                _stride,
-                0);
-            CompleteOnce();
-        }
     }
 
-    private void CompleteOnce()
+    private void ReportCompletionOnce()
     {
-        if (_completed)
+        if (_completionReported)
             return;
-        _completed = true;
+        _completionReported = true;
         Completed?.Invoke(this, EventArgs.Empty);
     }
 }

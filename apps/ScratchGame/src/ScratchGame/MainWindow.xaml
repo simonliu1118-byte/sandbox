@@ -1,149 +1,131 @@
 <Window x:Class="ScratchGame.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:ScratchGame.Controls"
         Title="刮刮樂"
-        Width="1180" Height="820"
-        MinWidth="960" MinHeight="680"
+        Width="1220" Height="860"
+        ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Background="#FFF7EE"
+        Background="#24120E"
         Loaded="Window_OnLoaded">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="70"/>
+            <RowDefinition Height="84"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="88"/>
+            <RowDefinition Height="102"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#7D1E24" Padding="24,0">
+        <Border Grid.Row="0" Padding="26,0">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#8D171C" Offset="0"/>
+                    <GradientStop Color="#621216" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid>
-                <TextBlock Text="刮刮樂"
-                           Foreground="White"
-                           FontSize="28"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock x:Name="UserSummaryText"
-                               Foreground="#FFF1DE"
-                               FontSize="14"
-                               VerticalAlignment="Center"
-                               Margin="0,0,16,0"/>
-                    <Button Content="使用者" Click="UserButton_OnClick"/>
-                    <Button Content="設定" Click="SettingsButton_OnClick"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="刮刮樂"
+                               FontFamily="Microsoft JhengHei UI"
+                               FontSize="31"
+                               FontWeight="Bold"
+                               Foreground="#FFF4D7"/>
+                    <TextBlock Text="刮出好運，樂在每一刻"
+                               Margin="2,2,0,0"
+                               FontSize="13"
+                               Foreground="#E7BE95"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border CornerRadius="14" Background="#4A1215" BorderBrush="#A44B40" BorderThickness="1" Padding="16,8" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="目前玩家" FontSize="11" Foreground="#D8A990"/>
+                            <TextBlock x:Name="UserSummaryText" Text="尚未載入" FontSize="15" FontWeight="SemiBold" Foreground="#FFF0CF"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Content="使用者" Style="{StaticResource HeaderButton}" Click="UserButton_OnClick"/>
+                    <Button Content="⚙  設定" Style="{StaticResource HeaderButton}" Click="SettingsButton_OnClick"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="26,18,26,12">
+        <Grid Grid.Row="1" Margin="22,18,22,10">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="30"/>
             </Grid.RowDefinitions>
 
-            <TextBlock x:Name="CurrentTicketTitle"
-                       Text="尚未選擇彩券"
-                       FontSize="25"
-                       FontWeight="SemiBold"
-                       Foreground="#4B2525"
-                       HorizontalAlignment="Center"
-                       Margin="0,0,0,12"/>
-
-            <Viewbox Grid.Row="1" Stretch="Uniform" StretchDirection="DownOnly">
-                <Border Width="930" Height="555"
-                        CornerRadius="22"
-                        BorderThickness="3"
-                        BorderBrush="#D9AE55">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#FFF0B8" Offset="0"/>
-                            <GradientStop Color="#FFE7CC" Offset="0.5"/>
-                            <GradientStop Color="#FFF7DE" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <Grid Margin="26">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="90"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="58"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid>
-                            <TextBlock x:Name="TicketCardName"
-                                       Text="選擇一張彩券開始"
-                                       FontSize="34"
-                                       FontWeight="Bold"
-                                       Foreground="#8E2025"
-                                       VerticalAlignment="Center"/>
-                            <Border HorizontalAlignment="Right"
-                                    VerticalAlignment="Center"
-                                    Background="#8E2025"
-                                    CornerRadius="22"
-                                    Padding="18,8">
-                                <TextBlock x:Name="TicketPriceText"
-                                           Text="$---"
-                                           Foreground="White"
-                                           FontSize="22"
-                                           FontWeight="Bold"/>
-                            </Border>
-                        </Grid>
-
-                        <Border Grid.Row="1"
-                                Background="#FFFCF5"
-                                CornerRadius="16"
-                                BorderBrush="#E7CFA2"
-                                BorderThickness="1"
-                                Padding="18">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="46"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock x:Name="RuleHintText"
-                                           Text="按下「新的一張」選擇彩券"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           FontSize="18"
-                                           Foreground="#785D45"/>
-                                <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Grid x:Name="GameGrid"
-                                          Width="650" Height="330"
-                                          Background="#FFFDF8"/>
-                                    <controls:ScratchSurface x:Name="ScratchLayer"
-                                                             Width="650" Height="330"
-                                                             BrushRadius="25"
-                                                             CompletionThreshold="0.78"
-                                                             Visibility="Collapsed"
-                                                             Completed="ScratchLayer_OnCompleted"/>
-                                </Grid>
-                            </Grid>
+            <Border CornerRadius="20" Background="#3A2118" BorderBrush="#5E3829" BorderThickness="1" Padding="16">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.32"/>
+                </Border.Effect>
+                <Viewbox Stretch="Uniform" StretchDirection="Both">
+                    <Grid Width="920" Height="560" x:Name="TicketStage">
+                        <Border x:Name="TicketPlaceholderPanel" Background="#4A2A1D" CornerRadius="18">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="✦" FontSize="72" Foreground="#D89A35" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TicketPlaceholderText"
+                                           Text="按下「新的一張」開始"
+                                           Margin="0,14,0,0"
+                                           FontSize="24"
+                                           FontWeight="SemiBold"
+                                           Foreground="#F2D8B5"/>
+                            </StackPanel>
                         </Border>
 
-                        <Grid Grid.Row="2">
-                            <TextBlock x:Name="ResultText"
-                                       Text=""
-                                       FontSize="22"
-                                       FontWeight="Bold"
-                                       Foreground="#A62F2F"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </Viewbox>
+                        <Image x:Name="TicketBackgroundImage" Stretch="Fill" Visibility="Collapsed"/>
+                        <Canvas x:Name="TicketOverlayCanvas" Width="920" Height="560"/>
 
-            <TextBlock x:Name="StatusText"
-                       Grid.Row="2"
-                       HorizontalAlignment="Center"
-                       Foreground="#77675B"
-                       Margin="0,10,0,0"/>
+                        <Border x:Name="ResultOverlay"
+                                Visibility="Collapsed"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="#E81E0B0B"
+                                BorderBrush="#F2C05E"
+                                BorderThickness="2"
+                                CornerRadius="20"
+                                Padding="34,20">
+                            <StackPanel>
+                                <TextBlock x:Name="ResultHeadline"
+                                           Text="恭喜中獎"
+                                           FontSize="24"
+                                           FontWeight="Bold"
+                                           Foreground="#FFE5A3"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="ResultAmountText"
+                                           Text="$100"
+                                           Margin="0,4,0,0"
+                                           FontSize="42"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Viewbox>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="4,6,4,0">
+                <TextBlock x:Name="TicketMetaText"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           Foreground="#C9A789"
+                           FontSize="12"/>
+                <TextBlock x:Name="StatusText"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="#D3B89E"
+                           FontSize="12"/>
+            </Grid>
         </Grid>
 
-        <Border Grid.Row="2" Background="#F2E3D1" BorderBrush="#E4CBB0" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#311B14" BorderBrush="#573324" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Button Content="新的一張" Width="140" Click="NewTicket_OnClick"/>
-                <Button Content="全部刮開" Width="140" Click="RevealAll_OnClick"/>
-                <Button Content="放棄本張" Width="140" Click="Abandon_OnClick"/>
+                <Button Content="＋  新的一張" Width="178" Style="{StaticResource PrimaryActionButton}" Click="NewTicket_OnClick"/>
+                <Button Content="✦  全部刮開" Width="178" Style="{StaticResource RevealActionButton}" Click="RevealAll_OnClick"/>
+                <Button Content="×  放棄本張" Width="178" Style="{StaticResource DangerActionButton}" Click="Abandon_OnClick"/>
             </StackPanel>
         </Border>
     </Grid>
