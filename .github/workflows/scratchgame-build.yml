@@ -45,13 +45,15 @@ jobs:
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Restore
-        run: dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
+      - name: Restore Windows x64 runtime packs
+        run: >-
+          dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
+          -r win-x64
 
       - name: Build
         run: >-
           dotnet build 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
-          -c Release --no-restore
+          -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
       - name: Publish Windows x64 portable
