@@ -29,7 +29,7 @@
                                VerticalAlignment="Center"
                                Margin="0,0,16,0"/>
                     <Button Content="使用者" Click="UserButton_OnClick"/>
-                    <Button Content="設定" IsEnabled="False" ToolTip="後續版本補上完整設定頁"/>
+                    <Button Content="設定" Click="SettingsButton_OnClick"/>
                 </StackPanel>
             </Grid>
         </Border>
