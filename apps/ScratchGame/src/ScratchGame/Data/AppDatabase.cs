@@ -72,6 +72,7 @@ public sealed class AppDatabase
                 status TEXT NOT NULL CHECK(status IN ('Active','Closed')),
                 started_utc TEXT NOT NULL,
                 closed_utc TEXT NULL,
+                consumed_count INTEGER NOT NULL DEFAULT 0 CHECK(consumed_count >= 0),
                 UNIQUE(ticket_id, batch_number),
                 FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE RESTRICT
             );
