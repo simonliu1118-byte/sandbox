@@ -1,5 +1,13 @@
 # Sandbox Governance Changelog
 
+## 1.2.0 — 2026/09/14
+
+- 重整 `apps/ScratchGame/PROJECT_RULES.md`，把目前已定案的 ScratchGame 永久規則正式寫入，移除已過時的 Reservation／放棄本張／舊版型假設。
+- 固定 `canvas=1` 為 1080×882 基本橫式刮刮樂座標系；所有刮區、符號、票號與程式面額統一使用 Canvas 設計座標。
+- 固定主舞台與 Dialog 的視覺責任邊界：主舞台只保留背景→彩券→動態層；正常提示／確認／警告／錯誤改用 ScratchGame 自畫 modal，Windows MessageBox 只保留致命 fallback。
+- 固定有限票池改為發行即扣 Remaining、不再使用業務層 Reserved；換票、異常恢復與正常關閉／切換使用者的 Pending Ticket 行為重新定義。
+- 固定 gameType / ScratchPack 相容性原則、`gameType="1"` 星星連線規則、`issueSize % ticketsPerBook == 0`、票號格式、`priceDisplay`、設定頁列內操作、硬幣單一 mouse pipeline、結算按鈕與售罄文案等 ScratchGame 專案規則。
+
 ## 1.1.0 — 2026/09/13
 
 - 共通規則同步至 2.4.0：一般 Build／Test workflow 統一採 `pull_request` + `workflow_dispatch`；Draft PR 也可正常驗收，不再把 Draft／Ready 當 CI 開關。
