@@ -27,8 +27,8 @@ public sealed class SeedDataService(AppDatabase database)
 
         await EnsureLegacyTicketAsync(connection, transaction, cancellationToken);
         await EnsureStarLine500TicketAsync(connection, transaction, cancellationToken);
+        await EnsureTicketMetadataAsync(connection, transaction, cancellationToken);
 
-        // 舊的 $100 三星連線一旦沒有 Pending Ticket 就退出選票清單；既有歷史與批次資料保留。
         var retireLegacy = connection.CreateCommand();
         retireLegacy.Transaction = transaction;
         retireLegacy.CommandText = """
@@ -55,7 +55,6 @@ public sealed class SeedDataService(AppDatabase database)
         exists.Transaction = transaction;
         exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
         exists.Parameters.AddWithValue("$id", ticketId);
-
         if (await exists.ExecuteScalarAsync(cancellationToken) is not null)
             return;
 
@@ -75,6 +74,7 @@ public sealed class SeedDataService(AppDatabase database)
         await InsertTicketAsync(
             connection, transaction,
             ticketId, "三星連線", 100, "ThreeLine", issueSize, winRate,
+            styleNumber: 0, ticketsPerBook: 100, priceDisplay: 0,
             tiers, cancellationToken);
     }
 
@@ -92,8 +92,6 @@ public sealed class SeedDataService(AppDatabase database)
             return;
 
         const long issueSize = 10_000;
-        // GameType 1 / 3x3：1、2、3、4、5、6、8 線；7 線在 3x3 不存在。
-        // 本票中獎率 100%；1 線仍低於票價，2 線打平，3 線以上開始獲利。
         var tiers = new (string Id, long Amount, long Count, int Order)[]
         {
             ("line8", 100_000, 1, 0),
@@ -107,7 +105,50 @@ public sealed class SeedDataService(AppDatabase database)
         await InsertTicketAsync(
             connection, transaction,
             ticketId, "三星連線", 500, "1", issueSize, 1.0,
+            styleNumber: 1, ticketsPerBook: 100, priceDisplay: 1,
             tiers, cancellationToken);
+    }
+
+    private static async Task EnsureTicketMetadataAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var builtIns = new[]
+        {
+            (Id: "builtin-three-line-100", Style: 0L, PerBook: 100L, PriceDisplay: 0),
+            (Id: "builtin-star-line-500-v1", Style: 1L, PerBook: 100L, PriceDisplay: 1)
+        };
+
+        foreach (var item in builtIns)
+        {
+            var upsert = connection.CreateCommand();
+            upsert.Transaction = transaction;
+            upsert.CommandText = """
+                INSERT INTO ticket_metadata(ticket_id, style_number, tickets_per_book, price_display)
+                SELECT id, $style, $perBook, $priceDisplay
+                FROM ticket_definitions
+                WHERE id = $id
+                ON CONFLICT(ticket_id) DO UPDATE SET
+                    style_number = excluded.style_number,
+                    tickets_per_book = excluded.tickets_per_book,
+                    price_display = excluded.price_display;
+                """;
+            upsert.Parameters.AddWithValue("$id", item.Id);
+            upsert.Parameters.AddWithValue("$style", item.Style);
+            upsert.Parameters.AddWithValue("$perBook", item.PerBook);
+            upsert.Parameters.AddWithValue("$priceDisplay", item.PriceDisplay);
+            await upsert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var fallback = connection.CreateCommand();
+        fallback.Transaction = transaction;
+        fallback.CommandText = """
+            INSERT OR IGNORE INTO ticket_metadata(ticket_id, style_number, tickets_per_book, price_display)
+            SELECT id, 0, issue_size, 0
+            FROM ticket_definitions;
+            """;
+        await fallback.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task InsertTicketAsync(
@@ -119,11 +160,16 @@ public sealed class SeedDataService(AppDatabase database)
         string ruleId,
         long issueSize,
         double winRate,
+        long styleNumber,
+        long ticketsPerBook,
+        int priceDisplay,
         IReadOnlyList<(string Id, long Amount, long Count, int Order)> tiers,
         CancellationToken cancellationToken)
     {
         if (tiers.Sum(t => t.Count) != issueSize)
             throw new InvalidOperationException($"{displayName} 的獎項張數合計與發行張數不一致。");
+        if (ticketsPerBook <= 0 || issueSize % ticketsPerBook != 0)
+            throw new InvalidOperationException($"{displayName} 的總發行張數必須能被每本張數整除。");
 
         var addTicket = connection.CreateCommand();
         addTicket.Transaction = transaction;
@@ -142,6 +188,18 @@ public sealed class SeedDataService(AppDatabase database)
         addTicket.Parameters.AddWithValue("$winRate", winRate);
         addTicket.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
         await addTicket.ExecuteNonQueryAsync(cancellationToken);
+
+        var metadata = connection.CreateCommand();
+        metadata.Transaction = transaction;
+        metadata.CommandText = """
+            INSERT INTO ticket_metadata(ticket_id, style_number, tickets_per_book, price_display)
+            VALUES($ticketId, $styleNumber, $ticketsPerBook, $priceDisplay);
+            """;
+        metadata.Parameters.AddWithValue("$ticketId", ticketId);
+        metadata.Parameters.AddWithValue("$styleNumber", styleNumber);
+        metadata.Parameters.AddWithValue("$ticketsPerBook", ticketsPerBook);
+        metadata.Parameters.AddWithValue("$priceDisplay", priceDisplay);
+        await metadata.ExecuteNonQueryAsync(cancellationToken);
 
         foreach (var tier in tiers)
         {

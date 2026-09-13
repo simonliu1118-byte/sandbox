@@ -22,7 +22,12 @@ public sealed class AppDatabase
         Directory.CreateDirectory(DataDirectory);
         Directory.CreateDirectory(BackupDirectory);
 
+        var existedBeforeOpen = File.Exists(DatabasePath) && new FileInfo(DatabasePath).Length > 0;
         await using var connection = await OpenConnectionAsync(cancellationToken);
+
+        if (existedBeforeOpen && !await TableExistsAsync(connection, "ticket_metadata", cancellationToken))
+            await CreateMigrationBackupAsync(connection, cancellationToken);
+
         var command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE IF NOT EXISTS app_meta (
@@ -54,6 +59,18 @@ public sealed class AppDatabase
             CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_package_id
                 ON ticket_definitions(source_package_id)
                 WHERE source_package_id IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS ticket_metadata (
+                ticket_id TEXT PRIMARY KEY,
+                style_number INTEGER NOT NULL DEFAULT 0 CHECK(style_number >= 0),
+                tickets_per_book INTEGER NOT NULL CHECK(tickets_per_book > 0),
+                price_display INTEGER NOT NULL DEFAULT 0 CHECK(price_display IN (0, 1)),
+                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_style_number
+                ON ticket_metadata(style_number)
+                WHERE style_number > 0;
 
             CREATE TABLE IF NOT EXISTS prize_tiers (
                 ticket_id TEXT NOT NULL,
@@ -110,6 +127,19 @@ public sealed class AppDatabase
 
             CREATE INDEX IF NOT EXISTS ix_pending_batch ON pending_tickets(batch_id);
 
+            CREATE TABLE IF NOT EXISTS batch_serial_claims (
+                batch_id TEXT NOT NULL,
+                serial_index INTEGER NOT NULL CHECK(serial_index > 0),
+                pending_ticket_id TEXT NULL,
+                consumed INTEGER NOT NULL DEFAULT 0 CHECK(consumed IN (0, 1)),
+                PRIMARY KEY(batch_id, serial_index),
+                UNIQUE(pending_ticket_id),
+                FOREIGN KEY(batch_id) REFERENCES batches(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_serial_pending
+                ON batch_serial_claims(pending_ticket_id);
+
             CREATE TABLE IF NOT EXISTS ticket_history (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -126,8 +156,8 @@ public sealed class AppDatabase
                 ON ticket_history(user_id, completed_utc DESC);
 
             INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '1')
-            ON CONFLICT(key) DO NOTHING;
+            VALUES ('schema_version', '2')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -146,5 +176,41 @@ public sealed class AppDatabase
             """;
         await pragma.ExecuteNonQueryAsync(cancellationToken);
         return connection;
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        SqliteConnection connection,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name LIMIT 1;";
+        command.Parameters.AddWithValue("$name", tableName);
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
+    }
+
+    private async Task CreateMigrationBackupAsync(
+        SqliteConnection source,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(BackupDirectory);
+        var path = Path.Combine(
+            BackupDirectory,
+            $"ScratchGame_migration_{DateTime.Now:yyyyMMdd-HHmmss}.db");
+
+        await using var destination = new SqliteConnection($"Data Source={path}");
+        await destination.OpenAsync(cancellationToken);
+        source.BackupDatabase(destination);
+
+        var backups = Directory.EnumerateFiles(BackupDirectory, "ScratchGame_*.db")
+            .Select(file => new FileInfo(file))
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .ToList();
+        foreach (var old in backups.Skip(5))
+        {
+            try { old.Delete(); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 }
