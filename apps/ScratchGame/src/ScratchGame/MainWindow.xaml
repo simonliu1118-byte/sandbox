@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="刮刮樂"
-        Width="1220" Height="860"
+        Width="1280" Height="960"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         Background="#25100C"
@@ -15,12 +15,12 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="96"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="116"/>
+            <RowDefinition Height="104"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
             <Image x:Name="TopBarBackgroundImage" Stretch="Fill"/>
-            <Grid Margin="28,0">
+            <Grid Margin="30,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -30,11 +30,7 @@
                                FontFamily="Microsoft JhengHei UI"
                                FontSize="34"
                                FontWeight="Bold"
-                               Foreground="#FFF2C9">
-                        <TextBlock.Effect>
-                            <DropShadowEffect Color="#5A160F" BlurRadius="6" ShadowDepth="2" Opacity="0.72"/>
-                        </TextBlock.Effect>
-                    </TextBlock>
+                               Foreground="#FFF2C9"/>
                     <TextBlock Text="刮出好運，樂在每一刻" Margin="3,1,0,0" FontSize="13" Foreground="#F0C98A"/>
                 </StackPanel>
 
@@ -70,27 +66,20 @@
 
         <Grid Grid.Row="1">
             <Image x:Name="StageBackgroundImage" Stretch="Fill"/>
-            <Grid Margin="20,10,20,6">
+            <Grid Margin="20,8,20,4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="28"/>
                 </Grid.RowDefinitions>
 
-                <!-- 彩券舞台刻意不加額外框架：背景 -> 彩券 -> 互動/特效 -->
                 <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Grid Width="1080" Height="657" x:Name="TicketStage">
-                        <Border x:Name="TicketPlaceholderPanel"
-                                Background="#9827130F"
-                                BorderBrush="#6E4D3428"
-                                BorderThickness="1"
-                                CornerRadius="26"
-                                Padding="34"
-                                Margin="55,38">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="430">
-                                <TextBlock Text="✦" FontSize="82" Foreground="#E7AF46" HorizontalAlignment="Center"/>
+                    <Grid Width="1080" Height="882" x:Name="TicketStage">
+                        <Grid x:Name="TicketPlaceholderPanel" Margin="70,60">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="470">
+                                <TextBlock Text="✦" FontSize="72" Foreground="#E7AF46" HorizontalAlignment="Center"/>
                                 <TextBlock x:Name="TicketPlaceholderText"
                                            Text="還沒有彩券"
-                                           Margin="0,10,0,0"
+                                           Margin="0,8,0,0"
                                            TextAlignment="Center"
                                            FontSize="30"
                                            FontWeight="Bold"
@@ -106,25 +95,24 @@
                                         Style="{StaticResource PrimaryActionButton}"
                                         Click="ChooseTicketFromEmpty_OnClick"/>
                             </StackPanel>
-                        </Border>
+                        </Grid>
 
                         <Image x:Name="TicketBackgroundImage" Stretch="Fill" Visibility="Collapsed"/>
 
                         <Canvas x:Name="TicketOverlayCanvas"
-                                Width="1080" Height="657"
+                                Width="1080" Height="882"
                                 Background="Transparent"
                                 IsHitTestVisible="{Binding ElementName=TicketBackgroundImage, Path=IsVisible}"
                                 PreviewMouseLeftButtonDown="TicketOverlayCanvas_OnPreviewMouseLeftButtonDown"
                                 PreviewMouseMove="TicketOverlayCanvas_OnPreviewMouseMove"
-                                MouseMove="TicketOverlayCanvas_OnCoinMouseMove"
-                                LayoutUpdated="TicketOverlayCanvas_OnLayoutUpdated"
                                 PreviewMouseLeftButtonUp="TicketOverlayCanvas_OnPreviewMouseLeftButtonUp"
                                 MouseEnter="TicketOverlayCanvas_OnMouseEnter"
-                                MouseLeave="TicketOverlayCanvas_OnMouseLeave"/>
+                                MouseLeave="TicketOverlayCanvas_OnMouseLeave"
+                                LayoutUpdated="TicketOverlayCanvas_OnLayoutUpdated"/>
 
-                        <Canvas x:Name="CelebrationLayer" Width="1080" Height="657" IsHitTestVisible="False"/>
+                        <Canvas x:Name="CelebrationLayer" Width="1080" Height="882" IsHitTestVisible="False"/>
 
-                        <Canvas x:Name="CoinCursorLayer" Width="1080" Height="657" IsHitTestVisible="False">
+                        <Canvas x:Name="CoinCursorLayer" Width="1080" Height="882" IsHitTestVisible="False">
                             <Grid x:Name="CoinCursorVisual" Width="76" Height="76" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
                                 <Grid x:Name="CoinIdleVisual">
                                     <Border Width="58" Height="58" CornerRadius="29" BorderBrush="#FFF2B454" BorderThickness="3" Background="#FFE0A12D" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -151,7 +139,7 @@
                                 Width="470"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Background="#A8130907"
+                                Background="#8F130907"
                                 BorderBrush="#F1C05A"
                                 BorderThickness="2"
                                 CornerRadius="22"
@@ -174,7 +162,7 @@
                                             Margin="0"
                                             Click="SameAgain_OnClick"/>
                                     <Button Grid.Column="2"
-                                            Content="看看其他"
+                                            Content="挑其他款"
                                             Style="{StaticResource PrimaryActionButton}"
                                             MinHeight="48"
                                             FontSize="20"
