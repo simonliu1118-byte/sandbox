@@ -1,0 +1,71 @@
+name: ScratchGame Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/ScratchGame/**'
+      - '.github/workflows/scratchgame-build.yml'
+  pull_request:
+    paths:
+      - 'apps/ScratchGame/**'
+      - '.github/workflows/scratchgame-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scratchgame-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Read version
+        id: version
+        run: |
+          $version = (Get-Content 'apps/ScratchGame/VERSION' -Raw).Trim()
+          $build = (Get-Content 'apps/ScratchGame/BUILD' -Raw).Trim()
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "build=$build" >> $env:GITHUB_OUTPUT
+          if ($build -eq '0') {
+            "display=V$version" >> $env:GITHUB_OUTPUT
+          } else {
+            "display=V$version Build $build" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Restore
+        run: dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
+
+      - name: Build
+        run: >-
+          dotnet build 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
+          -c Release --no-restore
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Publish Windows x64 portable
+        run: >-
+          dotnet publish 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
+          -c Release -r win-x64 --self-contained true --no-restore
+          /p:PublishSingleFile=true
+          /p:EnableCompressionInSingleFile=true
+          /p:Version=${{ steps.version.outputs.version }}
+          -o 'apps/ScratchGame/dist'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScratchGame-${{ steps.version.outputs.display }}-win-x64
+          path: apps/ScratchGame/dist/**
+          retention-days: 14
