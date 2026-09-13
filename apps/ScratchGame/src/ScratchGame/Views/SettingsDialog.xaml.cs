@@ -13,6 +13,7 @@ public partial class SettingsDialog : Window
     public SettingsDialog(AppDatabase database)
     {
         InitializeComponent();
+        UiAssetLoader.TrySetImage(DialogBackgroundImage, UiAssetLoader.UiPath("dialog_bg.png"));
         _admin = new TicketAdminService(database);
         _backup = new BackupService(database);
     }
