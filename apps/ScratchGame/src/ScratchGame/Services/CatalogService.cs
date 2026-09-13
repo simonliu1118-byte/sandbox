@@ -138,7 +138,7 @@ public sealed class CatalogService(AppDatabase database)
             pending.CommandText = "SELECT COUNT(*) FROM pending_tickets WHERE batch_id = $batchId;";
             pending.Parameters.AddWithValue("$batchId", oldBatchId);
             if (Convert.ToInt64(await pending.ExecuteScalarAsync(cancellationToken)) > 0)
-                throw new InvalidOperationException("目前批次仍有尚未完成的彩券，請先系統刮開結算或放棄處理。");
+                throw new InvalidOperationException("目前批次仍有尚未完成的彩券，請先直接開獎並完成結算。");
 
             var close = connection.CreateCommand();
             close.Transaction = transaction;

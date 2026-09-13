@@ -31,19 +31,21 @@ public sealed class PrizePoolService(AppDatabase database)
         var pendingId = Guid.NewGuid().ToString("D");
         var createdAt = DateTimeOffset.UtcNow;
 
-        var reserve = connection.CreateCommand();
-        reserve.Transaction = transaction;
-        reserve.CommandText = """
+        // Schema 3：抽出票時即視為已發行，直接從 Remaining 扣除。
+        // consumed_count 在資料庫內代表「已發行張數（含尚未刮完與已完成）」；不再建立 Reservation。
+        var issue = connection.CreateCommand();
+        issue.Transaction = transaction;
+        issue.CommandText = """
             UPDATE batch_prize_state
             SET available_count = available_count - 1,
-                reserved_count = reserved_count + 1
+                consumed_count = consumed_count + 1
             WHERE batch_id = $batchId
               AND tier_id = $tierId
               AND available_count > 0;
             """;
-        reserve.Parameters.AddWithValue("$batchId", ticket.BatchId);
-        reserve.Parameters.AddWithValue("$tierId", selected.TierId);
-        if (await reserve.ExecuteNonQueryAsync(cancellationToken) != 1)
+        issue.Parameters.AddWithValue("$batchId", ticket.BatchId);
+        issue.Parameters.AddWithValue("$tierId", selected.TierId);
+        if (await issue.ExecuteNonQueryAsync(cancellationToken) != 1)
             throw new InvalidOperationException("獎池已被其他操作更新，請重新抽票。");
 
         var charge = connection.CreateCommand();
@@ -58,6 +60,7 @@ public sealed class PrizePoolService(AppDatabase database)
         if (await charge.ExecuteNonQueryAsync(cancellationToken) != 1)
             throw new InvalidOperationException("找不到目前使用者。");
 
+        // 欄位名稱 reserved_* 為既有資料庫相容名稱；Schema 3 起語意是「這張已發行票的既定獎項」。
         var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
@@ -105,21 +108,7 @@ public sealed class PrizePoolService(AppDatabase database)
         var pending = await GetPendingForSettlementAsync(
             connection, transaction, pendingTicketId, cancellationToken);
 
-        var consume = connection.CreateCommand();
-        consume.Transaction = transaction;
-        consume.CommandText = """
-            UPDATE batch_prize_state
-            SET reserved_count = reserved_count - 1,
-                consumed_count = consumed_count + 1
-            WHERE batch_id = $batchId
-              AND tier_id = $tierId
-              AND reserved_count > 0;
-            """;
-        consume.Parameters.AddWithValue("$batchId", pending.BatchId);
-        consume.Parameters.AddWithValue("$tierId", pending.ReservedTierId);
-        if (await consume.ExecuteNonQueryAsync(cancellationToken) != 1)
-            throw new InvalidOperationException("Pending Ticket 的保留獎項狀態不一致。");
-
+        // 獎項在「發行」時已從 Remaining 扣除，因此兌獎不再修改票池，只完成使用者與歷史資料。
         if (pending.ReservedAmount > 0)
         {
             var credit = connection.CreateCommand();
@@ -137,70 +126,18 @@ public sealed class PrizePoolService(AppDatabase database)
 
         await InsertHistoryAsync(
             connection, transaction, pending, pending.ReservedAmount, cancellationToken);
+
+        // 票號一旦實際發行並完成結算就永久標記已使用，不能因 Pending 被刪除後再次釋出。
+        var consumeSerial = connection.CreateCommand();
+        consumeSerial.Transaction = transaction;
+        consumeSerial.CommandText = "UPDATE batch_serial_claims SET consumed = 1 WHERE pending_ticket_id = $pendingId;";
+        consumeSerial.Parameters.AddWithValue("$pendingId", pending.Id);
+        await consumeSerial.ExecuteNonQueryAsync(cancellationToken);
+
         await DeletePendingAsync(connection, transaction, pending.Id, cancellationToken);
 
         transaction.Commit();
         return pending.ReservedAmount;
-    }
-
-    public async Task AbandonAsLossAsync(
-        string pendingTicketId,
-        CancellationToken cancellationToken = default)
-    {
-        await using var connection = await database.OpenConnectionAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-
-        var pending = await GetPendingForSettlementAsync(
-            connection, transaction, pendingTicketId, cancellationToken);
-
-        if (pending.ReservedAmount == 0)
-        {
-            // 原本保留的就是未中獎票；直接消耗即可，不需要先釋放再重抽。
-            await ConsumeReservedAsync(
-                connection, transaction, pending.BatchId, pending.ReservedTierId, cancellationToken);
-        }
-        else
-        {
-            var losingTierId = await GetAvailableLosingTierIdAsync(
-                connection, transaction, pending.BatchId, cancellationToken);
-            if (losingTierId is null)
-                throw new InvalidOperationException("目前票池已無未中獎票，不能放棄；請揭曉並正常結算。");
-
-            var release = connection.CreateCommand();
-            release.Transaction = transaction;
-            release.CommandText = """
-                UPDATE batch_prize_state
-                SET reserved_count = reserved_count - 1,
-                    available_count = available_count + 1
-                WHERE batch_id = $batchId
-                  AND tier_id = $tierId
-                  AND reserved_count > 0;
-                """;
-            release.Parameters.AddWithValue("$batchId", pending.BatchId);
-            release.Parameters.AddWithValue("$tierId", pending.ReservedTierId);
-            if (await release.ExecuteNonQueryAsync(cancellationToken) != 1)
-                throw new InvalidOperationException("Pending Ticket 的保留獎項狀態不一致。");
-
-            var consumeLoss = connection.CreateCommand();
-            consumeLoss.Transaction = transaction;
-            consumeLoss.CommandText = """
-                UPDATE batch_prize_state
-                SET available_count = available_count - 1,
-                    consumed_count = consumed_count + 1
-                WHERE batch_id = $batchId
-                  AND tier_id = $tierId
-                  AND amount = 0
-                  AND available_count > 0;
-                """;
-            consumeLoss.Parameters.AddWithValue("$batchId", pending.BatchId);
-            consumeLoss.Parameters.AddWithValue("$tierId", losingTierId);
-            if (await consumeLoss.ExecuteNonQueryAsync(cancellationToken) != 1)
-                throw new InvalidOperationException("未中獎票已被其他操作更新，請重試。");
-        }
-
-        await InsertHistoryAsync(connection, transaction, pending, 0, cancellationToken);
-        await DeletePendingAsync(connection, transaction, pending.Id, cancellationToken);
-        transaction.Commit();
     }
 
     private static async Task<bool> HasPendingAsync(
@@ -301,46 +238,6 @@ public sealed class PrizePoolService(AppDatabase database)
         return new PendingSettlement(
             reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
             reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt32(7));
-    }
-
-    private static async Task<string?> GetAvailableLosingTierIdAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        string batchId,
-        CancellationToken cancellationToken)
-    {
-        var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            SELECT tier_id
-            FROM batch_prize_state
-            WHERE batch_id = $batchId AND amount = 0 AND available_count > 0
-            ORDER BY available_count DESC
-            LIMIT 1;
-            """;
-        command.Parameters.AddWithValue("$batchId", batchId);
-        return (string?)await command.ExecuteScalarAsync(cancellationToken);
-    }
-
-    private static async Task ConsumeReservedAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        string batchId,
-        string tierId,
-        CancellationToken cancellationToken)
-    {
-        var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            UPDATE batch_prize_state
-            SET reserved_count = reserved_count - 1,
-                consumed_count = consumed_count + 1
-            WHERE batch_id = $batchId AND tier_id = $tierId AND reserved_count > 0;
-            """;
-        command.Parameters.AddWithValue("$batchId", batchId);
-        command.Parameters.AddWithValue("$tierId", tierId);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-            throw new InvalidOperationException("Pending Ticket 的保留狀態不一致。");
     }
 
     private static async Task InsertHistoryAsync(

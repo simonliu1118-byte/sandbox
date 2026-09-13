@@ -84,56 +84,79 @@ public partial class SettingsDialog : Window
             CheckFileExists = true,
             Multiselect = false
         };
-        if (picker.ShowDialog(this) != true) return;
+        if (picker.ShowDialog(this) != true)
+            return;
+
         try
         {
             var ticketId = await _admin.ImportScratchPackAsync(picker.FileName);
             await ReloadAsync(ticketId, expand: true);
             MessageBox.Show(this, "彩券包匯入完成。請選擇「發行新一批」建立第 1 批後即可遊玩。", "ScratchPack", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "匯入失敗", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "匯入失敗", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void NewBatch_OnClick(object sender, RoutedEventArgs e)
     {
         var ticket = GetSelectedTicket();
-        if (ticket is null) return;
+        if (ticket is null)
+            return;
+
         var text = ticket.ActiveBatchNumber is null
             ? $"確定發行「{ticket.DisplayName}」第 1 批？"
             : $"確定結束「{ticket.DisplayName}」第 {ticket.ActiveBatchNumber} 批並發行下一批？\n\n舊批次之後不能再刮。";
-        if (MessageBox.Show(this, text, "發行新一批", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        if (MessageBox.Show(this, text, "發行新一批", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
         try
         {
             var number = await _admin.StartNextBatchAsync(ticket.Id);
             await ReloadAsync(ticket.Id, expand: true);
             MessageBox.Show(this, $"第 {number} 批已開始。", "發行完成", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "無法發行新一批", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "無法發行新一批", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void ToggleEnabled_OnClick(object sender, RoutedEventArgs e)
     {
         var ticket = GetSelectedTicket();
-        if (ticket is null) return;
+        if (ticket is null)
+            return;
+
         try
         {
             await _admin.SetEnabledAsync(ticket.Id, !ticket.Enabled);
             await ReloadAsync(ticket.Id, expand: true);
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "彩券管理", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "彩券管理", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void Delete_OnClick(object sender, RoutedEventArgs e)
     {
         var ticket = GetSelectedTicket();
-        if (ticket is null) return;
-        if (MessageBox.Show(this, $"確定刪除尚未發行的「{ticket.DisplayName}」？", "刪除彩券", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        if (ticket is null)
+            return;
+        if (MessageBox.Show(this, $"確定刪除尚未發行的「{ticket.DisplayName}」？", "刪除彩券", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
         try
         {
             await _admin.DeleteNeverIssuedAsync(ticket.Id);
             await ReloadAsync();
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "無法刪除", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "無法刪除", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void Backup_OnClick(object sender, RoutedEventArgs e)
@@ -143,7 +166,10 @@ public partial class SettingsDialog : Window
             var path = await _backup.CreateBackupAsync();
             MessageBox.Show(this, $"備份完成：\n{path}", "資料備份", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "備份失敗", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "備份失敗", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void Close_OnClick(object sender, RoutedEventArgs e) => Close();
@@ -152,7 +178,9 @@ public partial class SettingsDialog : Window
     {
         private bool _isExpanded;
         private TicketAdminDetail? _detail;
+
         public TicketRowViewModel(TicketAdminItem ticket) => Ticket = ticket;
+
         public TicketAdminItem Ticket { get; }
         public string PriceText => $"${Ticket.Price:N0}";
         public string WinRateText => Ticket.PublishedWinRate.ToString("P2");
@@ -160,35 +188,45 @@ public partial class SettingsDialog : Window
         public string IssueSizeText => Detail is null ? "—" : $"{Detail.IssueSize:N0} 張";
         public string TicketsPerBookText => Detail is null ? "—" : $"{Detail.TicketsPerBook:N0} 張";
         public string BookCountText => Detail is null ? "—" : $"{Detail.BookCount:N0} 本";
-        public string AvailableText => Detail is null ? "—" : $"{Detail.AvailableCount:N0} 張";
-        public string ReservedConsumedText => Detail is null ? "—" : $"{Detail.ReservedCount:N0} / {Detail.ConsumedCount:N0}";
+        public string RemainingText => Detail is null ? "—" : $"{Detail.RemainingCount:N0} 張";
         public IReadOnlyList<PrizeRowViewModel> PrizeRows => Detail?.PrizeRows.Select(row => new PrizeRowViewModel(row)).ToList() ?? [];
 
         public bool IsExpanded
         {
             get => _isExpanded;
-            set { if (_isExpanded == value) return; _isExpanded = value; OnPropertyChanged(); OnPropertyChanged(nameof(ExpandGlyph)); }
+            set
+            {
+                if (_isExpanded == value) return;
+                _isExpanded = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ExpandGlyph));
+            }
         }
+
         public TicketAdminDetail? Detail
         {
             get => _detail;
             set
             {
                 _detail = value;
-                OnPropertyChanged(); OnPropertyChanged(nameof(IssueSizeText)); OnPropertyChanged(nameof(TicketsPerBookText));
-                OnPropertyChanged(nameof(BookCountText)); OnPropertyChanged(nameof(AvailableText)); OnPropertyChanged(nameof(ReservedConsumedText)); OnPropertyChanged(nameof(PrizeRows));
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IssueSizeText));
+                OnPropertyChanged(nameof(TicketsPerBookText));
+                OnPropertyChanged(nameof(BookCountText));
+                OnPropertyChanged(nameof(RemainingText));
+                OnPropertyChanged(nameof(PrizeRows));
             }
         }
+
         public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
     private sealed class PrizeRowViewModel(TicketPrizePoolRow row)
     {
         public string AmountText => $"${row.Amount:N0}";
         public string InitialText => row.InitialCount.ToString("N0");
-        public string AvailableText => row.AvailableCount.ToString("N0");
-        public string ReservedText => row.ReservedCount.ToString("N0");
-        public string ConsumedText => row.ConsumedCount.ToString("N0");
+        public string RemainingText => row.RemainingCount.ToString("N0");
     }
 }

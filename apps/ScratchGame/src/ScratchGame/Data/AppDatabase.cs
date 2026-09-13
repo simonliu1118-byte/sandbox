@@ -24,8 +24,11 @@ public sealed class AppDatabase
 
         var existedBeforeOpen = File.Exists(DatabasePath) && new FileInfo(DatabasePath).Length > 0;
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var previousSchemaVersion = existedBeforeOpen
+            ? await GetSchemaVersionAsync(connection, cancellationToken)
+            : 0;
 
-        if (existedBeforeOpen && !await TableExistsAsync(connection, "ticket_metadata", cancellationToken))
+        if (existedBeforeOpen && previousSchemaVersion < 3)
             await CreateMigrationBackupAsync(connection, cancellationToken);
 
         var command = connection.CreateCommand();
@@ -155,8 +158,15 @@ public sealed class AppDatabase
             CREATE INDEX IF NOT EXISTS ix_history_user_time
                 ON ticket_history(user_id, completed_utc DESC);
 
+            -- Schema 3 起不再使用 Reservation。舊 Pending 的 reserved 數量視為已經發行，
+            -- 轉入 consumed_count；之後 reserved_count 永遠維持 0，只為舊資料庫相容而保留欄位。
+            UPDATE batch_prize_state
+            SET consumed_count = consumed_count + reserved_count,
+                reserved_count = 0
+            WHERE reserved_count > 0;
+
             INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '2')
+            VALUES ('schema_version', '3')
             ON CONFLICT(key) DO UPDATE SET value = excluded.value;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -176,6 +186,19 @@ public sealed class AppDatabase
             """;
         await pragma.ExecuteNonQueryAsync(cancellationToken);
         return connection;
+    }
+
+    private static async Task<int> GetSchemaVersionAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "app_meta", cancellationToken))
+            return 0;
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM app_meta WHERE key = 'schema_version' LIMIT 1;";
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is not null && int.TryParse(Convert.ToString(value), out var version) ? version : 0;
     }
 
     private static async Task<bool> TableExistsAsync(

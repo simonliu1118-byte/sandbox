@@ -7,6 +7,7 @@ namespace ScratchGame.Views;
 
 public partial class NewTicketDialog : Window
 {
+    private static readonly long[] SupportedPriceFilters = [100, 200, 300, 500, 1000, 2000, 5000];
     private readonly IReadOnlyList<TicketDefinition> _tickets;
 
     public TicketDefinition? SelectedTicket { get; private set; }
@@ -17,34 +18,32 @@ public partial class NewTicketDialog : Window
         UiAssetLoader.TrySetImage(DialogBackgroundImage, UiAssetLoader.UiPath("dialog_bg.png"));
         _tickets = tickets;
 
-        PriceComboBox.ItemsSource = _tickets
-            .Select(t => t.Price)
-            .Distinct()
-            .OrderBy(price => price)
-            .Select(price => $"${price:N0}")
-            .ToList();
+        var options = new List<PriceFilterOption>
+        {
+            new(null, "全部", _tickets.Count > 0)
+        };
+        options.AddRange(SupportedPriceFilters.Select(price =>
+            new PriceFilterOption(price, $"${price:N0}", _tickets.Any(ticket => ticket.Price == price))));
 
-        if (PriceComboBox.Items.Count > 0)
-            PriceComboBox.SelectedIndex = 0;
+        PriceFilterListBox.ItemsSource = options;
+        PriceFilterListBox.SelectedIndex = 0;
     }
 
-    private void PriceComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void PriceFilterListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PriceComboBox.SelectedIndex < 0)
+        if (PriceFilterListBox.SelectedItem is not PriceFilterOption option)
             return;
 
-        var price = _tickets
-            .Select(t => t.Price)
-            .Distinct()
-            .OrderBy(value => value)
-            .ElementAt(PriceComboBox.SelectedIndex);
-
         var filtered = _tickets
-            .Where(ticket => ticket.Price == price)
-            .OrderBy(ticket => ticket.DisplayName)
+            .Where(ticket => option.Price is null || ticket.Price == option.Price.Value)
+            .OrderBy(ticket => ticket.Price)
+            .ThenBy(ticket => ticket.DisplayName)
             .Select(ticket => new TicketChoice(ticket, ResolveThumbnail(ticket)))
             .ToList();
+
         TicketListBox.ItemsSource = filtered;
+        EmptyTicketText.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TicketListBox.Visibility = filtered.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (filtered.Count > 0)
             TicketListBox.SelectedIndex = 0;
     }
@@ -60,7 +59,7 @@ public partial class NewTicketDialog : Window
     {
         if (TicketListBox.SelectedItem is not TicketChoice choice)
         {
-            MessageBox.Show(this, "請先選擇一張彩券。", "新的一張", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "請先選擇一張彩券。", "挑選彩券", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -73,5 +72,6 @@ public partial class NewTicketDialog : Window
         DialogResult = false;
     }
 
+    private sealed record PriceFilterOption(long? Price, string Label, bool HasTickets);
     private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath);
 }

@@ -27,20 +27,10 @@ public sealed class SeedDataService(AppDatabase database)
 
         await EnsureLegacyTicketAsync(connection, transaction, cancellationToken);
         await EnsureStarLine500TicketAsync(connection, transaction, cancellationToken);
+        await EnsureStarLinePrizeTestTicketAsync(connection, transaction, cancellationToken);
         await EnsureTicketMetadataAsync(connection, transaction, cancellationToken);
 
-        var retireLegacy = connection.CreateCommand();
-        retireLegacy.Transaction = transaction;
-        retireLegacy.CommandText = """
-            UPDATE ticket_definitions
-            SET enabled = 0
-            WHERE id = 'builtin-three-line-100'
-              AND NOT EXISTS (
-                  SELECT 1 FROM pending_tickets
-                  WHERE ticket_id = 'builtin-three-line-100'
-              );
-            """;
-        await retireLegacy.ExecuteNonQueryAsync(cancellationToken);
+        // 啟用／停用完全尊重使用者在設定頁的選擇；Seed 不再每次啟動強制停用舊票。
 
         transaction.Commit();
     }
@@ -51,11 +41,7 @@ public sealed class SeedDataService(AppDatabase database)
         CancellationToken cancellationToken)
     {
         const string ticketId = "builtin-three-line-100";
-        var exists = connection.CreateCommand();
-        exists.Transaction = transaction;
-        exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
-        exists.Parameters.AddWithValue("$id", ticketId);
-        if (await exists.ExecuteScalarAsync(cancellationToken) is not null)
+        if (await TicketExistsAsync(connection, transaction, ticketId, cancellationToken))
             return;
 
         const long issueSize = 10_000;
@@ -84,11 +70,7 @@ public sealed class SeedDataService(AppDatabase database)
         CancellationToken cancellationToken)
     {
         const string ticketId = "builtin-star-line-500-v1";
-        var exists = connection.CreateCommand();
-        exists.Transaction = transaction;
-        exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
-        exists.Parameters.AddWithValue("$id", ticketId);
-        if (await exists.ExecuteScalarAsync(cancellationToken) is not null)
+        if (await TicketExistsAsync(connection, transaction, ticketId, cancellationToken))
             return;
 
         const long issueSize = 10_000;
@@ -107,6 +89,66 @@ public sealed class SeedDataService(AppDatabase database)
             ticketId, "三星連線", 500, "1", issueSize, 1.0,
             styleNumber: 1, ticketsPerBook: 100, priceDisplay: 1,
             tiers, cancellationToken);
+    }
+
+    private static async Task EnsureStarLinePrizeTestTicketAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        const string ticketId = "builtin-star-line-500-prize-test";
+        if (await TicketExistsAsync(connection, transaction, ticketId, cancellationToken))
+            return;
+
+        // 開發測試票：每個合法獎項各 1 張，方便一次測到二獎／頭獎效果。
+        var tiers = new (string Id, long Amount, long Count, int Order)[]
+        {
+            ("line8", 100_000, 1, 0),
+            ("line6", 10_000, 1, 1),
+            ("line5", 5_000, 1, 2),
+            ("line4", 2_500, 1, 3),
+            ("line3", 1_000, 1, 4),
+            ("line2", 500, 1, 5),
+            ("line1", 100, 1, 6)
+        };
+        var styleNumber = await GetNextFreeStyleNumberAsync(connection, transaction, cancellationToken);
+        await InsertTicketAsync(
+            connection, transaction,
+            ticketId, "三星連線（獎項測試）", 500, "1", 7, 1.0,
+            styleNumber, ticketsPerBook: 7, priceDisplay: 1,
+            tiers, cancellationToken);
+    }
+
+    private static async Task<bool> TicketExistsAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        string ticketId,
+        CancellationToken cancellationToken)
+    {
+        var exists = connection.CreateCommand();
+        exists.Transaction = transaction;
+        exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
+        exists.Parameters.AddWithValue("$id", ticketId);
+        return await exists.ExecuteScalarAsync(cancellationToken) is not null;
+    }
+
+    private static async Task<long> GetNextFreeStyleNumberAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var used = new HashSet<long>();
+        var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT style_number FROM ticket_metadata WHERE style_number > 0 ORDER BY style_number;";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            used.Add(reader.GetInt64(0));
+
+        long candidate = 1;
+        while (used.Contains(candidate))
+            candidate++;
+        return candidate;
     }
 
     private static async Task EnsureTicketMetadataAsync(

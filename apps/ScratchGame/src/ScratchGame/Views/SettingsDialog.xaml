@@ -2,28 +2,70 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="設定"
-        Width="980" Height="760"
+        Width="1000" Height="780"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         AllowsTransparency="True"
         ShowInTaskbar="False"
         Background="Transparent"
-        Loaded="Window_OnLoaded">
+        Loaded="Window_OnLoaded"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="11"/>
+            <Setter Property="Margin" Value="3,2,1,2"/>
+            <Setter Property="Background" Value="#2B1510"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Width="11" Background="{TemplateBinding Background}">
+                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Focusable="False" Opacity="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#A66A32" BorderBrush="#D7A45B" BorderThickness="1" CornerRadius="5"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Focusable="False" Opacity="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="TicketRowButton" TargetType="Button">
             <Setter Property="Background" Value="#3A211B"/>
             <Setter Property="Foreground" Value="#F7E4C6"/>
             <Setter Property="BorderBrush" Value="#654034"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Padding" Value="12,11"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -39,26 +81,42 @@
     <Border CornerRadius="22" BorderBrush="#B87B40" BorderThickness="1" Background="#2A120E" SnapsToDevicePixels="True">
         <Grid>
             <Image x:Name="DialogBackgroundImage" Stretch="Fill" Opacity="0.92"/>
-            <Grid Margin="28">
+
+            <Grid Margin="40,34,36,28">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="64"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel>
+                <StackPanel Margin="0,0,0,0">
                     <TextBlock Text="設定" FontSize="30" FontWeight="Bold" Foreground="#FFE6A6"/>
-                    <TextBlock Text="彩券、批次與資料管理" Margin="0,4,0,0" Foreground="#D8B392" FontSize="13"/>
+                    <TextBlock Text="彩券、批次與資料管理" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
                 </StackPanel>
 
-                <Border Grid.Row="1" Margin="0,20,0,18" Background="#A72A1713" BorderBrush="#73534235" BorderThickness="1" CornerRadius="14" Padding="10">
+                <Border Grid.Row="1"
+                        Margin="0,22,0,16"
+                        Background="#A72A1713"
+                        BorderBrush="#73534235"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        Padding="10">
                     <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <Border Background="#5A251D" BorderBrush="#714536" BorderThickness="0,0,0,1" Padding="12,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Background="#5A251D" BorderBrush="#714536" BorderThickness="0,0,0,1" Padding="12,9" Margin="0,0,14,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2.2*"/><ColumnDefinition Width="0.8*"/><ColumnDefinition Width="0.9*"/>
-                                    <ColumnDefinition Width="1.3*"/><ColumnDefinition Width="0.9*"/><ColumnDefinition Width="0.9*"/><ColumnDefinition Width="28"/>
+                                    <ColumnDefinition Width="2.2*"/>
+                                    <ColumnDefinition Width="0.8*"/>
+                                    <ColumnDefinition Width="0.9*"/>
+                                    <ColumnDefinition Width="1.3*"/>
+                                    <ColumnDefinition Width="0.9*"/>
+                                    <ColumnDefinition Width="0.9*"/>
+                                    <ColumnDefinition Width="28"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="彩券" Foreground="#FFE2A1" FontWeight="SemiBold"/>
                                 <TextBlock Grid.Column="1" Text="面額" Foreground="#FFE2A1" FontWeight="SemiBold"/>
@@ -69,16 +127,24 @@
                             </Grid>
                         </Border>
 
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl x:Name="TicketItems">
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Visible"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      PanningMode="VerticalOnly">
+                            <ItemsControl x:Name="TicketItems" Margin="0,0,2,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel>
                                             <Button Style="{StaticResource TicketRowButton}" Tag="{Binding}" Click="TicketRow_OnClick">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="2.2*"/><ColumnDefinition Width="0.8*"/><ColumnDefinition Width="0.9*"/>
-                                                        <ColumnDefinition Width="1.3*"/><ColumnDefinition Width="0.9*"/><ColumnDefinition Width="0.9*"/><ColumnDefinition Width="28"/>
+                                                        <ColumnDefinition Width="2.2*"/>
+                                                        <ColumnDefinition Width="0.8*"/>
+                                                        <ColumnDefinition Width="0.9*"/>
+                                                        <ColumnDefinition Width="1.3*"/>
+                                                        <ColumnDefinition Width="0.9*"/>
+                                                        <ColumnDefinition Width="0.9*"/>
+                                                        <ColumnDefinition Width="28"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding Ticket.DisplayName}" FontSize="14" VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontSize="14" VerticalAlignment="Center"/>
@@ -90,34 +156,60 @@
                                                 </Grid>
                                             </Button>
 
-                                            <Border Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}" Background="#24100C" BorderBrush="#74503B" BorderThickness="0,0,0,1" Padding="18,15,18,18">
+                                            <Border Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}"
+                                                    Background="#24100C"
+                                                    BorderBrush="#74503B"
+                                                    BorderThickness="0,0,0,1"
+                                                    Padding="20,16,20,20">
                                                 <StackPanel>
-                                                    <Grid Margin="0,0,0,14">
+                                                    <Grid Margin="0,0,0,16">
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <StackPanel><TextBlock Text="總發行" Foreground="#BB9478" FontSize="11"/><TextBlock Text="{Binding IssueSizeText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/></StackPanel>
-                                                        <StackPanel Grid.Column="1"><TextBlock Text="每本" Foreground="#BB9478" FontSize="11"/><TextBlock Text="{Binding TicketsPerBookText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/></StackPanel>
-                                                        <StackPanel Grid.Column="2"><TextBlock Text="本數" Foreground="#BB9478" FontSize="11"/><TextBlock Text="{Binding BookCountText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/></StackPanel>
-                                                        <StackPanel Grid.Column="3"><TextBlock Text="剩餘可抽" Foreground="#BB9478" FontSize="11"/><TextBlock Text="{Binding AvailableText}" Foreground="#FFE29A" FontSize="17" FontWeight="SemiBold"/></StackPanel>
-                                                        <StackPanel Grid.Column="4"><TextBlock Text="保留 / 已完成" Foreground="#BB9478" FontSize="11"/><TextBlock Text="{Binding ReservedConsumedText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/></StackPanel>
+                                                        <StackPanel>
+                                                            <TextBlock Text="總發行" Foreground="#BB9478" FontSize="11"/>
+                                                            <TextBlock Text="{Binding IssueSizeText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="每本" Foreground="#BB9478" FontSize="11"/>
+                                                            <TextBlock Text="{Binding TicketsPerBookText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="總本數" Foreground="#BB9478" FontSize="11"/>
+                                                            <TextBlock Text="{Binding BookCountText}" Foreground="#FFF0CF" FontSize="17" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="3">
+                                                            <TextBlock Text="剩餘張數" Foreground="#BB9478" FontSize="11"/>
+                                                            <TextBlock Text="{Binding RemainingText}" Foreground="#FFE29A" FontSize="17" FontWeight="SemiBold"/>
+                                                        </StackPanel>
                                                     </Grid>
 
                                                     <TextBlock Text="獎池分配" FontSize="14" FontWeight="SemiBold" Foreground="#FFE1A0" Margin="0,0,0,7"/>
                                                     <Grid Background="#4A261D">
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                        <TextBlock Text="獎金" Padding="8,5" Foreground="#E8C493"/><TextBlock Grid.Column="1" Text="原始張數" Padding="8,5" Foreground="#E8C493"/>
-                                                        <TextBlock Grid.Column="2" Text="剩餘" Padding="8,5" Foreground="#E8C493"/><TextBlock Grid.Column="3" Text="保留中" Padding="8,5" Foreground="#E8C493"/>
-                                                        <TextBlock Grid.Column="4" Text="已完成" Padding="8,5" Foreground="#E8C493"/>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="1.2*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="獎金" Padding="10,6" Foreground="#E8C493"/>
+                                                        <TextBlock Grid.Column="1" Text="發行張數" Padding="10,6" Foreground="#E8C493"/>
+                                                        <TextBlock Grid.Column="2" Text="剩餘" Padding="10,6" Foreground="#E8C493"/>
                                                     </Grid>
                                                     <ItemsControl ItemsSource="{Binding PrizeRows}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Grid Background="#321913">
-                                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                                    <TextBlock Text="{Binding AmountText}" Padding="8,4" Foreground="#FFF0D4"/><TextBlock Grid.Column="1" Text="{Binding InitialText}" Padding="8,4" Foreground="#E9D4BC"/>
-                                                                    <TextBlock Grid.Column="2" Text="{Binding AvailableText}" Padding="8,4" Foreground="#E9D4BC"/><TextBlock Grid.Column="3" Text="{Binding ReservedText}" Padding="8,4" Foreground="#E9D4BC"/>
-                                                                    <TextBlock Grid.Column="4" Text="{Binding ConsumedText}" Padding="8,4" Foreground="#E9D4BC"/>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="1.2*"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Text="{Binding AmountText}" Padding="10,5" Foreground="#FFF0D4"/>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding InitialText}" Padding="10,5" Foreground="#E9D4BC"/>
+                                                                    <TextBlock Grid.Column="2" Text="{Binding RemainingText}" Padding="10,5" Foreground="#E9D4BC"/>
                                                                 </Grid>
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
@@ -132,14 +224,18 @@
                     </Grid>
                 </Border>
 
-                <Grid Grid.Row="2">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Grid Grid.Row="2" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                         <Button Content="匯入 ScratchPack" Style="{StaticResource DialogSecondaryButton}" Click="Import_OnClick"/>
                         <Button Content="發行新一批" Style="{StaticResource DialogButton}" Click="NewBatch_OnClick"/>
                         <Button Content="啟用 / 停用" Style="{StaticResource DialogSecondaryButton}" Click="ToggleEnabled_OnClick"/>
                         <Button Content="刪除未發行" Style="{StaticResource DialogSecondaryButton}" Click="Delete_OnClick"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button Content="立即備份" Style="{StaticResource DialogSecondaryButton}" Click="Backup_OnClick"/>
                         <Button Content="關閉" Width="100" Style="{StaticResource DialogSecondaryButton}" Click="Close_OnClick"/>
                     </StackPanel>

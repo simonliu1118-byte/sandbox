@@ -27,18 +27,14 @@ public sealed record TicketAdminItem(
 public sealed record TicketPrizePoolRow(
     long Amount,
     long InitialCount,
-    long AvailableCount,
-    long ReservedCount,
-    long ConsumedCount);
+    long RemainingCount);
 
 public sealed record TicketAdminDetail(
     long IssueSize,
     long TicketsPerBook,
     long BookCount,
     int? ActiveBatchNumber,
-    long AvailableCount,
-    long ReservedCount,
-    long ConsumedCount,
+    long RemainingCount,
     IReadOnlyList<TicketPrizePoolRow> PrizeRows);
 
 public sealed class TicketAdminService
@@ -150,16 +146,14 @@ public sealed class TicketAdminService
             initial.Parameters.AddWithValue("$ticketId", ticketId);
             await using var reader = await initial.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
-                rows.Add(new TicketPrizePoolRow(reader.GetInt64(0), reader.GetInt64(1), 0, 0, 0));
+                rows.Add(new TicketPrizePoolRow(reader.GetInt64(0), reader.GetInt64(1), 0));
         }
         else
         {
             var pool = connection.CreateCommand();
             pool.CommandText = """
                 SELECT p.amount, p.initial_count,
-                       COALESCE(s.available_count, 0),
-                       COALESCE(s.reserved_count, 0),
-                       COALESCE(s.consumed_count, 0)
+                       COALESCE(s.available_count, 0)
                 FROM prize_tiers p
                 LEFT JOIN batch_prize_state s
                   ON s.batch_id = $batchId AND s.tier_id = p.tier_id
@@ -172,8 +166,9 @@ public sealed class TicketAdminService
             while (await reader.ReadAsync(cancellationToken))
             {
                 rows.Add(new TicketPrizePoolRow(
-                    reader.GetInt64(0), reader.GetInt64(1),
-                    reader.GetInt64(2), reader.GetInt64(3), reader.GetInt64(4)));
+                    reader.GetInt64(0),
+                    reader.GetInt64(1),
+                    reader.GetInt64(2)));
             }
         }
 
@@ -182,9 +177,7 @@ public sealed class TicketAdminService
             ticketsPerBook,
             issueSize / ticketsPerBook,
             batchNumber,
-            rows.Sum(row => row.AvailableCount),
-            rows.Sum(row => row.ReservedCount),
-            rows.Sum(row => row.ConsumedCount),
+            rows.Sum(row => row.RemainingCount),
             rows);
     }
 
