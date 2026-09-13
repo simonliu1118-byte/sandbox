@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate governance structure and common-rules sync
+      - name: Validate governance structure and personal-repo isolation
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -85,7 +85,34 @@ jobs:
                   if not re.fullmatch(r'\d+', build):
                       print(f'ERROR: invalid BUILD in {project.as_posix()}: {build!r}')
                       sys.exit(1)
-          print('Local governance structure OK')
+
+          prohibited = [
+              '志遠', 'Chihyuan', 'Chih-yuan', 'Zhiyuan', 'Chihyuan Co.',
+              'CYapps', 'CYapps_pvt', 'CYAccounting', 'CYEnvelope', 'CYInvoice',
+              'CYWatermark', 'SMARTCOPIConverter', 'TriINVCalc'
+          ]
+          text_suffixes = {
+              '.md','.txt','.yml','.yaml','.json','.cs','.xaml','.xml','.ps1','.py',
+              '.go','.mod','.sum','.toml','.ini','.cfg','.config','.props','.targets',
+              '.csproj','.sln','.sh'
+          }
+          extensionless = {
+              'COMMON_RULES_VERSION','GOVERNANCE_VERSION','VERSION','BUILD','LICENSE'
+          }
+          for path in pathlib.Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              if path.suffix.lower() not in text_suffixes and path.name not in extensionless:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              for needle in prohibited:
+                  if needle in text:
+                      print(f'ERROR: company-specific identifier {needle!r} found in personal sandbox file: {path.as_posix()}')
+                      sys.exit(1)
+          print('Local governance structure and personal-repo isolation OK')
           PY
 
           tmp="$(mktemp -d)"
