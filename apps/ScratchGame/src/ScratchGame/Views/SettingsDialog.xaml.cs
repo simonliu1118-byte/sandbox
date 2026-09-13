@@ -71,6 +71,7 @@ public partial class SettingsDialog : Window
 
     private async void ToggleEnabledRow_OnClick(object sender, RoutedEventArgs e)
     {
+        e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
@@ -87,6 +88,7 @@ public partial class SettingsDialog : Window
 
     private async void StartBatchRow_OnClick(object sender, RoutedEventArgs e)
     {
+        e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
@@ -121,6 +123,7 @@ public partial class SettingsDialog : Window
 
     private async void DeleteRow_OnClick(object sender, RoutedEventArgs e)
     {
+        e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
@@ -199,6 +202,7 @@ public partial class SettingsDialog : Window
         public string TicketsPerBookText => Detail is null ? "—" : $"{Detail.TicketsPerBook:N0} 張";
         public string BookCountText => Detail is null ? "—" : $"{Detail.BookCount:N0} 本";
         public string RemainingText => Detail is null ? "—" : $"{Detail.RemainingCount:N0} 張";
+        public bool CanDelete => !Ticket.Locked;
         public IReadOnlyList<PrizeRowViewModel> PrizeRows => Detail?.PrizeRows.Select(row => new PrizeRowViewModel(row)).ToList() ?? [];
 
         public bool IsExpanded
