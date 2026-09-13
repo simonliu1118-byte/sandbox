@@ -10,7 +10,7 @@
             <Setter Property="FontSize" Value="17"/>
             <Setter Property="Padding" Value="24,12"/>
             <Setter Property="Margin" Value="7,0"/>
-            <Setter Property="MinHeight" Value="52"/>
+            <Setter Property="MinHeight" Value="54"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Template">
@@ -20,14 +20,16 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="17"
+                                CornerRadius="18"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.38"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.90"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.91"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.76"/>
@@ -42,27 +44,36 @@
         </Style>
 
         <Style x:Key="PrimaryActionButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">
-            <Setter Property="Background" Value="#A61F25"/>
-            <Setter Property="BorderBrush" Value="#E3A33A"/>
+            <Setter Property="Background" Value="#B51E24"/>
+            <Setter Property="BorderBrush" Value="#F2A93E"/>
         </Style>
-
         <Style x:Key="RevealActionButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">
-            <Setter Property="Background" Value="#D59122"/>
-            <Setter Property="BorderBrush" Value="#FFE09A"/>
-            <Setter Property="Foreground" Value="#3C2107"/>
+            <Setter Property="Background" Value="#E29B20"/>
+            <Setter Property="BorderBrush" Value="#FFE49D"/>
+            <Setter Property="Foreground" Value="#3A2109"/>
         </Style>
-
         <Style x:Key="DangerActionButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">
-            <Setter Property="Background" Value="#555158"/>
-            <Setter Property="BorderBrush" Value="#8E878F"/>
+            <Setter Property="Background" Value="#514C53"/>
+            <Setter Property="BorderBrush" Value="#938C95"/>
         </Style>
-
         <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="MinHeight" Value="40"/>
-            <Setter Property="Background" Value="#5B171A"/>
-            <Setter Property="BorderBrush" Value="#B95A4C"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Background" Value="#871A1919"/>
+            <Setter Property="BorderBrush" Value="#C77944"/>
+        </Style>
+        <Style x:Key="DialogButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="Background" Value="#8F1C21"/>
+            <Setter Property="BorderBrush" Value="#D79B46"/>
+        </Style>
+        <Style x:Key="DialogSecondaryButton" TargetType="Button" BasedOn="{StaticResource DialogButton}">
+            <Setter Property="Background" Value="#4F3832"/>
+            <Setter Property="BorderBrush" Value="#806056"/>
         </Style>
     </Application.Resources>
 </Application>

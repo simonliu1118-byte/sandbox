@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -22,10 +23,13 @@ public partial class MainWindow : Window
 
     private static readonly (double X, double Y)[] ThreeLinePositions =
     {
-        (233, 184), (395, 184), (557, 184),
-        (233, 294), (395, 294), (557, 294),
-        (233, 404), (395, 404), (557, 404)
+        (274, 216), (464, 216), (654, 216),
+        (274, 345), (464, 345), (654, 345),
+        (274, 474), (464, 474), (654, 474)
     };
+
+    private const double ThreeLineCellWidth = 180;
+    private const double ThreeLineCellHeight = 122;
 
     private readonly AppDatabase _database = new();
     private readonly CatalogService _catalog;
@@ -39,6 +43,8 @@ public partial class MainWindow : Window
     private PendingTicket? _currentPending;
     private TicketDefinition? _currentDefinition;
     private bool _settlementInProgress;
+    private bool _isBoardScratching;
+    private Point _lastBoardPoint;
 
     public MainWindow()
     {
@@ -47,6 +53,10 @@ public partial class MainWindow : Window
         _prizePool = new PrizePoolService(_database);
         _seed = new SeedDataService(_database);
         _backup = new BackupService(_database);
+
+        UiAssetLoader.TrySetImage(TopBarBackgroundImage, UiAssetLoader.UiPath("topbar_bg.png"));
+        UiAssetLoader.TrySetImage(StageBackgroundImage, UiAssetLoader.UiPath("stage_bg.png"));
+        UiAssetLoader.TrySetImage(FooterBackgroundImage, UiAssetLoader.UiPath("footer_bg.png"));
 
         SourceInitialized += MainWindow_OnSourceInitialized;
         StateChanged += MainWindow_OnStateChanged;
@@ -189,6 +199,81 @@ public partial class MainWindow : Window
             region.RevealAll();
     }
 
+    private void TicketOverlayCanvas_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_currentPending is null || _scratchRegions.Count == 0)
+            return;
+
+        _isBoardScratching = true;
+        _lastBoardPoint = e.GetPosition(TicketOverlayCanvas);
+        Mouse.Capture(TicketOverlayCanvas, CaptureMode.Element);
+        ScratchBoardSegment(_lastBoardPoint, _lastBoardPoint);
+        e.Handled = true;
+    }
+
+    private void TicketOverlayCanvas_OnPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isBoardScratching || e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        var point = e.GetPosition(TicketOverlayCanvas);
+        ScratchBoardSegment(_lastBoardPoint, point);
+        _lastBoardPoint = point;
+        e.Handled = true;
+    }
+
+    private void TicketOverlayCanvas_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isBoardScratching)
+            return;
+
+        var point = e.GetPosition(TicketOverlayCanvas);
+        ScratchBoardSegment(_lastBoardPoint, point);
+        _isBoardScratching = false;
+        Mouse.Capture(null);
+        foreach (var region in _scratchRegions)
+            region.CheckCompletion();
+        e.Handled = true;
+    }
+
+    private void ScratchBoardSegment(Point start, Point end)
+    {
+        var dx = end.X - start.X;
+        var dy = end.Y - start.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+        const double stepSize = 5.0;
+        var steps = Math.Max(1, (int)Math.Ceiling(distance / stepSize));
+        var pointsByRegion = new Dictionary<ScratchSurface, List<Point>>();
+
+        for (var i = 0; i <= steps; i++)
+        {
+            var t = (double)i / steps;
+            var point = new Point(start.X + dx * t, start.Y + dy * t);
+
+            foreach (var region in _scratchRegions)
+            {
+                var left = Canvas.GetLeft(region);
+                var top = Canvas.GetTop(region);
+                if (double.IsNaN(left) || double.IsNaN(top))
+                    continue;
+
+                if (point.X < left || point.X > left + region.Width ||
+                    point.Y < top || point.Y > top + region.Height)
+                    continue;
+
+                if (!pointsByRegion.TryGetValue(region, out var localPoints))
+                {
+                    localPoints = new List<Point>();
+                    pointsByRegion[region] = localPoints;
+                }
+                localPoints.Add(new Point(point.X - left, point.Y - top));
+            }
+        }
+
+        foreach (var pair in pointsByRegion)
+            pair.Key.ErasePoints(pair.Value, checkCompletion: true);
+    }
+
     private async void ScratchRegion_OnCompleted(object? sender, EventArgs e)
     {
         if (sender is not ScratchSurface surface || !_completedScratchRegions.Add(surface))
@@ -245,8 +330,6 @@ public partial class MainWindow : Window
         {
             await _prizePool.AbandonAsLossAsync(_currentPending.Id);
             _currentPending = null;
-            foreach (var region in _scratchRegions)
-                region.IsEnabled = false;
             ShowSettlementResult(0, abandoned: true);
             StatusText.Text = "本張已依未中獎完成";
             await RefreshCurrentUserSummaryAsync();
@@ -288,8 +371,8 @@ public partial class MainWindow : Window
         switch (ruleId)
         {
             case "ThreeLine":
-                LoadTicketArtwork("ThreeStar", "ticket.jpg");
-                RenderThreeLine(root);
+                LoadTicketArtwork("ThreeStar", "ticket.png");
+                RenderThreeLine(root, pending);
                 break;
             default:
                 TicketBackgroundImage.Visibility = Visibility.Collapsed;
@@ -299,39 +382,40 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RenderThreeLine(JsonElement root)
+    private void RenderThreeLine(JsonElement root, PendingTicket pending)
     {
         var cells = root.GetProperty("cells").EnumerateArray()
             .Select(element => element.GetString() ?? string.Empty)
             .ToArray();
-        var maskPath = GetTicketAssetPath("ThreeStar", "silver-mask.jpg");
+        var maskPath = GetTicketAssetPath("ThreeStar", "silver-star.png");
 
         for (var i = 0; i < Math.Min(9, cells.Length); i++)
         {
             var position = ThreeLinePositions[i];
             var symbol = new TextBlock
             {
-                Width = 153,
-                Height = 104,
+                Width = ThreeLineCellWidth,
+                Height = ThreeLineCellHeight,
                 Text = GetDisplaySymbol(cells[i], i),
                 TextAlignment = TextAlignment.Center,
                 FontFamily = new FontFamily("Microsoft JhengHei UI"),
-                FontSize = cells[i] == "★" ? 52 : 45,
+                FontSize = cells[i] == "★" ? 58 : 49,
                 FontWeight = FontWeights.Bold,
                 Foreground = cells[i] == "★"
                     ? new SolidColorBrush(Color.FromRgb(175, 28, 34))
-                    : new SolidColorBrush(Color.FromRgb(98, 58, 27))
+                    : new SolidColorBrush(Color.FromRgb(98, 58, 27)),
+                Padding = new Thickness(0, 26, 0, 0),
+                IsHitTestVisible = false
             };
-            symbol.Padding = new Thickness(0, 20, 0, 0);
             Canvas.SetLeft(symbol, position.X);
             Canvas.SetTop(symbol, position.Y);
             TicketOverlayCanvas.Children.Add(symbol);
 
             var scratch = new ScratchSurface
             {
-                Width = 153,
-                Height = 104,
-                BrushRadius = 17,
+                Width = ThreeLineCellWidth,
+                Height = ThreeLineCellHeight,
+                BrushRadius = 20,
                 CompletionThreshold = 0.78,
                 MaskImagePath = maskPath
             };
@@ -342,6 +426,40 @@ public partial class MainWindow : Window
             _scratchRegions.Add(scratch);
             scratch.ResetMask();
         }
+
+        var serial = new TextBlock
+        {
+            Width = 178,
+            Height = 24,
+            Text = CreateDisplaySerial(pending),
+            TextAlignment = TextAlignment.Center,
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 15,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(83, 32, 25)),
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(serial, 55);
+        Canvas.SetTop(serial, 630);
+        TicketOverlayCanvas.Children.Add(serial);
+    }
+
+    private static string CreateDisplaySerial(PendingTicket pending)
+    {
+        static int ToSixDigits(string id)
+        {
+            unchecked
+            {
+                var hash = 17;
+                foreach (var ch in id)
+                    hash = hash * 31 + ch;
+                return Math.Abs(hash % 1_000_000);
+            }
+        }
+
+        var ticketNumber = ToSixDigits(pending.Id);
+        var batchNumber = Math.Abs(ToSixDigits(pending.BatchId) % 1000);
+        return $"NO. {ticketNumber:000000}-{batchNumber:000}";
     }
 
     private static string GetDisplaySymbol(string raw, int index)
@@ -404,6 +522,10 @@ public partial class MainWindow : Window
 
     private void ClearTicketOverlay()
     {
+        _isBoardScratching = false;
+        if (Mouse.Captured == TicketOverlayCanvas)
+            Mouse.Capture(null);
+
         foreach (var region in _scratchRegions)
             region.Completed -= ScratchRegion_OnCompleted;
         _scratchRegions.Clear();

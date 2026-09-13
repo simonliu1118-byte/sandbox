@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using ScratchGame.Models;
+using ScratchGame.Services;
 
 namespace ScratchGame.Views;
 
@@ -13,6 +14,7 @@ public partial class NewTicketDialog : Window
     public NewTicketDialog(IReadOnlyList<TicketDefinition> tickets)
     {
         InitializeComponent();
+        UiAssetLoader.TrySetImage(DialogBackgroundImage, UiAssetLoader.UiPath("dialog_bg.png"));
         _tickets = tickets;
 
         PriceComboBox.ItemsSource = _tickets
@@ -40,21 +42,29 @@ public partial class NewTicketDialog : Window
         var filtered = _tickets
             .Where(ticket => ticket.Price == price)
             .OrderBy(ticket => ticket.DisplayName)
+            .Select(ticket => new TicketChoice(ticket, ResolveThumbnail(ticket)))
             .ToList();
         TicketListBox.ItemsSource = filtered;
         if (filtered.Count > 0)
             TicketListBox.SelectedIndex = 0;
     }
 
+    private static string? ResolveThumbnail(TicketDefinition ticket)
+    {
+        var folder = ticket.RuleId == "ThreeLine" ? "ThreeStar" : ticket.Id;
+        var path = UiAssetLoader.TicketPath(folder, "thumbnail.png");
+        return File.Exists(path) ? path : null;
+    }
+
     private void Start_OnClick(object sender, RoutedEventArgs e)
     {
-        if (TicketListBox.SelectedItem is not TicketDefinition ticket)
+        if (TicketListBox.SelectedItem is not TicketChoice choice)
         {
             MessageBox.Show(this, "請先選擇一張彩券。", "新的一張", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        SelectedTicket = ticket;
+        SelectedTicket = choice.Ticket;
         DialogResult = true;
     }
 
@@ -62,4 +72,6 @@ public partial class NewTicketDialog : Window
     {
         DialogResult = false;
     }
+
+    private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath);
 }

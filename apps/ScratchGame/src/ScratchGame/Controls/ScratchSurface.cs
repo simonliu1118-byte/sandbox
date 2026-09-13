@@ -14,13 +14,12 @@ public sealed class ScratchSurface : Image
     private int _pixelHeight;
     private int _stride;
     private long _erasedPixels;
-    private bool _isScratching;
     private bool _completionReported;
-    private Point _lastPoint;
 
     public double BrushRadius { get; set; } = 24;
     public double CompletionThreshold { get; set; } = 0.78;
     public string? MaskImagePath { get; set; }
+    public bool IsCompleted => _completionReported;
 
     public event EventHandler? Completed;
 
@@ -28,14 +27,39 @@ public sealed class ScratchSurface : Image
     {
         Stretch = Stretch.Fill;
         Cursor = Cursors.Hand;
+        IsHitTestVisible = false;
         Loaded += (_, _) => EnsureBitmap();
-        MouseLeftButtonDown += OnMouseLeftButtonDown;
-        MouseMove += OnMouseMove;
-        MouseLeftButtonUp += OnMouseLeftButtonUp;
-        LostMouseCapture += (_, _) => _isScratching = false;
     }
 
     public void ResetMask() => EnsureBitmap(force: true);
+
+    public void ErasePoints(IEnumerable<Point> points, bool checkCompletion = true)
+    {
+        EnsureBitmap();
+        if (_bitmap is null || _pixels is null)
+            return;
+
+        var changed = false;
+        foreach (var point in points)
+            changed |= EraseCircle(point);
+
+        if (!changed)
+            return;
+
+        FlushPixels();
+        if (checkCompletion)
+            CheckCompletion();
+    }
+
+    public void CheckCompletion()
+    {
+        if (_completionReported || _pixelWidth <= 0 || _pixelHeight <= 0)
+            return;
+
+        var total = (long)_pixelWidth * _pixelHeight;
+        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
+            ReportCompletionOnce();
+    }
 
     public void RevealAll()
     {
@@ -53,8 +77,8 @@ public sealed class ScratchSurface : Image
 
     private void EnsureBitmap(bool force = false)
     {
-        var width = Math.Max(1, (int)Math.Round(ActualWidth));
-        var height = Math.Max(1, (int)Math.Round(ActualHeight));
+        var width = Math.Max(1, (int)Math.Round(ActualWidth > 0 ? ActualWidth : Width));
+        var height = Math.Max(1, (int)Math.Round(ActualHeight > 0 ? ActualHeight : Height));
         if (!force && _bitmap is not null && width == _pixelWidth && height == _pixelHeight)
             return;
 
@@ -127,55 +151,10 @@ public sealed class ScratchSurface : Image
         return pixels;
     }
 
-    private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        EnsureBitmap();
-        _isScratching = true;
-        _lastPoint = e.GetPosition(this);
-        CaptureMouse();
-        EraseCircle(_lastPoint);
-        FlushAndCheck();
-    }
-
-    private void OnMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_isScratching || e.LeftButton != MouseButtonState.Pressed)
-            return;
-
-        var point = e.GetPosition(this);
-        EraseLine(_lastPoint, point);
-        _lastPoint = point;
-        FlushAndCheck(checkCompletion: false);
-    }
-
-    private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_isScratching)
-            return;
-        _isScratching = false;
-        ReleaseMouseCapture();
-        FlushAndCheck(checkCompletion: true);
-    }
-
-    private void EraseLine(Point start, Point end)
-    {
-        var dx = end.X - start.X;
-        var dy = end.Y - start.Y;
-        var distance = Math.Sqrt(dx * dx + dy * dy);
-        var stepSize = Math.Max(2.0, BrushRadius * 0.35);
-        var steps = Math.Max(1, (int)Math.Ceiling(distance / stepSize));
-
-        for (var i = 1; i <= steps; i++)
-        {
-            var t = (double)i / steps;
-            EraseCircle(new Point(start.X + dx * t, start.Y + dy * t));
-        }
-    }
-
-    private void EraseCircle(Point point)
+    private bool EraseCircle(Point point)
     {
         if (_pixels is null)
-            return;
+            return false;
 
         var radius = Math.Max(1, (int)Math.Round(BrushRadius));
         var centerX = (int)Math.Round(point.X);
@@ -185,6 +164,7 @@ public sealed class ScratchSurface : Image
         var minY = Math.Max(0, centerY - radius);
         var maxY = Math.Min(_pixelHeight - 1, centerY + radius);
         var r2 = radius * radius;
+        var changed = false;
 
         for (var y = minY; y <= maxY; y++)
         {
@@ -201,22 +181,11 @@ public sealed class ScratchSurface : Image
 
                 _pixels[alphaIndex] = 0;
                 _erasedPixels++;
+                changed = true;
             }
         }
-    }
 
-    private void FlushAndCheck(bool checkCompletion = true)
-    {
-        if (_bitmap is null || _pixels is null)
-            return;
-
-        FlushPixels();
-        if (!checkCompletion || _completionReported)
-            return;
-
-        var total = (long)_pixelWidth * _pixelHeight;
-        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
-            ReportCompletionOnce();
+        return changed;
     }
 
     private void FlushPixels()

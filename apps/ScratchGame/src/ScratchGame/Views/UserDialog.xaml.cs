@@ -18,6 +18,7 @@ public partial class UserDialog : Window
         CatalogService catalog)
     {
         InitializeComponent();
+        UiAssetLoader.TrySetImage(DialogBackgroundImage, UiAssetLoader.UiPath("dialog_bg.png"));
         _catalog = catalog;
         _users = new ObservableCollection<UserProfile>(users);
         UserListBox.ItemsSource = _users;
