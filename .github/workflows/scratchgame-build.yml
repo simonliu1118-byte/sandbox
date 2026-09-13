@@ -56,18 +56,29 @@ jobs:
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
-      - name: Publish Windows x64 portable
+      - name: Publish Windows x64 portable single EXE
         run: >-
           dotnet publish 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --self-contained true --no-restore
           /p:PublishSingleFile=true
+          /p:IncludeNativeLibrariesForSelfExtract=true
           /p:EnableCompressionInSingleFile=true
+          /p:DebugType=None
+          /p:DebugSymbols=false
           /p:Version=${{ steps.version.outputs.version }}
           -o 'apps/ScratchGame/dist'
+
+      - name: Verify portable output
+        run: |
+          $files = @(Get-ChildItem 'apps/ScratchGame/dist' -File)
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'ScratchGame.exe') {
+            Write-Error "Expected exactly one portable ScratchGame.exe, found: $($files.Name -join ', ')"
+            exit 1
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ScratchGame-${{ steps.version.outputs.display }}-win-x64
-          path: apps/ScratchGame/dist/**
+          path: apps/ScratchGame/dist/ScratchGame.exe
           retention-days: 14
