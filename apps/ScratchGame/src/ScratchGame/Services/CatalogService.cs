@@ -144,7 +144,13 @@ public sealed class CatalogService(AppDatabase database)
             close.Transaction = transaction;
             close.CommandText = """
                 UPDATE batches
-                SET status = 'Closed', closed_utc = $closedUtc
+                SET status = 'Closed',
+                    closed_utc = $closedUtc,
+                    consumed_count = (
+                        SELECT COALESCE(SUM(consumed_count), 0)
+                        FROM batch_prize_state
+                        WHERE batch_id = $batchId
+                    )
                 WHERE id = $batchId;
                 """;
             close.Parameters.AddWithValue("$closedUtc", DateTimeOffset.UtcNow.ToString("O"));
