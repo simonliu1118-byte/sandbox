@@ -51,7 +51,7 @@ public partial class NewTicketDialog : Window
 
     private static string? ResolveThumbnail(TicketDefinition ticket)
     {
-        var folder = ticket.RuleId == "ThreeLine" ? "ThreeStar" : ticket.Id;
+        var folder = ticket.RuleId is "ThreeLine" or "1" ? "ThreeStar" : ticket.Id;
         var path = UiAssetLoader.TicketPath(folder, "thumbnail.png");
         return File.Exists(path) ? path : null;
     }

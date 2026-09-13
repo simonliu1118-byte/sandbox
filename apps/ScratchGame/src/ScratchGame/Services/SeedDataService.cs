@@ -25,89 +25,167 @@ public sealed class SeedDataService(AppDatabase database)
             await addUser.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        await EnsureLegacyTicketAsync(connection, transaction, cancellationToken);
+        await EnsureStarLine500TicketAsync(connection, transaction, cancellationToken);
+
+        // 舊的 $100 三星連線一旦沒有 Pending Ticket 就退出選票清單；既有歷史與批次資料保留。
+        var retireLegacy = connection.CreateCommand();
+        retireLegacy.Transaction = transaction;
+        retireLegacy.CommandText = """
+            UPDATE ticket_definitions
+            SET enabled = 0
+            WHERE id = 'builtin-three-line-100'
+              AND NOT EXISTS (
+                  SELECT 1 FROM pending_tickets
+                  WHERE ticket_id = 'builtin-three-line-100'
+              );
+            """;
+        await retireLegacy.ExecuteNonQueryAsync(cancellationToken);
+
+        transaction.Commit();
+    }
+
+    private static async Task EnsureLegacyTicketAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
         const string ticketId = "builtin-three-line-100";
         var exists = connection.CreateCommand();
         exists.Transaction = transaction;
         exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
         exists.Parameters.AddWithValue("$id", ticketId);
 
-        if (await exists.ExecuteScalarAsync(cancellationToken) is null)
+        if (await exists.ExecuteScalarAsync(cancellationToken) is not null)
+            return;
+
+        const long issueSize = 10_000;
+        var tiers = new (string Id, long Amount, long Count, int Order)[]
         {
-            const long issueSize = 10_000;
-            var tiers = new (string Id, long Amount, long Count, int Order)[]
-            {
-                ("jackpot", 1_000_000, 1, 0),
-                ("p10000", 10_000, 9, 1),
-                ("p1000", 1_000, 100, 2),
-                ("p500", 500, 400, 3),
-                ("p200", 200, 1_000, 4),
-                ("p100", 100, 2_000, 5),
-                ("lose", 0, 6_490, 6)
-            };
-            var winning = tiers.Where(t => t.Amount > 0).Sum(t => t.Count);
-            var winRate = (double)winning / issueSize;
+            ("jackpot", 1_000_000, 1, 0),
+            ("p10000", 10_000, 9, 1),
+            ("p1000", 1_000, 100, 2),
+            ("p500", 500, 400, 3),
+            ("p200", 200, 1_000, 4),
+            ("p100", 100, 2_000, 5),
+            ("lose", 0, 6_490, 6)
+        };
+        var winning = tiers.Where(t => t.Amount > 0).Sum(t => t.Count);
+        var winRate = (double)winning / issueSize;
+        await InsertTicketAsync(
+            connection, transaction,
+            ticketId, "三星連線", 100, "ThreeLine", issueSize, winRate,
+            tiers, cancellationToken);
+    }
 
-            var addTicket = connection.CreateCommand();
-            addTicket.Transaction = transaction;
-            addTicket.CommandText = """
-                INSERT INTO ticket_definitions(
-                    id, display_name, price, rule_id, issue_size,
-                    published_win_rate, enabled, locked, source_package_id, created_utc)
-                VALUES($id, '三星連線', 100, 'ThreeLine', $issueSize,
-                       $winRate, 1, 1, NULL, $createdUtc);
+    private static async Task EnsureStarLine500TicketAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        const string ticketId = "builtin-star-line-500-v1";
+        var exists = connection.CreateCommand();
+        exists.Transaction = transaction;
+        exists.CommandText = "SELECT 1 FROM ticket_definitions WHERE id = $id LIMIT 1;";
+        exists.Parameters.AddWithValue("$id", ticketId);
+        if (await exists.ExecuteScalarAsync(cancellationToken) is not null)
+            return;
+
+        const long issueSize = 10_000;
+        // GameType 1 / 3x3：1、2、3、4、5、6、8 線；7 線在 3x3 不存在。
+        // 本票中獎率 100%；1 線仍低於票價，2 線打平，3 線以上開始獲利。
+        var tiers = new (string Id, long Amount, long Count, int Order)[]
+        {
+            ("line8", 100_000, 1, 0),
+            ("line6", 10_000, 9, 1),
+            ("line5", 5_000, 40, 2),
+            ("line4", 2_500, 200, 3),
+            ("line3", 1_000, 750, 4),
+            ("line2", 500, 3_500, 5),
+            ("line1", 100, 5_500, 6)
+        };
+        await InsertTicketAsync(
+            connection, transaction,
+            ticketId, "三星連線", 500, "1", issueSize, 1.0,
+            tiers, cancellationToken);
+    }
+
+    private static async Task InsertTicketAsync(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        string ticketId,
+        string displayName,
+        long price,
+        string ruleId,
+        long issueSize,
+        double winRate,
+        IReadOnlyList<(string Id, long Amount, long Count, int Order)> tiers,
+        CancellationToken cancellationToken)
+    {
+        if (tiers.Sum(t => t.Count) != issueSize)
+            throw new InvalidOperationException($"{displayName} 的獎項張數合計與發行張數不一致。");
+
+        var addTicket = connection.CreateCommand();
+        addTicket.Transaction = transaction;
+        addTicket.CommandText = """
+            INSERT INTO ticket_definitions(
+                id, display_name, price, rule_id, issue_size,
+                published_win_rate, enabled, locked, source_package_id, created_utc)
+            VALUES($id, $displayName, $price, $ruleId, $issueSize,
+                   $winRate, 1, 1, NULL, $createdUtc);
+            """;
+        addTicket.Parameters.AddWithValue("$id", ticketId);
+        addTicket.Parameters.AddWithValue("$displayName", displayName);
+        addTicket.Parameters.AddWithValue("$price", price);
+        addTicket.Parameters.AddWithValue("$ruleId", ruleId);
+        addTicket.Parameters.AddWithValue("$issueSize", issueSize);
+        addTicket.Parameters.AddWithValue("$winRate", winRate);
+        addTicket.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
+        await addTicket.ExecuteNonQueryAsync(cancellationToken);
+
+        foreach (var tier in tiers)
+        {
+            var addTier = connection.CreateCommand();
+            addTier.Transaction = transaction;
+            addTier.CommandText = """
+                INSERT INTO prize_tiers(ticket_id, tier_id, amount, initial_count, sort_order)
+                VALUES($ticketId, $tierId, $amount, $count, $sortOrder);
                 """;
-            addTicket.Parameters.AddWithValue("$id", ticketId);
-            addTicket.Parameters.AddWithValue("$issueSize", issueSize);
-            addTicket.Parameters.AddWithValue("$winRate", winRate);
-            addTicket.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
-            await addTicket.ExecuteNonQueryAsync(cancellationToken);
-
-            foreach (var tier in tiers)
-            {
-                var addTier = connection.CreateCommand();
-                addTier.Transaction = transaction;
-                addTier.CommandText = """
-                    INSERT INTO prize_tiers(ticket_id, tier_id, amount, initial_count, sort_order)
-                    VALUES($ticketId, $tierId, $amount, $count, $sortOrder);
-                    """;
-                addTier.Parameters.AddWithValue("$ticketId", ticketId);
-                addTier.Parameters.AddWithValue("$tierId", tier.Id);
-                addTier.Parameters.AddWithValue("$amount", tier.Amount);
-                addTier.Parameters.AddWithValue("$count", tier.Count);
-                addTier.Parameters.AddWithValue("$sortOrder", tier.Order);
-                await addTier.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            var batchId = Guid.NewGuid().ToString("D");
-            var addBatch = connection.CreateCommand();
-            addBatch.Transaction = transaction;
-            addBatch.CommandText = """
-                INSERT INTO batches(id, ticket_id, batch_number, status, started_utc)
-                VALUES($id, $ticketId, 1, 'Active', $startedUtc);
-                """;
-            addBatch.Parameters.AddWithValue("$id", batchId);
-            addBatch.Parameters.AddWithValue("$ticketId", ticketId);
-            addBatch.Parameters.AddWithValue("$startedUtc", DateTimeOffset.UtcNow.ToString("O"));
-            await addBatch.ExecuteNonQueryAsync(cancellationToken);
-
-            foreach (var tier in tiers)
-            {
-                var state = connection.CreateCommand();
-                state.Transaction = transaction;
-                state.CommandText = """
-                    INSERT INTO batch_prize_state(
-                        batch_id, tier_id, amount,
-                        available_count, reserved_count, consumed_count)
-                    VALUES($batchId, $tierId, $amount, $count, 0, 0);
-                    """;
-                state.Parameters.AddWithValue("$batchId", batchId);
-                state.Parameters.AddWithValue("$tierId", tier.Id);
-                state.Parameters.AddWithValue("$amount", tier.Amount);
-                state.Parameters.AddWithValue("$count", tier.Count);
-                await state.ExecuteNonQueryAsync(cancellationToken);
-            }
+            addTier.Parameters.AddWithValue("$ticketId", ticketId);
+            addTier.Parameters.AddWithValue("$tierId", tier.Id);
+            addTier.Parameters.AddWithValue("$amount", tier.Amount);
+            addTier.Parameters.AddWithValue("$count", tier.Count);
+            addTier.Parameters.AddWithValue("$sortOrder", tier.Order);
+            await addTier.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        transaction.Commit();
+        var batchId = Guid.NewGuid().ToString("D");
+        var addBatch = connection.CreateCommand();
+        addBatch.Transaction = transaction;
+        addBatch.CommandText = """
+            INSERT INTO batches(id, ticket_id, batch_number, status, started_utc)
+            VALUES($id, $ticketId, 1, 'Active', $startedUtc);
+            """;
+        addBatch.Parameters.AddWithValue("$id", batchId);
+        addBatch.Parameters.AddWithValue("$ticketId", ticketId);
+        addBatch.Parameters.AddWithValue("$startedUtc", DateTimeOffset.UtcNow.ToString("O"));
+        await addBatch.ExecuteNonQueryAsync(cancellationToken);
+
+        foreach (var tier in tiers)
+        {
+            var state = connection.CreateCommand();
+            state.Transaction = transaction;
+            state.CommandText = """
+                INSERT INTO batch_prize_state(
+                    batch_id, tier_id, amount,
+                    available_count, reserved_count, consumed_count)
+                VALUES($batchId, $tierId, $amount, $count, 0, 0);
+                """;
+            state.Parameters.AddWithValue("$batchId", batchId);
+            state.Parameters.AddWithValue("$tierId", tier.Id);
+            state.Parameters.AddWithValue("$amount", tier.Amount);
+            state.Parameters.AddWithValue("$count", tier.Count);
+            await state.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 }
