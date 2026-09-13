@@ -1,6 +1,6 @@
 # ScratchGame Project Rules
 
-本檔只保存 ScratchGame 的固定專案規則；repository 共通版本規則依根目錄 `REPOSITORY_RULES.md`。
+本檔只保存 ScratchGame 的固定專案規則；repository 共通版本、開發、CI 與 Local-first 規則依根 `REPOSITORY_RULES.md`。
 
 ## 1. 平台與發行
 
@@ -113,63 +113,3 @@ V0.1 起先實作三種內建通用玩法：
 - 備份最多保留最近 5 份，超過即刪除最舊一份。
 - 資料庫 schema migration 前無論距離上次備份多久，都必須先建立安全備份；完成後仍以最多 5 份輪替。
 - 使用者執行資料與備份不得提交至 Git。
-
-## 11. 開發工作流：Local-first development, GitHub-final verification
-
-本專案預設採「節省 Token、但不降低開發可靠度」流程。GitHub 是正式來源與版本紀錄；GitHub Actions 是 Windows 驗收層，不是每一次微小修改的即時編譯器。
-
-### 必要讀檔原則
-
-- 每輪優先只讀本次修改真正需要的檔案。
-- 已確認且沒有更新的治理文件、README、CHANGELOG、workflow 或完整 source，不得無理由重讀。
-- 只有在新對話／新工作階段接手、治理規則更新、main 或 branch 基準重大變更、或使用者明確要求完整審查時，才重新做較完整確認。
-- GitHub push 後只確認本次 commit / diff 與必要檔案，不重新掃描整個 repository。
-
-### 修改與驗證原則
-
-預設流程：
-
-```text
-讀必要檔案
-↓
-本地修改
-↓
-本地 test / lint / 可行的 build
-↓
-集中完成一輪相關修改
-↓
-一次 commit / push
-↓
-必要時執行 GitHub Windows CI
-↓
-CI 成功：確認結果後結束
-CI 失敗：只讀必要錯誤區段後修正
-```
-
-- 同一輪相關 UI bug、欄位調整、文字修正或同一功能返修應集中處理，不得每修一點就立刻 push。
-- 本地環境可執行的單元測試、靜態檢查、lint、資料層測試與非 Windows-specific 驗證應先做完。
-- 不因節省 Token 而省略必要測試、編譯、ZIP 或打包。
-
-### GitHub Windows CI 使用時機
-
-以下情況應使用真正 Windows CI：
-
-- 一輪修改已完成，需要正式 Windows 驗收。
-- WPF / Windows-specific code 有實質變更且本地環境無法完整驗證。
-- icon、resource、manifest 有修改。
-- Windows DLL linkage、Registry、printer API、WebView2、PowerShell packaging 或其他 Windows 相依功能有修改。
-- 準備 Release。
-- 本地環境無法可靠驗證的建置項目。
-
-單純文字、文件、低風險資料設定或已可由本地測試充分驗證的小修改，不需要每次觸發 Actions。
-
-### CI 結果讀取原則
-
-- CI 成功時只確認 build、tests、publish 與 artifact / EXE / ZIP 是否成功，不讀完整 log。
-- CI 失敗時先看失敗 step 與必要錯誤區段，不預設拉取整份完整 log。
-- 只有在錯誤原因無法判斷時，才逐步擴大 log 閱讀範圍。
-
-### 版本管理
-
-- `main`、development branch、`VERSION`、`BUILD`、CHANGELOG、Release 等仍依 repository 原規則執行。
-- 此工作流只降低不必要的讀檔、GitHub 往返、高頻 CI 與上下文消耗，不降低正式版本管理與 Windows build 可靠度。

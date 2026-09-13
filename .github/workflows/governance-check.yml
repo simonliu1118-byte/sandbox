@@ -1,0 +1,143 @@
+name: Governance Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate governance and personal-repo isolation
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          required = [
+              'REPOSITORY_RULES.md','REPO_POLICY.md','RULES_INDEX.md','AGENTS.md',
+              'COMMON_RULES_VERSION','COMMON_RULES_CHANGELOG.md',
+              'GOVERNANCE_VERSION','GOVERNANCE_CHANGELOG.md'
+          ]
+          for rel in required:
+              if not pathlib.Path(rel).is_file():
+                  raise SystemExit(f'ERROR: missing governance file: {rel}')
+
+          for rel in ['COMMON_RULES_VERSION','GOVERNANCE_VERSION']:
+              text = pathlib.Path(rel).read_text(encoding='utf-8')
+              if not re.fullmatch(r'\d+\.\d+\.\d+\n?', text):
+                  raise SystemExit(f'ERROR: {rel} must contain X.Y.Z')
+
+          forbidden_rule_names = {
+              'VERSIONING.md','TEAM_RULES.md','DEVELOPMENT_RULES.md'
+          }
+          for path in pathlib.Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              rel = path.as_posix()
+              if path.name in forbidden_rule_names:
+                  raise SystemExit(f'ERROR: obsolete parallel rules file: {rel}')
+              if path.name == 'AGENTS.md' and rel != 'AGENTS.md':
+                  raise SystemExit(f'ERROR: project-level AGENTS is not allowed: {rel}')
+
+          apps = pathlib.Path('apps')
+          if apps.is_dir():
+              for project in sorted(p for p in apps.iterdir() if p.is_dir()):
+                  for filename in ['PROJECT_RULES.md','VERSION','BUILD']:
+                      if not (project / filename).is_file():
+                          raise SystemExit(f'ERROR: {project.as_posix()} lacks {filename}')
+                  version = (project / 'VERSION').read_text(encoding='utf-8').strip()
+                  build = (project / 'BUILD').read_text(encoding='utf-8').strip()
+                  if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+                      raise SystemExit(f'ERROR: invalid VERSION in {project.as_posix()}')
+                  if not re.fullmatch(r'\d+', build):
+                      raise SystemExit(f'ERROR: invalid BUILD in {project.as_posix()}')
+
+          # Build known organization-specific identifiers at runtime so the personal
+          # repository does not contain those complete identifiers in scanner source.
+          prohibited = [
+              '\u5fd7' + '\u9060',
+              'Chi' + 'hyuan', 'Chih' + '-yuan', 'Zhi' + 'yuan',
+              'Chi' + 'hyuan Co.', 'CY' + 'apps', 'CY' + 'apps_pvt',
+              'CY' + 'Accounting', 'CY' + 'Envelope', 'CY' + 'Invoice',
+              'CY' + 'Watermark', 'SMART' + 'COPIConverter', 'Tri' + 'INVCalc'
+          ]
+          text_suffixes = {
+              '.md','.txt','.yml','.yaml','.json','.cs','.xaml','.xml','.ps1','.py',
+              '.go','.mod','.sum','.toml','.ini','.cfg','.config','.props','.targets',
+              '.csproj','.sln','.sh'
+          }
+          extensionless = {'COMMON_RULES_VERSION','GOVERNANCE_VERSION','VERSION','BUILD','LICENSE'}
+          for path in pathlib.Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              if path.suffix.lower() not in text_suffixes and path.name not in extensionless:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              for needle in prohibited:
+                  if needle in text:
+                      raise SystemExit(
+                          f'ERROR: organization-specific identifier found in personal sandbox file: {path.as_posix()}'
+                      )
+
+          print('Local governance and personal-repo isolation OK')
+          PY
+
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          base='https://raw.githubusercontent.com/simonliu1118-byte/AITeam/main'
+          for file in REPOSITORY_RULES.md COMMON_RULES_VERSION COMMON_RULES_CHANGELOG.md; do
+            curl --fail --silent --show-error --location --retry 3 "$base/$file" -o "$tmp/$file"
+            cmp --silent "$file" "$tmp/$file" || {
+              echo "ERROR: $file is not synchronized with AITeam main."
+              exit 1
+            }
+          done
+          echo "Common rules match AITeam main."
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags origin "main:refs/remotes/origin/main"
+            mapfile -t changed < <(git diff --name-only "origin/main...HEAD")
+            gov_changed=0
+            gov_version_changed=0
+            gov_changelog_changed=0
+            for path in "${changed[@]}"; do
+              case "$path" in
+                REPOSITORY_RULES.md|COMMON_RULES_VERSION|COMMON_RULES_CHANGELOG.md|REPO_POLICY.md|RULES_INDEX.md|GOVERNANCE_VERSION|GOVERNANCE_CHANGELOG.md|AGENTS.md|apps/*/PROJECT_RULES.md|.github/workflows/governance-check.yml|.github/workflows/sync-common-rules.yml)
+                  gov_changed=1 ;;
+              esac
+              [ "$path" = "GOVERNANCE_VERSION" ] && gov_version_changed=1
+              [ "$path" = "GOVERNANCE_CHANGELOG.md" ] && gov_changelog_changed=1
+            done
+            if [ "$gov_changed" -eq 1 ]; then
+              case "$HEAD_REF" in
+                governance/*) ;;
+                *) echo "ERROR: governance changes require governance/*"; exit 1 ;;
+              esac
+              [ "$gov_version_changed" -eq 1 ] || { echo "ERROR: governance change must update GOVERNANCE_VERSION"; exit 1; }
+              [ "$gov_changelog_changed" -eq 1 ] || { echo "ERROR: governance change must update GOVERNANCE_CHANGELOG.md"; exit 1; }
+            fi
+          fi
+
+          echo "Governance Check passed."
