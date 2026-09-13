@@ -1,0 +1,49 @@
+<Window x:Class="ScratchGame.Views.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="設定"
+        Width="900" Height="600"
+        MinWidth="760" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#FFF7EE"
+        Loaded="Window_OnLoaded">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="彩券管理" FontSize="27" FontWeight="SemiBold" Foreground="#5B1D1D"/>
+
+        <DataGrid x:Name="TicketGrid"
+                  Grid.Row="1"
+                  Margin="0,18,0,16"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  CanUserAddRows="False"
+                  HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="彩券" Binding="{Binding DisplayName}" Width="*"/>
+                <DataGridTextColumn Header="面額" Binding="{Binding Price, StringFormat={}${0:N0}}" Width="90"/>
+                <DataGridTextColumn Header="中獎率" Binding="{Binding PublishedWinRate, StringFormat={}{0:P2}}" Width="95"/>
+                <DataGridTextColumn Header="玩法" Binding="{Binding RuleId}" Width="140"/>
+                <DataGridTextColumn Header="目前批次" Binding="{Binding ActiveBatchNumber}" Width="85"/>
+                <DataGridCheckBoxColumn Header="啟用" Binding="{Binding Enabled}" Width="65"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="2">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Content="匯入 ScratchPack" Click="Import_OnClick"/>
+                <Button Content="發行新一批" Click="NewBatch_OnClick"/>
+                <Button Content="啟用 / 停用" Click="ToggleEnabled_OnClick"/>
+                <Button Content="刪除未發行" Click="Delete_OnClick"/>
+                <Button Content="立即備份" Click="Backup_OnClick"/>
+            </StackPanel>
+            <Button Content="關閉" Width="100" HorizontalAlignment="Right" Click="Close_OnClick"/>
+        </Grid>
+    </Grid>
+</Window>
