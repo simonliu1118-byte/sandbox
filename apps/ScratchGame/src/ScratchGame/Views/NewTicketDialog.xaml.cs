@@ -15,15 +15,14 @@ public partial class NewTicketDialog : Window
     public NewTicketDialog(IReadOnlyList<TicketDefinition> tickets)
     {
         InitializeComponent();
-        UiAssetLoader.TrySetImage(DialogBackgroundImage, UiAssetLoader.UiPath("dialog_bg.png"));
         _tickets = tickets;
 
         var options = new List<PriceFilterOption>
         {
-            new(null, "全部", _tickets.Count > 0)
+            new(null, "全部", ResolvePriceIcon(null), _tickets.Count > 0)
         };
         options.AddRange(SupportedPriceFilters.Select(price =>
-            new PriceFilterOption(price, $"${price:N0}", _tickets.Any(ticket => ticket.Price == price))));
+            new PriceFilterOption(price, $"${price:N0}", ResolvePriceIcon(price), _tickets.Any(ticket => ticket.Price == price))));
 
         PriceFilterListBox.ItemsSource = options;
         PriceFilterListBox.SelectedIndex = 0;
@@ -48,10 +47,28 @@ public partial class NewTicketDialog : Window
             TicketListBox.SelectedIndex = 0;
     }
 
+    private static string ResolvePriceIcon(long? price)
+    {
+        var file = price switch
+        {
+            null => "note_all.png",
+            100 => "note_100.png",
+            200 => "note_200.png",
+            300 => "note_300.png",
+            500 => "note_500.png",
+            1000 => "note_1000.png",
+            2000 => "note_2000.png",
+            5000 => "note_5000.png",
+            _ => "note_all.png"
+        };
+        return Path.Combine(AppContext.BaseDirectory, "UI", "Denominations", file);
+    }
+
     private static string? ResolveThumbnail(TicketDefinition ticket)
     {
         var folder = ticket.RuleId is "ThreeLine" or "1" ? "ThreeStar" : ticket.Id;
-        var path = UiAssetLoader.TicketPath(folder, "thumbnail.png");
+        var file = ticket.Price == 100 ? "thumbnail-100.png" : "thumbnail.png";
+        var path = UiAssetLoader.TicketPath(folder, file);
         return File.Exists(path) ? path : null;
     }
 
@@ -59,7 +76,7 @@ public partial class NewTicketDialog : Window
     {
         if (TicketListBox.SelectedItem is not TicketChoice choice)
         {
-            MessageBox.Show(this, "請先選擇一張彩券。", "挑選彩券", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "挑選彩券", "請先選擇一張彩券。");
             return;
         }
 
@@ -68,10 +85,8 @@ public partial class NewTicketDialog : Window
     }
 
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
-    {
-        DialogResult = false;
-    }
+        => DialogResult = false;
 
-    private sealed record PriceFilterOption(long? Price, string Label, bool HasTickets);
+    private sealed record PriceFilterOption(long? Price, string Label, string IconPath, bool HasTickets);
     private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath);
 }
