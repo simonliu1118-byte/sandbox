@@ -16,6 +16,7 @@ public partial class UserDialog : Window
     private readonly ObservableCollection<UserRow> _users;
 
     public UserProfile? SelectedUser { get; private set; }
+    private readonly string? _currentUserId;
 
     public UserDialog(
         IReadOnlyList<UserProfile> users,
@@ -28,6 +29,7 @@ public partial class UserDialog : Window
         _catalog = catalog;
         _profiles = new UserProfileService(database);
         _users = new ObservableCollection<UserRow>(users.Select(UserRow.FromProfile));
+        _currentUserId = currentUser?.Id;
         UserListBox.ItemsSource = _users;
 
         var current = currentUser is null
@@ -92,14 +94,57 @@ public partial class UserDialog : Window
         try
         {
             var renamed = await _profiles.RenameAsync(row.Id, row.EditName);
-            row.DisplayName = renamed.DisplayName;
-            row.EditName = renamed.DisplayName;
+            row.ApplyProfile(renamed);
             row.IsEditing = false;
+            UpdateOwnerSummaryIfCurrent(renamed);
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, ex.Message, "修改使用者名稱", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private async void ResetStats_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (UserListBox.SelectedItem is not UserRow row)
+        {
+            MessageBox.Show(this, "請先選擇要重置的使用者。", "重置損益", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            this,
+            $"要將「{row.DisplayName}」目前的投入、兌獎與損益歸零嗎？\n\n這不會刪除彩券歷史，也不會改變票池。",
+            "重置損益",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            var reset = await _profiles.ResetStatsAsync(row.Id);
+            row.ApplyProfile(reset);
+            UpdateOwnerSummaryIfCurrent(reset);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "重置損益", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void UpdateOwnerSummaryIfCurrent(UserProfile profile)
+    {
+        if (profile.Id != _currentUserId || Owner is not MainWindow owner)
+            return;
+
+        if (owner.FindName("UserSummaryText") is not System.Windows.Controls.TextBlock summary)
+            return;
+
+        var netText = profile.Net >= 0
+            ? $"+${profile.Net:N0}"
+            : $"-${Math.Abs(profile.Net):N0}";
+        summary.Text = $"{profile.DisplayName}　損益 {netText}";
     }
 
     private void Select_OnClick(object sender, RoutedEventArgs e)
@@ -124,10 +169,33 @@ public partial class UserDialog : Window
         private string _displayName = string.Empty;
         private string _editName = string.Empty;
         private bool _isEditing;
+        private long _totalSpent;
+        private long _totalRedeemed;
 
         public string Id { get; init; } = string.Empty;
-        public long TotalSpent { get; init; }
-        public long TotalRedeemed { get; init; }
+
+        public long TotalSpent
+        {
+            get => _totalSpent;
+            private set
+            {
+                _totalSpent = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Net));
+            }
+        }
+
+        public long TotalRedeemed
+        {
+            get => _totalRedeemed;
+            private set
+            {
+                _totalRedeemed = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Net));
+            }
+        }
+
         public long Net => TotalRedeemed - TotalSpent;
 
         public string DisplayName
@@ -151,14 +219,19 @@ public partial class UserDialog : Window
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public static UserRow FromProfile(UserProfile profile)
-            => new()
-            {
-                Id = profile.Id,
-                DisplayName = profile.DisplayName,
-                EditName = profile.DisplayName,
-                TotalSpent = profile.TotalSpent,
-                TotalRedeemed = profile.TotalRedeemed
-            };
+        {
+            var row = new UserRow { Id = profile.Id };
+            row.ApplyProfile(profile);
+            return row;
+        }
+
+        public void ApplyProfile(UserProfile profile)
+        {
+            DisplayName = profile.DisplayName;
+            EditName = profile.DisplayName;
+            TotalSpent = profile.TotalSpent;
+            TotalRedeemed = profile.TotalRedeemed;
+        }
 
         public UserProfile ToProfile() => new(Id, DisplayName, TotalSpent, TotalRedeemed);
 

@@ -97,6 +97,7 @@
                             <Canvas x:Name="TicketOverlayCanvas"
                                     Width="1080" Height="657"
                                     Background="Transparent"
+                                    IsHitTestVisible="{Binding ElementName=TicketBackgroundImage, Path=IsVisible}"
                                     PreviewMouseLeftButtonDown="TicketOverlayCanvas_OnPreviewMouseLeftButtonDown"
                                     PreviewMouseMove="TicketOverlayCanvas_OnPreviewMouseMove"
                                     PreviewMouseLeftButtonUp="TicketOverlayCanvas_OnPreviewMouseLeftButtonUp"/>

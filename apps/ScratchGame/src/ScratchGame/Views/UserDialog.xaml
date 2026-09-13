@@ -9,6 +9,45 @@
         AllowsTransparency="True"
         ShowInTaskbar="False"
         Background="Transparent">
+    <Window.Resources>
+        <Style x:Key="InlineGlyphButton" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="7,0,0,0"/>
+            <Setter Property="FontFamily" Value="Microsoft JhengHei UI"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#F3C86C"/>
+            <Setter Property="Background" Value="#35251B17"/>
+            <Setter Property="BorderBrush" Value="#8A6C4B37"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                CornerRadius="7"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#69402A1F"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#D59A54"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#8B5A301F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Border CornerRadius="22" BorderBrush="#B87B40" BorderThickness="1" Background="#2A120E" SnapsToDevicePixels="True">
         <Grid>
             <Image x:Name="DialogBackgroundImage" Stretch="Fill" Opacity="0.92"/>
@@ -20,14 +59,10 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Grid>
-                    <StackPanel>
-                        <TextBlock Text="使用者" FontSize="28" FontWeight="Bold" Foreground="#FFE6A6"/>
-                        <TextBlock Text="每位玩家的投入、兌獎與損益各自獨立保存" Margin="0,4,0,0" Foreground="#D8B392" FontSize="13"/>
-                    </StackPanel>
-                    <Button Content="×" Width="36" Height="36" HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Style="{StaticResource DialogSecondaryButton}" Padding="0" Margin="0" Click="Cancel_OnClick"/>
-                </Grid>
+                <StackPanel>
+                    <TextBlock Text="使用者" FontSize="28" FontWeight="Bold" Foreground="#FFE6A6"/>
+                    <TextBlock Text="每位玩家的投入、兌獎與損益各自獨立保存" Margin="0,4,0,0" Foreground="#D8B392" FontSize="13"/>
+                </StackPanel>
 
                 <ListBox x:Name="UserListBox"
                          Grid.Row="1"
@@ -51,11 +86,12 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
+
                                     <StackPanel>
-                                        <Grid Height="34">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="19" FontWeight="SemiBold" Foreground="#FFF1CF" VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
+                                        <Grid MinHeight="38">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
                                                         <Setter Property="Visibility" Value="Visible"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsEditing}" Value="True">
@@ -63,13 +99,21 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                                     FontSize="17" Padding="8,3" VerticalContentAlignment="Center"
-                                                     KeyDown="EditNameTextBox_OnKeyDown">
-                                                <TextBox.Style>
-                                                    <Style TargetType="TextBox">
+                                                </StackPanel.Style>
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           FontSize="19"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#FFF1CF"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Content="✎"
+                                                        Style="{StaticResource InlineGlyphButton}"
+                                                        ToolTip="修改名稱"
+                                                        Click="EditName_OnClick"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsEditing}" Value="True">
@@ -77,35 +121,21 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </TextBox.Style>
-                                            </TextBox>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <Button Content="✎" Width="34" Height="30" Padding="0" Margin="0,0,4,0" Click="EditName_OnClick">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button" BasedOn="{StaticResource DialogSecondaryButton}">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
-                                                <Button Content="✓" Width="34" Height="30" Padding="0" Margin="0" Click="SaveName_OnClick">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button" BasedOn="{StaticResource DialogButton}">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
+                                                </StackPanel.Style>
+                                                <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
+                                                         Width="285"
+                                                         Height="34"
+                                                         FontSize="16"
+                                                         Padding="8,2"
+                                                         VerticalContentAlignment="Center"
+                                                         KeyDown="EditNameTextBox_OnKeyDown"/>
+                                                <Button Content="✓"
+                                                        Style="{StaticResource InlineGlyphButton}"
+                                                        ToolTip="儲存名稱"
+                                                        Click="SaveName_OnClick"/>
                                             </StackPanel>
                                         </Grid>
+
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                             <TextBlock Foreground="#CDAE91" FontSize="12" Text="投入 $"/>
                                             <TextBlock Foreground="#CDAE91" FontSize="12" Text="{Binding TotalSpent, StringFormat={}{0:N0}}"/>
@@ -114,6 +144,7 @@
                                             <TextBlock Foreground="#CDAE91" FontSize="12" Text="{Binding TotalRedeemed, StringFormat={}{0:N0}}"/>
                                         </StackPanel>
                                     </StackPanel>
+
                                     <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="18,0,0,0">
                                         <TextBlock Text="損益" HorizontalAlignment="Right" Foreground="#B99376" FontSize="11"/>
                                         <TextBlock Text="{Binding Net, StringFormat={}{0:N0}}" FontSize="20" FontWeight="Bold" Foreground="#FFD46C" HorizontalAlignment="Right"/>
@@ -135,10 +166,17 @@
                     </Grid>
                 </Border>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="取消" Width="108" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
-                    <Button Content="切換使用者" Width="132" Style="{StaticResource DialogButton}" IsDefault="True" Click="Select_OnClick"/>
-                </StackPanel>
+                <Grid Grid.Row="3">
+                    <Button Content="重置損益"
+                            Width="118"
+                            HorizontalAlignment="Left"
+                            Style="{StaticResource DialogSecondaryButton}"
+                            Click="ResetStats_OnClick"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="取消" Width="108" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
+                        <Button Content="切換使用者" Width="132" Style="{StaticResource DialogButton}" IsDefault="True" Click="Select_OnClick"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

@@ -33,4 +33,25 @@ public sealed class UserProfileService(AppDatabase database)
 
         return new UserProfile(userId, reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2));
     }
+
+    public async Task<UserProfile> ResetStatsAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await database.OpenConnectionAsync(cancellationToken);
+        var update = connection.CreateCommand();
+        update.CommandText = "UPDATE users SET total_spent = 0, total_redeemed = 0 WHERE id = $id;";
+        update.Parameters.AddWithValue("$id", userId);
+        if (await update.ExecuteNonQueryAsync(cancellationToken) != 1)
+            throw new InvalidOperationException("找不到要重置的使用者。");
+
+        var query = connection.CreateCommand();
+        query.CommandText = "SELECT display_name FROM users WHERE id = $id LIMIT 1;";
+        query.Parameters.AddWithValue("$id", userId);
+        var displayName = Convert.ToString(await query.ExecuteScalarAsync(cancellationToken));
+        if (string.IsNullOrWhiteSpace(displayName))
+            throw new InvalidOperationException("找不到要重置的使用者。");
+
+        return new UserProfile(userId, displayName, 0, 0);
+    }
 }
