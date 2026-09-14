@@ -29,12 +29,15 @@ gameType = "1"
 
 ### 基本規則
 
-- `gridSize`：3、4、5。
-- 只計所有完整橫線、完整直線與兩條大斜線。
-- 不計短斜線，不允許 ScratchPack 自訂 winningLines。
-- 所有刮區都是盤面格。
+- 目前正式支援的 `gridSize`：3、4、5。
+- `gridSize = N` 時，玩法盤面固定為標準 `N × N` 網格。
+- 只計所有完整橫線、完整直線與兩條完整大斜線。
+- 不計短斜線，不允許 ScratchPack 自訂 `winningLines`。
+- 所有 Scratch Zone 都是盤面格，不允許額外裝飾刮區。
+- Scratch Zone 數量必須精確等於 `N²`。
+- 未來若增加 6×6 或更大尺寸，只擴充主程式支援的 `gridSize` 合法值；本 GameType 的 schema、網格語意與 Prize Tier 推導方式不因此改變。
 
-刮區數量：
+目前刮區數量：
 
 ```text
 3×3 → 9
@@ -42,19 +45,70 @@ gameType = "1"
 5×5 → 25
 ```
 
-`cellZones` 必須剛好引用所有 zones 一次，不得缺少、重複或額外存在。
+### 標準網格與 Scratch Zone 順序
 
-### allowNearMiss
+GameType 1 直接使用 `ticket.json.scratch.zones` 作為棋盤格，不另設 `cellZones` 或其他平行 mapping。
+
+`scratch.zones` 對 GameType 1 的陣列順序具有玩法語意，固定為：
+
+```text
+由左到右，再由上到下（row-major）
+```
+
+因此 `gridSize = N` 時：
+
+```text
+row = index / N
+column = index % N
+```
+
+Maker / Importer 必須同時驗證視覺 geometry 確實形成標準網格：
+
+- 所有盤面格的 `width`、`height`、`shape` 必須一致。
+- 若 shape 為 `roundedRectangle`，所有格的 `cornerRadius` 必須一致。
+- 同一欄所有格的 `x` 必須相同；同一列所有格的 `y` 必須相同。
+- 欄座標必須由左至右嚴格遞增，列座標必須由上至下嚴格遞增。
+- 相鄰欄之間的水平間距必須一致；相鄰列之間的垂直間距必須一致。
+- 盤面格不得互相重疊；間距可為 0，但不得為負值。
+- `scratch.zones` 的實際陣列順序必須與上述左→右、上→下的 geometry 一致。
+
+這些限制只屬於 GameType 1。其他 GameType 仍依各自規格決定 Scratch Zone 是否需要固定排列、分組或 mapping。
+
+### `ticket.json.game`
+
+GameType 1 的 `game` 物件只需要玩法參數：
+
+```json
+{
+  "gridSize": 3,
+  "allowNearMiss": false
+}
+```
+
+GameType 1 **不使用也不接受 `cellZones`**。棋盤拓撲由 `gridSize` + 已驗證為標準網格的 `scratch.zones` 順序唯一決定。
+
+### `allowNearMiss`
 
 ```text
 allowNearMiss = false   預設
 ```
 
-控制是否允許生成「差一顆星即可成線」等近似中獎盤面。
+啟用時，生成器可在**不增加實際中獎線數**的前提下加入零散星星或「差一顆成線」的近似中獎盤面。它只影響盤面生成風格，不改變 Prize Tier 或勝負判定。
 
-### Prize Tier
+### Prize Tier 與線數推導
 
-固定可達線數：
+GameType 1 的 Prize Pool 仍使用共通 `ticket.json.prizes`，不得加入 `lineCount`、`lines-N` 或其他 GameType 1 專屬 outcome 欄位。
+
+`gridSize = N` 時：
+
+```text
+有效線總數 = 2N + 2
+合法正獎線數 = 1..2N，以及 2N+2
+2N+1 不可達
+合法正獎 Tier 數 = 2N + 1
+```
+
+因此目前：
 
 ```text
 3×3：1、2、3、4、5、6、8
@@ -62,9 +116,36 @@ allowNearMiss = false   預設
 5×5：1、2、3、4、5、6、7、8、9、10、12
 ```
 
-Maker 建立固定 tier 列，開發者填各 tier 獎金與張數。最後一列永遠代表全部有效線完成。
+未來若支援 6×6，依相同公式自然得到：
 
-獎金必須隨線數嚴格增加；不得出現線數更多但獎金相同或更低的設定。
+```text
+6×6：1..12、14
+```
+
+映射規則：
+
+- `prizes` 必須精確包含 `2N + 1` 個正獎 Tier。
+- 將 `prizes` 依 `amount` 由小到大排序後，依序對應合法線數由少到多。
+- 獎金必須隨線數嚴格增加，因此各 Tier 的 `amount` 必須唯一且嚴格遞增。
+- 某個合法線數即使該 Pack 不發行，也必須保留對應 Prize Tier 並設定 `count = 0`；不得省略，否則線數與獎金的映射會改變。
+- `prizes` 在 JSON 中的實體排列順序不承擔映射語意；Engine / Maker / Importer 一律依 `amount` 排序後建立線數映射。
+- 0 線代表未中獎，不建立 `amount = 0` Prize Tier；未中獎張數仍由 `issueSize - Σ prizes.count` 推導。
+
+3×3 範例：
+
+```json
+"prizes": [
+  { "amount": 100,    "count": 1 },
+  { "amount": 500,    "count": 1 },
+  { "amount": 1000,   "count": 1 },
+  { "amount": 2500,   "count": 1 },
+  { "amount": 5000,   "count": 1 },
+  { "amount": 10000,  "count": 1 },
+  { "amount": 100000, "count": 1 }
+]
+```
+
+依金額排序後，分別對應 **1、2、3、4、5、6、8 條線**。
 
 ---
 
@@ -412,3 +493,5 @@ useCustomBlockPrizes = true
 開發者直接設定每一區固定獎金。該區的金額不會因不同票而改變。
 
 此模式不再使用 `displayPrizeAmounts` / `prizeAmountUsage`；Maker 以 subset-sum / 動態規劃快速計算所有可生成總獎金，開發者只填各金額發行張數，不自行新增任意最終獎金。
+
+---
