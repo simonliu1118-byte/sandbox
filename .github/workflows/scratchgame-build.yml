@@ -78,9 +78,11 @@ jobs:
             exit 1
           }
 
+      # Runtime art/audio/ticket resources are intentionally external and are not kept
+      # as repository binaries. This artifact is therefore named EXE-only on purpose.
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ScratchGame-${{ steps.version.outputs.display }}-win-x64
+          name: ScratchGame-${{ steps.version.outputs.display }}-exe-only-win-x64
           path: apps/ScratchGame/dist/ScratchGame.exe
           retention-days: 14

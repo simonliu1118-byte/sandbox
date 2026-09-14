@@ -18,44 +18,51 @@ public sealed class TicketSwapService(AppDatabase database)
         if (!string.IsNullOrWhiteSpace(current.ScratchStateJson))
             throw new InvalidOperationException("這張彩券已經開始刮獎，不能再換票。");
 
+        // 尚未開始刮獎才允許換票：舊票放回 Remaining，新票立刻從 Remaining 扣除。
         var release = connection.CreateCommand();
         release.Transaction = transaction;
         release.CommandText = """
             UPDATE batch_prize_state
-            SET reserved_count = reserved_count - 1,
-                available_count = available_count + 1
+            SET available_count = available_count + 1,
+                consumed_count = consumed_count - 1
             WHERE batch_id = $batchId
               AND tier_id = $tierId
-              AND reserved_count > 0;
+              AND consumed_count > 0;
             """;
         release.Parameters.AddWithValue("$batchId", current.BatchId);
         release.Parameters.AddWithValue("$tierId", current.ReservedTierId);
         if (await release.ExecuteNonQueryAsync(cancellationToken) != 1)
-            throw new InvalidOperationException("原彩券的保留獎項狀態不一致，不能換票。");
+            throw new InvalidOperationException("原彩券的獎池狀態不一致，不能換票。");
 
         var tiers = await GetAvailableTiersAsync(connection, transaction, current.BatchId, cancellationToken);
         if (tiers.Count == 0)
             throw new InvalidOperationException("目前批次已沒有可換的彩券。");
 
         var selected = DrawWeighted(tiers);
-        var reserve = connection.CreateCommand();
-        reserve.Transaction = transaction;
-        reserve.CommandText = """
+        var issue = connection.CreateCommand();
+        issue.Transaction = transaction;
+        issue.CommandText = """
             UPDATE batch_prize_state
             SET available_count = available_count - 1,
-                reserved_count = reserved_count + 1
+                consumed_count = consumed_count + 1
             WHERE batch_id = $batchId
               AND tier_id = $tierId
               AND available_count > 0;
             """;
-        reserve.Parameters.AddWithValue("$batchId", current.BatchId);
-        reserve.Parameters.AddWithValue("$tierId", selected.TierId);
-        if (await reserve.ExecuteNonQueryAsync(cancellationToken) != 1)
+        issue.Parameters.AddWithValue("$batchId", current.BatchId);
+        issue.Parameters.AddWithValue("$tierId", selected.TierId);
+        if (await issue.ExecuteNonQueryAsync(cancellationToken) != 1)
             throw new InvalidOperationException("獎池已被更新，請重新換票。");
 
         var newId = Guid.NewGuid().ToString("D");
         var createdAt = DateTimeOffset.UtcNow;
         var payload = payloadFactory(selected.Amount);
+
+        var releaseSerial = connection.CreateCommand();
+        releaseSerial.Transaction = transaction;
+        releaseSerial.CommandText = "DELETE FROM batch_serial_claims WHERE pending_ticket_id = $id AND consumed = 0;";
+        releaseSerial.Parameters.AddWithValue("$id", current.Id);
+        await releaseSerial.ExecuteNonQueryAsync(cancellationToken);
 
         var delete = connection.CreateCommand();
         delete.Transaction = transaction;

@@ -1,55 +1,83 @@
-# ScratchGame UI Asset Pack
+# ScratchGame UI / Runtime Asset Spec
 
-本檔描述 ScratchGame 主程式共通 UI 美術與目前內建 `ThreeStar` 測試票的 portable-folder 資源。這些檔案不是 ScratchPack 規格的一部分；ScratchPack 的正式格式仍以 `SCRATCHPACK_SPEC.md` 為準。
+本檔描述 ScratchGame 主程式外部視覺資源與目前內建 ThreeStar 測試票資源。ScratchPack 正式格式仍以 `SCRATCHPACK_SPEC.md` 與 docs-only V1 設計文件為準。
 
-## Portable folder
+## 1. Portable runtime structure
 
 ```text
-ScratchGame/
-├─ ScratchGame.exe
-├─ UI/
-│  ├─ topbar_bg.png
-│  ├─ stage_bg.png
-│  ├─ footer_bg.png
-│  └─ dialog_bg.png
-└─ Tickets/
-   └─ ThreeStar/
-      ├─ ticket.png
-      ├─ thumbnail.png
-      └─ silver-star.png
+ScratchGame.exe
+Themes/
+└─ Default/
+   ├─ Frame/
+   │  ├─ header_bg.png
+   │  └─ footer_bg.png
+   └─ Stage/
+      └─ stage_bg.png
+Tickets/
+└─ ThreeStar/
+   ├─ ticket.png
+   ├─ ticket-100.png
+   └─ silver-star.png
+Audio/
+├─ small-win-manual.wav
+├─ small-win-auto.wav
+├─ big-win-manual.wav
+└─ big-win-auto.wav
 ```
 
-## 圖片處理原則
+Theme / ticket / audio 都是 EXE 外部資源；目前不把可替換 Theme 嵌入 `ScratchGame.exe`。
 
-- 正式 UI 與彩券底圖使用 PNG。
-- 發行包建立時不得把 PNG 轉成 JPG、不得降低尺寸、不得重新取樣。
-- 可做 PNG 的 lossless deflate/metadata 最佳化，但不得改變像素內容。
-- 程式載入圖片時使用原始檔案，不先另存成較低畫質版本。
-- `ticket.png` 的設計寬度以 1080 px 級為基準；程式只做等比例縮小或在最大化模式等比例呈現，不應將低解析圖放大後再存檔。
+## 2. Theme model
 
-## 主程式 UI 資源
+- **介面框架（Frame Theme）**：Header + Footer 成套，不允許跨框架混搭。
+- **舞台主題（Stage Theme）**：中央 Stage，可獨立於 Frame Theme 裝備。
+- 預設 Frame Theme：**新春紅金**。
+- 預設 Stage Theme：**招財好運**。
 
-| 路徑 | 用途 | 建議尺寸 |
-| --- | --- | --- |
-| `UI/topbar_bg.png` | 主視窗頂部資訊列 | 1920×180 |
-| `UI/stage_bg.png` | 中央彩券舞台 | 1920×900 |
-| `UI/footer_bg.png` | 底部操作區 | 1920×240 |
-| `UI/dialog_bg.png` | 使用者／選票等對話窗共通背景 | 1200×800 |
+正式圖尺寸：
 
-主程式 UI 資源屬於 ScratchGame 本體，不隨單張彩券 ScratchPack 更換。
+| 檔案 | 尺寸 | 責任 |
+| --- | ---: | --- |
+| `Themes/Default/Frame/header_bg.png` | 1920×144 | 紅金 Header、美術字 `刮刮樂` / `刮出好運・樂在每一刻`；不含動態玩家資料與按鈕 |
+| `Themes/Default/Stage/stage_bg.png` | 1920×900 | 招財貓、燈籠、花、金幣、右側好運常在與中央舞台；不含彩券與功能列 |
+| `Themes/Default/Frame/footer_bg.png` | 1920×156 | Footer 紅金底；不包含操作按鈕 |
 
-## ThreeStar 目前測試資源
+## 3. Header / Stage / Footer 邊界
 
-| 路徑 | 用途 |
-| --- | --- |
-| `Tickets/ThreeStar/ticket.png` | 三星連線彩券底圖；序號區不得烤入固定編號 |
-| `Tickets/ThreeStar/thumbnail.png` | 「新的一張」選票卡片縮圖 |
-| `Tickets/ThreeStar/silver-star.png` | 九宮格銀膜材質 |
+Header、Stage、Footer 是三個獨立圖片區。兩條粗金色分隔線由 WPF 程式繪製，**不屬任何 Theme PNG**，目前標準高度為 **4 px**：
 
-## 互動規則
+```text
+Header image
+program gold separator
+Stage image
+program gold separator
+Footer image
+```
 
-- 九宮格仍是 9 個獨立遮罩，各自保存刮除比例與 78% 完成狀態。
-- 78% 只代表該區邏輯完成，不自動移除剩餘銀膜。
-- 使用者按住滑鼠時，可從一個刮區連續拖到另一個刮區；外層刮獎容器統一追蹤滑鼠軌跡，再把軌跡分派給所經過的獨立遮罩。
-- 9 個必要區域全部完成後才自動判定／兌獎；「全部刮開」則直接揭除所有區域並結算。
-- 彩券序號由程式動態疊在底圖的序號底板上，不得固定畫在 `ticket.png`。
+圖片不可跨 Row 壓到 separator。Header 與 Footer 正式圖應保持純圖片，不得自行烤入額外程式邊界線；真正邊界一律以程式 separator 為準。
+
+## 4. Stage empty state
+
+- 不使用整片中央咖啡色 panel。
+- 無彩券時，只在星號、提示文字與「挑一張彩券」按鈕後方放小範圍半透明淺色卡片。
+- Stage 其他區域保持完整可見。
+
+## 5. ThreeStar runtime ticket art
+
+- `canvas=1` 固定 1080×882。
+- `ticket.png`：目前 $500 / 測試票底圖。
+- `ticket-100.png`：目前 $100 票底圖。
+- `silver-star.png`：163×101 九宮格銀膜材質。
+- 挑選彩券不要求獨立 thumbnail；直接由 ticket artwork 縮圖顯示。
+- TicketBackgroundImage、symbol、ScratchSurface、hit geometry 必須使用同一 1080×882 設計座標。
+
+## 6. Audio
+
+- `< $50,000`：small win。
+- `>= $50,000`：big win。
+- 手動刮完使用 `*-manual.wav`；全部刮開 / 系統自動揭曉使用 `*-auto.wav`。
+- Audio 缺失不得視為完整 portable package。
+
+## 7. Packaging
+
+GitHub Actions 只產出並上傳 `exe-only` artifact。完整 portable package 必須由 `tools/package_portable.py` 驗證 required runtime resources 後建立；缺任一 Theme / Ticket / Audio 檔即失敗。

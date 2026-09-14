@@ -51,7 +51,7 @@ public partial class UserDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "新增使用者", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "新增使用者", ex.Message);
         }
     }
 
@@ -100,7 +100,7 @@ public partial class UserDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "修改使用者名稱", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "修改使用者名稱", ex.Message);
         }
     }
 
@@ -108,17 +108,16 @@ public partial class UserDialog : Window
     {
         if (UserListBox.SelectedItem is not UserRow row)
         {
-            MessageBox.Show(this, "請先選擇要重置的使用者。", "重置損益", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "重置損益", "請先選擇要重置的使用者。");
             return;
         }
 
-        var confirm = MessageBox.Show(
-            this,
-            $"要將「{row.DisplayName}」目前的投入、兌獎與損益歸零嗎？\n\n這不會刪除彩券歷史，也不會改變票池。",
-            "重置損益",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (confirm != MessageBoxResult.Yes)
+        if (!GameModal.Confirm(
+                this,
+                "重置損益",
+                $"要將「{row.DisplayName}」目前的投入、兌獎與損益歸零嗎？\n\n這不會刪除彩券歷史，也不會改變票池。",
+                "確定重置",
+                "取消"))
             return;
 
         try
@@ -129,7 +128,7 @@ public partial class UserDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "重置損益", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "重置損益", ex.Message);
         }
     }
 
@@ -151,7 +150,7 @@ public partial class UserDialog : Window
     {
         if (UserListBox.SelectedItem is not UserRow row)
         {
-            MessageBox.Show(this, "請先選擇使用者。", "使用者", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "使用者", "請先選擇使用者。");
             return;
         }
 

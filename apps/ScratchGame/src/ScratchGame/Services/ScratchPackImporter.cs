@@ -14,7 +14,7 @@ public sealed class ScratchPackImporter(AppDatabase database)
     };
     private static readonly HashSet<string> SupportedRules = new(StringComparer.Ordinal)
     {
-        "LuckyNumberMatch", "ThreeLine", "MatchThree"
+        "1", "LuckyNumberMatch", "ThreeLine", "MatchThree"
     };
 
     public async Task<string> ImportAsync(string scratchPackPath, CancellationToken cancellationToken = default)
@@ -26,7 +26,6 @@ public sealed class ScratchPackImporter(AppDatabase database)
 
         var tempRoot = Path.Combine(Path.GetTempPath(), "ScratchGame", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
-
         string? finalPackageDirectory = null;
         try
         {
@@ -34,7 +33,7 @@ public sealed class ScratchPackImporter(AppDatabase database)
             ValidateArchiveEntries(archive);
             archive.ExtractToDirectory(tempRoot, overwriteFiles: false);
 
-            var manifest = ReadJson(Path.Combine(tempRoot, "manifest.json"));
+            using var manifest = ReadJson(Path.Combine(tempRoot, "manifest.json"));
             var formatVersion = RequiredString(manifest.RootElement, "formatVersion");
             if (formatVersion != "1.0")
                 throw new InvalidDataException($"不支援的 ScratchPack formatVersion：{formatVersion}");
@@ -42,7 +41,6 @@ public sealed class ScratchPackImporter(AppDatabase database)
             var packageIdText = RequiredString(manifest.RootElement, "packageId");
             if (!Guid.TryParse(packageIdText, out var packageId))
                 throw new InvalidDataException("manifest.packageId 必須是有效 GUID。");
-
             ValidateMinimumAppVersion(RequiredString(manifest.RootElement, "minimumAppVersion"));
 
             var ticketRelative = ValidateRelativeJsonPath(RequiredString(manifest.RootElement, "ticketFile"));
@@ -79,6 +77,12 @@ public sealed class ScratchPackImporter(AppDatabase database)
             if (Convert.ToInt64(await collision.ExecuteScalarAsync(cancellationToken)) > 0)
                 throw new InvalidOperationException("相同 ticketId 或 packageId 的彩券已存在。");
 
+            var styleCommand = connection.CreateCommand();
+            styleCommand.Transaction = transaction;
+            styleCommand.CommandText = "SELECT COALESCE(MAX(style_number), 0) + 1 FROM ticket_metadata WHERE style_number > 0;";
+            var styleNumber = Convert.ToInt64(await styleCommand.ExecuteScalarAsync(cancellationToken));
+            if (styleNumber <= 0) styleNumber = 1;
+
             if (Directory.Exists(finalPackageDirectory))
                 Directory.Delete(finalPackageDirectory, recursive: true);
             Directory.Move(tempRoot, finalPackageDirectory);
@@ -105,6 +109,18 @@ public sealed class ScratchPackImporter(AppDatabase database)
                 addTicket.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
                 await addTicket.ExecuteNonQueryAsync(cancellationToken);
 
+                var addMetadata = connection.CreateCommand();
+                addMetadata.Transaction = transaction;
+                addMetadata.CommandText = """
+                    INSERT INTO ticket_metadata(ticket_id, style_number, tickets_per_book, price_display)
+                    VALUES($ticketId, $styleNumber, $ticketsPerBook, $priceDisplay);
+                    """;
+                addMetadata.Parameters.AddWithValue("$ticketId", ticket.TicketId);
+                addMetadata.Parameters.AddWithValue("$styleNumber", styleNumber);
+                addMetadata.Parameters.AddWithValue("$ticketsPerBook", ticket.TicketsPerBook);
+                addMetadata.Parameters.AddWithValue("$priceDisplay", ticket.PriceDisplay);
+                await addMetadata.ExecuteNonQueryAsync(cancellationToken);
+
                 foreach (var tier in tiers)
                 {
                     var addTier = connection.CreateCommand();
@@ -120,7 +136,6 @@ public sealed class ScratchPackImporter(AppDatabase database)
                     addTier.Parameters.AddWithValue("$sortOrder", tier.SortOrder);
                     await addTier.ExecuteNonQueryAsync(cancellationToken);
                 }
-
                 transaction.Commit();
             }
             catch
@@ -145,48 +160,33 @@ public sealed class ScratchPackImporter(AppDatabase database)
         foreach (var entry in archive.Entries)
         {
             var name = entry.FullName.Replace('\\', '/');
-            if (string.IsNullOrWhiteSpace(name))
-                continue;
-
-            if (name.StartsWith('/') || name.Contains(":", StringComparison.Ordinal) ||
-                name.Split('/').Any(part => part == ".."))
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (name.StartsWith('/') || name.Contains(":", StringComparison.Ordinal) || name.Split('/').Any(part => part == ".."))
                 throw new InvalidDataException($"ScratchPack 含不安全路徑：{entry.FullName}");
-
-            if (string.IsNullOrEmpty(entry.Name))
-                continue;
+            if (string.IsNullOrEmpty(entry.Name)) continue;
 
             var extension = Path.GetExtension(entry.Name);
             if (!AllowedExtensions.Contains(extension))
                 throw new InvalidDataException($"ScratchPack 含不允許的檔案類型：{entry.FullName}");
-
             if (entry.Length > MaxSingleFileBytes)
                 throw new InvalidDataException($"ScratchPack 單一檔案過大：{entry.FullName}");
-
             total += entry.Length;
             if (total > MaxPackageBytes)
-                throw new InvalidDataException("ScratchPack 解壓後總大小超過 50 MB。 ");
+                throw new InvalidDataException("ScratchPack 解壓後總大小超過 50 MB。");
         }
 
         var names = archive.Entries.Select(e => e.FullName.Replace('\\', '/')).ToHashSet(StringComparer.Ordinal);
         foreach (var required in new[] { "manifest.json", "ticket.json", "layout.json", "prizes.json" })
-        {
             if (!names.Contains(required))
                 throw new InvalidDataException($"ScratchPack 缺少必要檔案：{required}");
-        }
     }
 
     private static JsonDocument ReadJson(string path)
     {
         if (!File.Exists(path))
             throw new InvalidDataException($"找不到必要 JSON：{Path.GetFileName(path)}");
-        try
-        {
-            return JsonDocument.Parse(File.ReadAllBytes(path));
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidDataException($"JSON 格式錯誤：{Path.GetFileName(path)}", ex);
-        }
+        try { return JsonDocument.Parse(File.ReadAllBytes(path)); }
+        catch (JsonException ex) { throw new InvalidDataException($"JSON 格式錯誤：{Path.GetFileName(path)}", ex); }
     }
 
     private static TicketImportDefinition ParseAndValidateTicket(JsonElement root, string packageRoot)
@@ -207,12 +207,32 @@ public sealed class ScratchPackImporter(AppDatabase database)
         if (!SupportedRules.Contains(ruleId))
             throw new InvalidDataException($"目前版本不支援 Game Rule：{ruleId}");
 
+        var ticketsPerBook = OptionalInt64(root, "ticketsPerBook") ?? issueSize;
+        if (ticketsPerBook <= 0)
+            throw new InvalidDataException("ticketsPerBook 必須大於 0。");
+        if (issueSize % ticketsPerBook != 0)
+            throw new InvalidDataException("issueSize 必須可以被 ticketsPerBook 整除。");
+
+        var priceDisplay = (int)(OptionalInt64(root, "priceDisplay") ?? 0);
+        if (priceDisplay is not (0 or 1))
+            throw new InvalidDataException("priceDisplay 目前只允許 0 或 1。");
+
         if (!root.TryGetProperty("art", out var art))
             throw new InvalidDataException("ticket.json 缺少 art。");
         var background = ValidateRelativeResourcePath(RequiredString(art, "background"), ".png");
-        var mask = ValidateRelativeResourcePath(RequiredString(art, "scratchMask"), ".png");
-        if (!File.Exists(ResolveInside(packageRoot, background)) || !File.Exists(ResolveInside(packageRoot, mask)))
-            throw new InvalidDataException("ticket.json 指定的背景或刮膜 PNG 不存在。");
+        if (!File.Exists(ResolveInside(packageRoot, background)))
+            throw new InvalidDataException("ticket.json 指定的背景 PNG 不存在。");
+
+        if (art.TryGetProperty("scratchMask", out var maskElement) && maskElement.ValueKind == JsonValueKind.String)
+        {
+            var maskText = maskElement.GetString();
+            if (!string.IsNullOrWhiteSpace(maskText))
+            {
+                var mask = ValidateRelativeResourcePath(maskText, ".png");
+                if (!File.Exists(ResolveInside(packageRoot, mask)))
+                    throw new InvalidDataException("ticket.json 指定的刮膜 PNG 不存在。");
+            }
+        }
 
         if (root.TryGetProperty("scratch", out var scratch))
         {
@@ -230,14 +250,13 @@ public sealed class ScratchPackImporter(AppDatabase database)
             }
         }
 
-        return new TicketImportDefinition(ticketId, displayName, price, ruleId, issueSize);
+        return new TicketImportDefinition(ticketId, displayName, price, ruleId, issueSize, ticketsPerBook, priceDisplay);
     }
 
     private static List<PrizeImportTier> ParseAndValidatePrizes(JsonElement root, long issueSize)
     {
         if (!root.TryGetProperty("tiers", out var tiersElement) || tiersElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("prizes.json 缺少 tiers array。");
-
         var result = new List<PrizeImportTier>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var order = 0;
@@ -246,17 +265,11 @@ public sealed class ScratchPackImporter(AppDatabase database)
             var id = RequiredString(tier, "id");
             var amount = RequiredInt64(tier, "amount");
             var count = RequiredInt64(tier, "count");
-            if (!ids.Add(id))
-                throw new InvalidDataException($"重複的 prize tier id：{id}");
-            if (amount < 0 || count <= 0)
-                throw new InvalidDataException("Prize amount 必須 >= 0，count 必須 > 0。");
+            if (!ids.Add(id)) throw new InvalidDataException($"重複的 prize tier id：{id}");
+            if (amount < 0 || count <= 0) throw new InvalidDataException("Prize amount 必須 >= 0，count 必須 > 0。");
             result.Add(new PrizeImportTier(id, amount, count, order++));
         }
-
-        if (result.Count == 0)
-            throw new InvalidDataException("prizes.json 至少需要一個獎項。");
-        if (!result.Any(t => t.Amount == 0))
-            throw new InvalidDataException("prizes.json 必須至少包含一個未中獎 tier（amount = 0）。");
+        if (result.Count == 0) throw new InvalidDataException("prizes.json 至少需要一個獎項。");
         if (result.Sum(t => t.Count) != issueSize)
             throw new InvalidDataException("全部 prize count 加總必須精確等於 issueSize。");
         return result;
@@ -264,76 +277,59 @@ public sealed class ScratchPackImporter(AppDatabase database)
 
     private static void ValidateLayout(JsonElement root, string ruleId)
     {
-        if (!root.TryGetProperty("canvas", out var canvas))
-            throw new InvalidDataException("layout.json 缺少 canvas。");
+        if (!root.TryGetProperty("canvas", out var canvas)) throw new InvalidDataException("layout.json 缺少 canvas。");
         var width = RequiredInt64(canvas, "width");
         var height = RequiredInt64(canvas, "height");
-        if (width <= 0 || height <= 0)
-            throw new InvalidDataException("canvas width/height 必須大於 0。");
+        if (width <= 0 || height <= 0) throw new InvalidDataException("canvas width/height 必須大於 0。");
 
         if (!root.TryGetProperty("scratchZones", out var zones) || zones.ValueKind != JsonValueKind.Array || zones.GetArrayLength() == 0)
             throw new InvalidDataException("layout.json 至少需要一個 scratchZone。");
-
         var zoneIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var zone in zones.EnumerateArray())
         {
             var id = RequiredString(zone, "id");
-            if (!zoneIds.Add(id))
-                throw new InvalidDataException($"重複的 scratchZone id：{id}");
+            if (!zoneIds.Add(id)) throw new InvalidDataException($"重複的 scratchZone id：{id}");
             ValidateRect(zone, width, height, $"scratchZone {id}");
         }
 
-        if (!root.TryGetProperty("rule", out var rule))
-            throw new InvalidDataException("layout.json 缺少 rule 設定。");
-
+        if (!root.TryGetProperty("rule", out var rule)) throw new InvalidDataException("layout.json 缺少 rule 設定。");
         switch (ruleId)
         {
             case "LuckyNumberMatch":
-                RequireProperty(rule, "winningNumberArea");
-                RequireProperty(rule, "playArea");
-                RequireProperty(rule, "winningNumberCount");
-                RequireProperty(rule, "playNumberCount");
-                RequireProperty(rule, "numberMin");
-                RequireProperty(rule, "numberMax");
+                RequireProperty(rule, "winningNumberArea"); RequireProperty(rule, "playArea");
+                RequireProperty(rule, "winningNumberCount"); RequireProperty(rule, "playNumberCount");
+                RequireProperty(rule, "numberMin"); RequireProperty(rule, "numberMax");
                 break;
+            case "1":
             case "ThreeLine":
                 RequireProperty(rule, "grid");
-                RequireProperty(rule, "winningLines");
                 break;
             case "MatchThree":
-                RequireProperty(rule, "grid");
-                RequireProperty(rule, "matchCount");
+                RequireProperty(rule, "grid"); RequireProperty(rule, "matchCount");
                 break;
         }
     }
 
     private static void ValidateRect(JsonElement rect, long canvasWidth, long canvasHeight, string label)
     {
-        var x = RequiredInt64(rect, "x");
-        var y = RequiredInt64(rect, "y");
-        var width = RequiredInt64(rect, "width");
-        var height = RequiredInt64(rect, "height");
+        var x = RequiredInt64(rect, "x"); var y = RequiredInt64(rect, "y");
+        var width = RequiredInt64(rect, "width"); var height = RequiredInt64(rect, "height");
         if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > canvasWidth || y + height > canvasHeight)
             throw new InvalidDataException($"{label} 超出 canvas 或尺寸無效。");
     }
 
     private static void ValidateMinimumAppVersion(string minimumAppVersion)
     {
-        if (!Version.TryParse(minimumAppVersion, out var minimum))
-            throw new InvalidDataException("minimumAppVersion 必須是 X.Y.Z。");
-        var current = new Version(0, 1, 0);
-        if (minimum > current)
-            throw new InvalidDataException($"此 ScratchPack 需要 ScratchGame {minimumAppVersion} 以上版本。");
+        if (!Version.TryParse(minimumAppVersion, out var minimum)) throw new InvalidDataException("minimumAppVersion 必須是 X.Y.Z。");
+        var current = new Version(0, 3, 0);
+        if (minimum > current) throw new InvalidDataException($"此 ScratchPack 需要 ScratchGame {minimumAppVersion} 以上版本。");
     }
 
-    private static string ValidateRelativeJsonPath(string path)
-        => ValidateRelativeResourcePath(path, ".json");
-
+    private static string ValidateRelativeJsonPath(string path) => ValidateRelativeResourcePath(path, ".json");
     private static string ValidateRelativeResourcePath(string path, string requiredExtension)
     {
         path = path.Replace('\\', '/');
-        if (string.IsNullOrWhiteSpace(path) || path.StartsWith('/') || path.Contains(":", StringComparison.Ordinal) ||
-            path.Split('/').Any(part => part == ".."))
+        if (string.IsNullOrWhiteSpace(path) || path.StartsWith('/') || path.Contains(":", StringComparison.Ordinal) || path.Split('/').Any(part => part == ".."))
             throw new InvalidDataException($"不合法的相對路徑：{path}");
         if (!string.Equals(Path.GetExtension(path), requiredExtension, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"資源必須是 {requiredExtension}：{path}");
@@ -354,34 +350,26 @@ public sealed class ScratchPackImporter(AppDatabase database)
         if (!element.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.String)
             throw new InvalidDataException($"缺少字串欄位：{property}");
         var text = value.GetString();
-        if (string.IsNullOrWhiteSpace(text))
-            throw new InvalidDataException($"欄位不可空白：{property}");
+        if (string.IsNullOrWhiteSpace(text)) throw new InvalidDataException($"欄位不可空白：{property}");
         return text;
     }
-
     private static long RequiredInt64(JsonElement element, string property)
     {
         if (!element.TryGetProperty(property, out var value) || !value.TryGetInt64(out var result))
             throw new InvalidDataException($"缺少整數欄位：{property}");
         return result;
     }
-
+    private static long? OptionalInt64(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value)) return null;
+        if (!value.TryGetInt64(out var result)) throw new InvalidDataException($"欄位必須是整數：{property}");
+        return result;
+    }
     private static void RequireProperty(JsonElement element, string property)
     {
-        if (!element.TryGetProperty(property, out _))
-            throw new InvalidDataException($"Game Rule 缺少必要欄位：{property}");
+        if (!element.TryGetProperty(property, out _)) throw new InvalidDataException($"Game Rule 缺少必要欄位：{property}");
     }
 
-    private sealed record TicketImportDefinition(
-        string TicketId,
-        string DisplayName,
-        long Price,
-        string RuleId,
-        long IssueSize);
-
-    private sealed record PrizeImportTier(
-        string Id,
-        long Amount,
-        long Count,
-        int SortOrder);
+    private sealed record TicketImportDefinition(string TicketId, string DisplayName, long Price, string RuleId, long IssueSize, long TicketsPerBook, int PriceDisplay);
+    private sealed record PrizeImportTier(string Id, long Amount, long Count, int SortOrder);
 }
