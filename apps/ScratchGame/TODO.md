@@ -12,16 +12,17 @@
 
 ## ScratchPack V1 實作順序
 
-1. 完成第一款 Built-in Base Pack「三星連線」：`manifest.json`、`ticket.json`、`assets/three-star.png` 與必要資源。
-2. 以三星連線做第一個 reference Pack walkthrough，確認實際 Pack 能完整符合 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`，不另加平行欄位。
-3. 實作 V1 loader / validator，讓 Built-in / Imported Pack 共用同一套載入與驗證 pipeline。
-4. 將目前三星連線專屬硬編碼資料移除，改由 Built-in Base Pack 提供。
-5. 完成 GameType 1 runtime / renderer / finite-pool end-to-end 驗證。
-6. 依 `GAMETYPE_SPEC.md` 完成 GameType 2～6 engine / renderer / validation。
-7. 實作外部 `.scratchpack` 原子匯入、packageId 管理、錯誤回復與安裝來源狀態。
-8. 製作 ScratchPack Maker 第一版：GameType-aware 精靈、票面預覽、zone 位置配置、Prize Pool、derived statistics、預覽測試與一鍵封裝。
-9. 每個 GameType 至少以一張實際 ScratchPack 做建立、驗證、匯入／註冊、遊玩、有限票池、兌獎與統計測試。
-10. 完成六種基礎玩法交叉測試後，進入 ScratchGame V1.0.0 發行準備。
+1. 先完成獨立的「三星連線測試 Pack」：`manifest.json`、`ticket.json` 與必要資源；使用小型測試票池覆蓋 0 線與所有合法正獎線數。
+2. 以三星連線測試 Pack 做第一個 V1 conformance / reference walkthrough，確認實際 Pack 能完整符合 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`，不另加平行欄位。
+3. 完成正式 Built-in Base Pack「三星連線」500 元／10,000 張版本；正式 Pack 與測試 Pack 使用獨立 `packageId` 與獨立票池。
+4. 實作 V1 loader / validator，讓 Built-in / Imported / 開發測試 Pack 共用同一套載入與驗證 pipeline。
+5. 將目前三星連線專屬硬編碼資料移除，改由 Built-in Base Pack 提供。
+6. 完成 GameType 1 runtime / renderer / finite-pool end-to-end 驗證。
+7. 依 `GAMETYPE_SPEC.md` 完成 GameType 2～6 engine / renderer / validation。
+8. 實作外部 `.scratchpack` 原子匯入、packageId 管理、錯誤回復與安裝來源狀態。
+9. 製作 ScratchPack Maker 第一版：GameType-aware 精靈、票面預覽、zone 位置配置、Prize Pool、derived statistics、預覽測試與一鍵封裝。
+10. 每個 GameType 至少以一張實際 ScratchPack 做建立、驗證、匯入／註冊、遊玩、有限票池、兌獎與統計測試。
+11. 完成六種基礎玩法交叉測試後，進入 ScratchGame V1.0.0 發行準備。
 
 ## ScratchPack Developer Guide
 
@@ -40,7 +41,6 @@
 ## ScratchPack / Pack lifecycle 未完成工作
 
 - 設計外部 Pack 解除安裝後，已發行批次、歷史紀錄與使用者既有遊玩資料的保留／封存規則。
-- 決定 Built-in Base Pack 是否允許「停用」但不可刪除；目前已確定不可刪除／解除安裝。
 - 擴增更多固定 Canvas code。
 - 擴增更多官方刮膜幾何形狀。
 - 未來再設計單張彩券多玩法／Bonus 區架構。
