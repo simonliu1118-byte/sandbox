@@ -180,12 +180,12 @@
                                         <TextBlock Margin="0,8,0,0" Text="{Binding Ticket.PublishedWinRate, StringFormat={}{0:P2}}" Foreground="#FFD363" FontSize="22" FontWeight="Bold" HorizontalAlignment="Right"/>
                                     </StackPanel>
 
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
-                                            <Setter TargetName="MissingArtwork" Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
                                 </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
+                                        <Setter TargetName="MissingArtwork" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
