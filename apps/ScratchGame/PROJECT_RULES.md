@@ -16,6 +16,8 @@
 - 主畫面以彩券本體為視覺核心；正式彩券與主要場景優先使用外部 PNG 美術，WPF 負責動態內容、刮除層、互動、文字與動畫。
 - 主彩券舞台必須維持「背景 -> 彩券 -> 動態刮區/符號/票號 -> 硬幣 -> 中獎效果/結果框」的單純層級；不得再以多層 Border、托盤框、重複裝飾框壓在彩券背後。
 - 每一個視覺資料只能有單一 owner：靜態美術由 PNG 負責；票號、程式面額、刮膜、符號、硬幣與結果效果由程式負責。禁止舊版文字/底塊先畫一次，再由 enhancement layer 覆蓋或刪除的補丁式做法。
+- PNG / WAV 等外部資源對主程式是 **opaque render asset**；主程式可以驗證檔案存在、格式、尺寸與能否解碼，但不得靠 OCR、像素分析、檔名或圖片文字推導彩券名稱、面額、Prize Tier、GameType、刮區、批次或任何業務資料。
+- 圖片可以含宣傳性固定文字，例如中獎率或最高獎金文案；這只屬視覺內容。遊戲邏輯與統計只認 ScratchPack 結構化資料與 runtime database。
 - Dialog / Modal 應使用 ScratchGame 自畫風格，正常使用流程的 Info / Warning / Error / Confirm 不使用 Windows `MessageBox`。只有程式連自家 UI 都無法初始化的致命 fallback 才允許 Windows MessageBox。
 - 若 Dialog 已有「取消」或「關閉」按鈕，不再額外放右上角重複 X。
 - 文字與圖示不得因 DropShadowEffect 或整體 rasterization 變糊；陰影與文字本體應分層處理，文字優先使用清楚的 WPF text rendering。
@@ -95,6 +97,7 @@
 - 已發布 gameType 的核心勝負判定與語意永遠不修改。新的核心規則或會改變勝負判定的變體必須新增新的 gameType，不得偷偷改舊規則。
 - 既有 gameType 可以新增不改變核心勝負判定的 optional 參數；舊 ScratchPack 沒有該參數時，必須套用能保持舊行為的明確 default，確保向下相容。
 - Prize Pool / Prize Tier 保持通用資料，只保存獎金與張數；玩法引擎負責依抽中的 payout 產生合法結果，不把玩法專屬 outcome 欄位污染通用獎池資料。
+- 同一資料只能有一個權威來源；Prize Tier 不得在 manifest、美術路徑欄位、圖片 metadata 或其他平行檔案再次定義。V1 詳細 schema 在實作前只由 `SCRATCHPACK_V1_PLAN.md` 定義；正式實作後由 `SCRATCHPACK_SPEC.md` 接管，不在多檔複製同一 schema。
 
 ### gameType `"1"` — 星星連線
 
@@ -112,6 +115,7 @@
 - 彩券包至少可描述：名稱、面額、canvas code、gameType、玩法合法參數、issueSize、ticketsPerBook、獎項表、刮區數量與每區 x/y/width/height/shape，以及所需美術資源。
 - 第一階段刮膜 shape 只使用主程式公開支援的簡單幾何；未來只新增新的官方 shape，不讓彩券包自行執行形狀程式碼。
 - 自訂銀膜可選；未提供時使用主程式預設銀膜。
+- 美術欄位只負責指向包內資源，不承擔 Prize Tier、面額、中獎率、最高獎金等結構化資料；主程式也不得從資源檔名或圖片內容反推這些資料。
 - `priceDisplay = 0` 代表底圖已包含完整面額美術，主程式完全不畫；`priceDisplay = 1` 代表主程式在該 Canvas 的官方位置繪製完整標準面額徽章（外框 + 底色 + 面額文字）。
 - 使用 `priceDisplay = 1` 時，彩券底圖不得殘留舊面額文字/底塊；票號同理只由程式動態繪製，不得把舊票號底塊燒在 PNG 裡。
 - 官方 Canvas code、gameType、shape 與其合法參數需由未來 ScratchPack Developer Guide 公開代碼對照；既有代碼不得重新定義。
