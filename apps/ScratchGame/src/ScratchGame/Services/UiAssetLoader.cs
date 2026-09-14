@@ -22,8 +22,6 @@ public static class UiAssetLoader
 
     public static void ApplyMainWindowBackgrounds(Image header, Image stage, Image footer)
     {
-        // Build 5: the shipping default Frame Theme and Stage Theme are embedded fallbacks.
-        // Future store-installed themes can call the override methods with their installed folders.
         ApplyFrameTheme(header, footer, externalThemeDirectory: null);
         ApplyStageTheme(stage, externalThemeDirectory: null);
     }
@@ -71,6 +69,23 @@ public static class UiAssetLoader
     public static void TrySetImage(Image target, string path)
     {
         var bitmap = TryLoadFile(path, expectedWidth: null, expectedHeight: null);
+        if (bitmap is not null)
+        {
+            target.Source = bitmap;
+            return;
+        }
+
+        // Compatibility path for the existing MainWindow constructor: if no loose legacy UI file
+        // exists, fall back to the embedded shipping defaults.
+        var fileName = Path.GetFileName(path);
+        bitmap = fileName switch
+        {
+            "topbar_bg.png" => TryLoadEmbedded("Header", HeaderWidth, HeaderHeight),
+            "stage_bg.png" => TryLoadEmbedded("Stage", StageWidth, StageHeight),
+            "footer_bg.png" => TryLoadEmbedded("Footer", FooterWidth, FooterHeight),
+            _ => null
+        };
+
         if (bitmap is not null)
             target.Source = bitmap;
     }
