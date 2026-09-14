@@ -1,317 +1,276 @@
 # ScratchPack Format Specification
 
-Version: 1.0
+Specification version: **1.0**  
+Implementation status: **規格已定稿；目前 ScratchGame 尚未完整實作 V1 loader / importer / Maker。**
 
-本文件是 ScratchGame 外部彩券包 `.scratchpack` 的唯一正式格式規格。只要依本文件產出套件，即使沒有原始對話，也應能製作可由相容版本 ScratchGame 匯入的彩券。
+本文件是 ScratchPack V1 **封裝與資料格式的唯一正式規格**。GameType 的勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific 驗證只由 `GAMETYPE_SPEC.md` 定義。
 
-## 1. 封裝
+`PROJECT_RULES.md` 只保存永久專案原則；`TODO.md` 只保存未完成工作與未決事項。不得在其他檔案平行維護本文件 schema。
 
-- 副檔名：`.scratchpack`
-- 實體格式：ZIP archive。
-- ZIP 根目錄不得再多包一層資料夾。
-- JSON 一律 UTF-8（建議無 BOM）。
-- 路徑一律使用 `/`，且必須為相對路徑。
-- 禁止 `..`、絕對路徑、磁碟代號、UNC path、symbolic link、hard link 或任何可跳出解壓目錄的項目。
-- 建議整包不超過 50 MB；單一檔案不超過 20 MB。
+## 1. 定位與資料責任
 
-## 2. 必要檔案
+ScratchPack 只提供資料、美術與 GameType 允許的公開參數，不包含可執行玩法程式碼。
+
+主程式負責驗證、載入與運行 Pack，並提供 GameType engine、Renderer、盤面生成、刮膜互動、票號、程式面額、批次、有限票池、Pending Ticket、兌獎、中獎效果、音效、硬幣、使用者與損益資料。
+
+ScratchPack 負責彩券名稱、作者、面額、Canvas code、GameType 與公開參數、必要票面 PNG、GameType 額外資源、刮區 geometry、`issueSize`、`ticketsPerBook` 與最終 Prize Pool / Prize Tier。
+
+PNG / WAV 對主程式是 opaque render asset。Importer 可檢查路徑、安全性、格式、尺寸與能否解碼，但不得靠 OCR、像素分析或檔名推導彩券名稱、面額、中獎率、最高獎金、Prize Tier、GameType、刮區、批次、日期或票號。
+
+圖片可以印「中獎率 100%」「最高可中一百萬！」等宣傳字樣；這些只屬美術內容，不成為程式資料來源。第一款「三星連線」只是選擇不放這兩類宣傳字樣，並非 V1 全域限制。
+
+## 2. 封裝與安全
+
+- 副檔名：`.scratchpack`。
+- 實體格式：ZIP；ZIP 根目錄不得再多包一層資料夾。
+- JSON：UTF-8。
+- 路徑：一律 `/`、相對路徑；禁止 `..`、絕對路徑、磁碟代號、UNC、symbolic link、hard link 或任何可跳出解壓目錄的項目。
+- V1 只允許資料與 PNG 資源；不得包含 DLL、EXE、script、macro 或任何可執行 payload。
+- V1 暫不開放 ScratchPack 自訂中獎音效或中獎動畫。
+
+最小合法套件：
 
 ```text
 manifest.json
 ticket.json
-layout.json
-prizes.json
 assets/
+  <票面檔名>.png
 ```
 
-`sounds/` 為可選。
+票面檔名不固定；主程式只依 `ticket.json.art.ticket` 載入。Maker 應使用可辨識名稱，例如 `assets/three-star.png`。
 
-## 3. 安全限制
+可選 `assets/mask.png`。GameType 若允許額外符號素材，可在 `assets/` 增加 PNG，並由該 GameType 的合法欄位引用。
 
-ScratchPack 僅允許資料、美術與音效，不得包含可執行程式碼。
+V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式將 `art.ticket` 指向的正式票面 PNG 等比例產生。
 
-禁止副檔名至少包括：
-
-```text
-.exe .dll .com .scr .msi .ps1 .bat .cmd .js .vbs .py .pyw .jar .sh
-```
-
-亦禁止任何巨集、內嵌可執行 payload、可執行 script、外部 URL 載入程式碼、反射載入 assembly 或要求主程式執行包內二進位內容的設定。
-
-V1.0 允許資源類型：
-
-- 圖片：`.png`
-- 音效：`.wav`
-- 資料：`.json`
-
-所有資源必須包在 ScratchPack 內；不得依賴本機絕對路徑或網路 URL。
-
-## 4. `manifest.json`
-
-必要欄位：
+## 3. `manifest.json`
 
 ```json
 {
   "formatVersion": "1.0",
-  "packageId": "7d2b2f06-0f3d-46af-8afb-542225346345",
-  "name": "三星連線 100",
+  "packageId": "GUID",
   "author": "C.C.LIU",
-  "minimumAppVersion": "0.1.0",
-  "ticketFile": "ticket.json",
-  "layoutFile": "layout.json",
-  "prizesFile": "prizes.json"
+  "minimumAppVersion": "0.4.0",
+  "ticketFile": "ticket.json"
 }
 ```
 
 規則：
 
-- `formatVersion`：ScratchPack 規格版本；V1.0 必須為字串 `1.0`。
-- `packageId`：UUID/GUID，作為套件唯一識別；不同彩券必須使用不同 ID。
-- `name`：套件顯示名稱。
+- `formatVersion`：V1 必須為字串 `"1.0"`。
+- `packageId`：合法 GUID，套件唯一識別。
 - `author`：作者顯示名稱，可空字串但欄位必須存在。
-- `minimumAppVersion`：最低相容 ScratchGame 基礎版本 `X.Y.Z`。
-- 三個 `*File` 路徑必須指向包內 JSON，且不得跳出根目錄。
+- `minimumAppVersion`：最低相容 ScratchGame 版本。
+- `ticketFile`：包內 `ticket.json` 相對路徑。
+- `manifest.json` 只承擔封裝層資訊，不重複保存彩券名稱、面額、Prize Tier、Canvas、GameType 或美術路徑。
+- V1 不另拆 `layout.json` / `prizes.json`。
+- 不保存本機 `styleNumber`；款式編號由 runtime database 管理。
 
-## 5. `ticket.json`
+## 4. `ticket.json`
 
-範例：
+基礎結構：
 
 ```json
 {
-  "ticketId": "three-line-100-v1",
-  "displayName": "三星連線",
-  "price": 100,
-  "ruleId": "ThreeLine",
-  "issueSize": 100000,
+  "name": "三星連線",
+  "price": 500,
+  "canvas": 1,
+  "priceDisplay": 0,
+  "gameType": "1",
+  "issueSize": 10000,
+  "ticketsPerBook": 100,
   "art": {
-    "background": "assets/background.png",
-    "scratchMask": "assets/mask.png"
+    "ticket": "assets/three-star.png",
+    "mask": null
   },
-  "scratch": {
-    "brushRadius": 24,
-    "completionRatio": 0.78
-  }
+  "serialDisplayArea": { "x": 64, "y": 742, "width": 205, "height": 36 },
+  "scratch": { "zones": [] },
+  "game": {},
+  "prizes": []
 }
 ```
 
-規則：
+單一 owner：
 
-- `ticketId`：套件內穩定識別字串；建議只用英數、`-`、`_`。
-- `displayName`：使用者可見彩券名稱。
-- `price`：正整數面額。
-- `ruleId`：必須是主程式支援的 Game Rule ID。
-- `issueSize`：正整數總發行張數，必須等於 `prizes.json` 全部 `count` 加總。
-- `art.background`：必要 PNG。
-- `art.scratchMask`：必要 PNG；若版型以程式生成遮罩，仍需在 V1.0 提供一張可用遮罩素材。
-- `scratch.brushRadius`：建議 8～80；匯入器可拒絕不合理值。
-- `scratch.completionRatio`：0.50～0.95；預設建議 0.78。
+- `manifest.json`：封裝層。
+- `ticket.json`：彩券定義唯一權威資料。
+- `art.*`：只保存包內資源相對路徑。
+- `prizes`：最終 Prize Pool / Prize Tier 唯一權威來源；不得另建 `prizes.json`、圖片 metadata、`artworkFile` 或其他平行欄位。
+- runtime database：本機款式編號、Pack 安裝來源、批次、日期、Remaining、Pending、歷史等 runtime state。
 
-V0.1 支援的 `ruleId`：
+ScratchPack 不保存中獎率、未中獎率、最高獎金、EV、RTP、總本數、未中獎張數等 Derived Data。
+
+挑券卡資料來源：名稱=`name`；面額=`price`；縮圖=`art.ticket`；中獎率由 `prizes` + `issueSize` 算；最高獎由 `max(prizes.amount where count > 0)` 算；批次與發行日期來自 runtime database。
+
+## 5. Canvas、票面與動態層
+
+V1 只允許官方固定 Canvas code，不允許 Pack 任意輸入寬高。
 
 ```text
-LuckyNumberMatch
-ThreeLine
-MatchThree
+canvas = 1 → 1080 × 882
 ```
 
-若套件使用未知 `ruleId`，匯入器必須拒絕並指出需要較新主程式；不得自行執行包內程式碼補足玩法。
+既有 Canvas code 的尺寸語意永遠不得改變；其他尺寸只能新增新 code。
 
-## 6. `prizes.json`
+`art.ticket` 指向的 PNG 必須與 Canvas 尺寸完全一致；Maker / Importer 不得偷偷縮放、裁切或重新取樣後放行。
 
-範例：
+票面 PNG 可負責：背景、名稱、固定說明、裝飾、刮區固定美術、`priceDisplay=0` 時的完整面額美術與宣傳性固定文字。
 
-```json
-{
-  "currency": "TWD",
-  "tiers": [
-    { "id": "jackpot", "amount": 1000000, "count": 1 },
-    { "id": "p10000", "amount": 10000, "count": 30 },
-    { "id": "p1000", "amount": 1000, "count": 800 },
-    { "id": "p500", "amount": 500, "count": 3000 },
-    { "id": "p200", "amount": 200, "count": 12000 },
-    { "id": "p100", "amount": 100, "count": 25000 },
-    { "id": "lose", "amount": 0, "count": 59169 }
-  ]
-}
-```
+主程式負責：每張票動態符號／數字／金額／結果、銀膜、票號、`priceDisplay=1` 的面額徽章、命中標記、批次／票池狀態、中獎效果、音效與硬幣。
 
-規則：
-
-- `currency` V1.0 預設 `TWD`。
-- 每個 `tiers[].id` 在該彩券內唯一。
-- `amount` 為大於等於 0 的整數。
-- `count` 為大於 0 的整數。
-- 必須至少有一個 `amount = 0` 的未中獎 tier。
-- 所有 tier 的 `count` 加總必須精確等於 `ticket.issueSize`。
-- 發行時中獎率由程式計算，不得以另一個可互相矛盾的 `winRate` 欄位作權威來源。
-
-計算：
+疊圖順序：
 
 ```text
-WinningTickets = sum(count where amount > 0)
-WinRate = WinningTickets / issueSize
+票面 PNG
+→ 動態遊戲內容
+→ 刮膜
+→ 票號 / 程式面額
+→ 命中標記 / 硬幣
+→ 中獎特效 / 結果 UI
 ```
 
-匯入畫面顯示此計算結果。
+## 6. 面額與票號
 
-## 7. `layout.json`
+`priceDisplay`：
 
-所有座標使用「設計座標系」，主程式依票券顯示大小等比例縮放。
+- `0`：面額完整畫在 PNG，主程式不再疊面額；實際面額仍以 `ticket.json.price` 為權威。
+- `1`：底圖留空並提供 `priceDisplayArea`，主程式在該區域畫完整標準面額徽章；底圖不得殘留舊面額文字或底塊。
 
-範例：
+`serialDisplayArea` 只提供票號區域位置與大小；票號格式、字型、圓角框與底色由主程式統一處理，PNG 不得燒入舊票號或舊票號底塊。
 
-```json
-{
-  "canvas": { "width": 1000, "height": 650 },
-  "title": { "x": 60, "y": 35, "width": 500, "height": 80 },
-  "scratchZones": [
-    {
-      "id": "main",
-      "x": 80,
-      "y": 160,
-      "width": 840,
-      "height": 390,
-      "required": true
-    }
-  ],
-  "rule": {
-    "winningNumberArea": { "x": 120, "y": 170, "width": 760, "height": 90 },
-    "playArea": { "x": 120, "y": 285, "width": 760, "height": 240 }
-  }
-}
-```
+票號格式：`款式編號-本號-本內序號`。各段至少三位補零，超過三位自然增加，不截斷、不循環、不換行。
 
-規則：
+## 7. Scratch Zone
 
-- `canvas.width` / `height` 必須為正整數。
-- 所有區域必須落在 canvas 範圍內。
-- `scratchZones` 至少一個。
-- `id` 不得重複。
-- `required=true` 的區域全部完成後，視為整張票手動刮獎完成並自動兌獎。
-- 每個 Game Rule 可以要求 `rule` 物件內具有額外欄位；匯入器必須依 `ruleId` 驗證。
-
-## 8. Game Rule 資料契約 V1.0
-
-### `LuckyNumberMatch`
-
-`layout.rule` 至少需要：
-
-```json
-{
-  "winningNumberArea": { "x": 0, "y": 0, "width": 100, "height": 100 },
-  "playArea": { "x": 0, "y": 0, "width": 100, "height": 100 },
-  "winningNumberCount": 3,
-  "playNumberCount": 12,
-  "numberMin": 1,
-  "numberMax": 30
-}
-```
-
-主程式必須先抽出最終 Prize Tier，再產生能精確對應該獎金的合法號碼內容；不得用隨機號碼碰運氣決定最後總獎金。
-
-### `ThreeLine`
-
-`layout.rule` 至少需要：
-
-```json
-{
-  "grid": { "x": 0, "y": 0, "width": 100, "height": 100, "rows": 3, "columns": 3 },
-  "winningLines": [
-    [0,1,2], [3,4,5], [6,7,8],
-    [0,3,6], [1,4,7], [2,5,8],
-    [0,4,8], [2,4,6]
-  ]
-}
-```
-
-索引從左到右、由上到下，從 0 開始。主程式同樣必須依已抽出的 Prize Tier 生成可驗證的盤面。
-
-### `MatchThree`
-
-`layout.rule` 至少需要：
-
-```json
-{
-  "grid": { "x": 0, "y": 0, "width": 100, "height": 100, "rows": 3, "columns": 3 },
-  "matchCount": 3
-}
-```
-
-主程式依 Prize Tier 產生至少 `matchCount` 個符合該獎金規則的相同結果；未中獎票不得意外形成可兌獎組合。
-
-## 9. 美術
-
-- PNG 建議使用 sRGB。
-- 建議單張不超過 4096 × 4096。
-- 背景可含彩券名稱與裝飾，但實際遊戲數值／符號仍應由引擎在指定 layout 上繪製，避免結果寫死在圖片。
-- `scratchMask` 應為可平鋪或可縮放的刮膜素材；不得包含遊戲結果。
-- 套件不得直接複製無授權的第三方彩券正式美術、商標或受保護素材。
-
-## 10. 音效
-
-可選：
+V1 shape：
 
 ```text
-sounds/scratch.wav
-sounds/win.wav
-sounds/lose.wav
+rectangle
+roundedRectangle
+circle
+ellipse
 ```
 
-若提供，可在 `ticket.json` 加：
+- `roundedRectangle` 可有 `cornerRadius`。
+- `circle` 必須 `width == height`。
+- zone 必須完整落在 Canvas 內，ID 不得重複。
+- GameType 需要多少刮區，就必須剛好有多少；不允許額外裝飾刮區。
+- GameType-specific mapping 與數量要求只看 `GAMETYPE_SPEC.md`。
+
+基本 zone：
 
 ```json
 {
-  "sounds": {
-    "scratch": "sounds/scratch.wav",
-    "win": "sounds/win.wav",
-    "lose": "sounds/lose.wav"
-  }
+  "id": "cell01",
+  "x": 281,
+  "y": 225,
+  "width": 163,
+  "height": 101,
+  "shape": "roundedRectangle",
+  "cornerRadius": 12
 }
 ```
 
-主程式找不到可選音效時應靜默使用預設音效或無音效，不得使彩券無法載入；若路徑存在但檔案格式非法，匯入時拒絕。
+V1 不提供通用 `contentBox`。Scratch zone 只負責位置、尺寸與形狀；同類元件內部排版由各 GameType Renderer 固定。
 
-## 11. 匯入驗證順序
+`art.mask = null` 或缺省時使用主程式預設銀膜；指定包內 PNG 時使用自訂銀膜材質。
 
-匯入器至少依序檢查：
+## 8. 發行量、本數與 Prize Pool
 
-1. ZIP 結構與 path traversal / link 安全。
-2. 檔案類型與大小。
-3. `manifest.json` 格式版本與最低 App 版本。
-4. 必要 JSON 是否存在且可解析。
-5. `ticketId` / `packageId` 是否衝突。
-6. `ruleId` 是否支援。
-7. `issueSize` 與獎項 count 加總是否一致。
-8. 是否存在至少一個未中獎 tier。
-9. layout 是否在 canvas 範圍內且符合對應 Game Rule。
-10. 所有資源路徑是否合法且檔案存在。
-11. 圖片／音效是否可解碼。
+必須：
 
-任何必要檢查失敗都不得留下半套已匯入資料；整個匯入必須視為一次原子操作。
+```text
+issueSize > 0
+ticketsPerBook > 0
+issueSize % ticketsPerBook == 0
+```
 
-## 12. 彩券定義不可變規則
+`bookCount = issueSize / ticketsPerBook`，但不寫入 ScratchPack。
 
-匯入 ScratchPack 只建立「彩券定義」，不直接修改既有已發行彩券。
+`ticket.json.prizes` 是最終 Prize Pool / Prize Tier 唯一權威欄位：
 
-- 尚未發行的匯入彩券可移除後重新匯入。
-- 彩券一旦建立第一批，面額、發行量、獎項表與規則視為鎖定。
-- 想改獎項表或機率時，必須使用新的 `packageId` / `ticketId`，作為全新彩券匯入。
-- 新批次只能用該彩券原始固定獎項表重置票池。
+```text
+amount > 0
+count >= 0
+```
 
-## 13. 第三方／AI 製作檢查表
+同一 Pack 每個 `amount` 必須唯一；不保存 `amount=0` 的未中獎 tier。
 
-交付 `.scratchpack` 前確認：
+```text
+winningCount = Σ prizes.count
+loseCount = issueSize - winningCount
+winRate = winningCount / issueSize
+maxPrize = max(prizes.amount where count > 0)
+```
 
-- [ ] 根目錄直接有四個必要 JSON／assets。
-- [ ] `formatVersion = 1.0`。
-- [ ] `packageId` 是新的 GUID。
-- [ ] `ruleId` 是相容主程式已支援的 ID。
-- [ ] `issueSize = 所有 prize count 加總`。
-- [ ] 至少一個 `amount = 0` tier。
-- [ ] layout 所有座標在 canvas 內。
-- [ ] 所有必要 scratch zone 已定義。
-- [ ] 圖片只用 PNG、音效只用 WAV。
-- [ ] 沒有 executable/script、外部 URL、絕對路徑或 `..`。
-- [ ] 用 ZIP 封裝後將副檔名改成 `.scratchpack`。
+- `winningCount < issueSize`：差額視為未中獎。
+- `winningCount == issueSize`：100% 中獎，合法。
+- `winningCount > issueSize`：非法。
+- `winningCount=0` 時 `maxPrize=0`。
+- `loseCount`、`winRate`、`maxPrize` 與 EV / RTP 等都只做 Derived Data，不另存權威欄位。
 
-只要本規格版本仍為 1.0，製作者不得依賴未寫在本文件中的私人約定。
+具有固定 tier 順序語意的 GameType 可保留 `count=0` 的固定 tier；細節由 `GAMETYPE_SPEC.md` 定義。
+
+## 9. GameType 契約
+
+`ticket.json.gameType` 必須是主程式已支援的 ID，`ticket.json.game` 只能使用該 GameType 公開合法欄位。
+
+GameType 1～6 的核心勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific validation 唯一權威來源：
+
+```text
+GAMETYPE_SPEC.md
+```
+
+## 10. Maker / Importer 共通驗證
+
+至少驗證：
+
+- ZIP / 路徑安全與不可執行內容。
+- `manifest.json` / `ticket.json` 可解析且版本相容。
+- `packageId` 唯一合法。
+- 不存在未定義資源，例如 `thumbnail.png`。
+- `manifest.json` 不重複保存 ticket 業務資料。
+- Prize Tier 只由 `ticket.json.prizes` 定義。
+- `art.*` 只含合法包內相對路徑。
+- Canvas code 支援；`art.ticket` 存在、可解碼且尺寸完全符合 Canvas。
+- 所有座標合法；`priceDisplay=1` 時 `priceDisplayArea` 合法；`serialDisplayArea` 合法。
+- zone ID、shape 與 GameType mapping 合法。
+- `issueSize % ticketsPerBook == 0`、`Σ prizes.count <= issueSize`。
+- GameType、玩法參數與 Renderer 限制符合 `GAMETYPE_SPEC.md`。
+- 所有被引用 PNG 可正常解碼。
+
+Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」為止；不 OCR、不解析圖片文字、不從圖片推導任何遊戲資料。
+
+任何驗證失敗都不得留下半套已安裝資料；外部 Pack 匯入必須為原子操作。
+
+## 11. 內建基礎 Pack 與外部 Pack
+
+正式彩券一律以 ScratchPack 定義；主程式不得為某張正式彩券另外硬編碼專屬 Prize Tier、layout、玩法結果或第二套 ticket definition。
+
+第一款「三星連線」是 **Built-in Base Pack**：
+
+- 使用與外部 `.scratchpack` 完全相同的 V1 schema、資源結構與 GameType 契約。
+- 隨 ScratchGame 發行內容提供，不要求使用者手動匯入。
+- 主程式初始化時自動確認並註冊。
+- Built-in 與 Imported Pack 共用 loader / validator / engine / renderer / finite-pool / redemption pipeline。
+- Built-in Base Pack 不提供刪除／解除安裝；缺少或損壞視為程式發行內容不完整。
+- `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 Pack 可自行宣稱的 manifest / ticket 欄位。
+
+是否允許使用者停用 Built-in Base Pack 屬產品行為，不屬 ScratchPack 檔案格式，保留在 `TODO.md`。
+
+外部 Pack 由使用者匯入；匯入後與 Built-in Pack 使用同一套 runtime model。解除安裝與歷史資料保存屬 runtime lifecycle，不寫入 Pack schema。
+
+第一款 Built-in Base Pack「三星連線」：
+
+- `gameType="1"`。
+- `canvas=1`，票面 PNG 必須 1080×882。
+- 正式美術使用可辨識檔名，例如 `assets/three-star.png`。
+- 基本款票面不放中獎率與「最高可中 N 元」宣傳字樣。
+- 它同時是第一個 V1 reference Pack，不另維護測試版 ticket definition。
+
+## 12. 相容性與文件責任
+
+- `formatVersion` 只代表 ScratchPack schema / 封裝版本，不代表 GameType 版本。
+- 已發布欄位的語意不得在相同 formatVersion 下偷偷改變；不相容 schema 變更必須升級 `formatVersion`。
+- GameType 相容性只由 `GAMETYPE_SPEC.md` 管理。
+- `PROJECT_RULES.md` 不複製 schema；`TODO.md` 不複製 schema 或 GameType 核心規則。

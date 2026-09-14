@@ -2,6 +2,8 @@
 
 本檔只保存 ScratchGame 的固定專案規則；repository 共通版本、開發、CI、Local-first 與 GitHub-final verification 規則依根 `REPOSITORY_RULES.md`。
 
+ScratchPack schema 的唯一正式來源是 `SCRATCHPACK_SPEC.md`；GameType 規則的唯一正式來源是 `GAMETYPE_SPEC.md`。本檔不重複欄位表或各 GameType 詳細規則。
+
 ## 1. 平台與發行
 
 - 正式技術線：C# / .NET 8 / WPF。
@@ -14,21 +16,20 @@
 ## 2. UI 與視覺責任邊界
 
 - 主畫面以彩券本體為視覺核心；正式彩券與主要場景優先使用外部 PNG 美術，WPF 負責動態內容、刮除層、互動、文字與動畫。
-- 主彩券舞台必須維持「背景 -> 彩券 -> 動態刮區/符號/票號 -> 硬幣 -> 中獎效果/結果框」的單純層級；不得再以多層 Border、托盤框、重複裝飾框壓在彩券背後。
+- 主彩券舞台維持「背景 -> 彩券 -> 動態刮區/符號/票號 -> 硬幣 -> 中獎效果/結果框」的單純層級；不得再以多層 Border、托盤框、重複裝飾框壓在彩券背後。
 - 每一個視覺資料只能有單一 owner：靜態美術由 PNG 負責；票號、程式面額、刮膜、符號、硬幣與結果效果由程式負責。禁止舊版文字/底塊先畫一次，再由 enhancement layer 覆蓋或刪除的補丁式做法。
-- PNG / WAV 等外部資源對主程式是 **opaque render asset**；主程式可以驗證檔案存在、格式、尺寸與能否解碼，但不得靠 OCR、像素分析、檔名或圖片文字推導彩券名稱、面額、Prize Tier、GameType、刮區、批次或任何業務資料。
-- 圖片可以含宣傳性固定文字，例如中獎率或最高獎金文案；這只屬視覺內容。遊戲邏輯與統計只認 ScratchPack 結構化資料與 runtime database。
-- Dialog / Modal 應使用 ScratchGame 自畫風格，正常使用流程的 Info / Warning / Error / Confirm 不使用 Windows `MessageBox`。只有程式連自家 UI 都無法初始化的致命 fallback 才允許 Windows MessageBox。
+- PNG / WAV 等外部資源對主程式是 opaque render asset；主程式可驗證檔案存在、格式、尺寸與能否解碼，但不得靠 OCR、像素分析、檔名或圖片文字推導業務資料。
+- 圖片可含宣傳性固定文字；這只屬視覺內容。遊戲邏輯與統計只認 ScratchPack 結構化資料與 runtime database。
+- Dialog / Modal 使用 ScratchGame 自畫風格；正常流程的 Info / Warning / Error / Confirm 不使用 Windows `MessageBox`。只有自家 UI 無法初始化的致命 fallback 才允許 Windows MessageBox。
 - 若 Dialog 已有「取消」或「關閉」按鈕，不再額外放右上角重複 X。
-- 文字與圖示不得因 DropShadowEffect 或整體 rasterization 變糊；陰影與文字本體應分層處理，文字優先使用清楚的 WPF text rendering。
-- 設定頁與長列表必須預留明確的垂直 ScrollBar 欄位；ScrollBar 外觀需符合深紅/金色主題，不可因資料量增加而造成內容左右跳動。
+- 文字與圖示不得因 DropShadowEffect 或整體 rasterization 變糊；陰影與文字本體分層處理，文字優先使用清楚的 WPF text rendering。
+- 設定頁與長列表必須預留明確的垂直 ScrollBar 欄位；ScrollBar 外觀符合深紅/金色主題，不可因資料量增加造成內容左右跳動。
 
 ## 3. Canvas 與版型座標
 
-- ScratchPack 使用官方固定 Canvas code；代碼一旦發布就永遠不得改變其尺寸語意，未來只新增新的 code。
-- `canvas = 1` 固定代表 **1080 x 882**，作為目前基本橫式刮刮樂版型。
-- 所有票面座標、刮區、符號、票號與程式面額都以彩券 Canvas 的設計座標描述，再由主程式整體等比例縮放；不得依目前視窗像素硬編排。
-- 同一刮區的符號、ScratchSurface 與銀膜必須共用同一份 layout geometry，不得各自維護另一套近似座標。
+- ScratchPack 使用官方固定 Canvas code；代碼一旦發布就永遠不得改變其尺寸語意，未來只新增新的 code。正式 code 對照以 `SCRATCHPACK_SPEC.md` 為準。
+- 所有票面座標、刮區、符號、票號與程式面額以彩券 Canvas 的設計座標描述，再由主程式整體等比例縮放；不得依目前視窗像素硬編排。
+- 同一刮區的符號、ScratchSurface 與銀膜共用同一份 layout geometry，不得各自維護另一套近似座標。
 
 ## 4. 使用者
 
@@ -42,28 +43,20 @@
 
 ## 5. 彩券定義、發行量與票號
 
-一張彩券定義至少固定包含：
+- 正式彩券的定義以 ScratchPack 為來源；主程式不得為某一張正式彩券保留第二套專屬 schema 或硬編碼 Prize Tier。
+- 一張正式彩券的必要資料與格式由 `SCRATCHPACK_SPEC.md` 定義；玩法契約由 `GAMETYPE_SPEC.md` 定義。
+- 彩券一旦建立第一批，核心定義即鎖定；若要不同面額、獎項機率、張數或核心規則，建立新的彩券款式，不修改既有款式。
+- 同一彩券每個新批次使用完全相同的固定定義；新批次只重新建立完整票池。
+- 已發行過的彩券不得真正刪除，只能依產品規則停用；歷史必須可追溯。
+- 虛擬票號格式固定為 `款式編號-本號-本內序號`；各段至少三位補零，超過三位自然增加，不截斷、不循環。
+- 彩券款式編號與 `gameType` 是不同概念；多款彩券可共用同一 GameType。
 
-- 名稱。
-- 面額。
-- gameType 與玩法參數。
-- canvas code。
-- 總發行張數 `issueSize`。
-- 每本張數 `ticketsPerBook`。
-- 完整獎項表（獎金 + 固定張數）。
-- 由獎項表自動計算的發行時中獎率。
-- 所需美術、版面與音效設定。
+### 內建基礎 Pack
 
-規則：
-
-- `issueSize > 0`、`ticketsPerBook > 0`，且 `issueSize % ticketsPerBook == 0`；`bookCount = issueSize / ticketsPerBook` 由程式計算。
-- 彩券尚未建立任何批次前可修改或刪除。
-- 彩券一旦建立第一批，核心定義即鎖定，不得修改面額、總發行量、每本張數、獎項張數或中獎率。
-- 同一彩券的每個新批次都必須使用完全相同的固定獎項表；新批次只代表重新建立完整票池。
-- 若要不同獎項機率、張數或核心規則，必須建立新的彩券款式，而不是修改既有彩券。
-- 已發行過的彩券不得真正刪除，只能停用；停用後不出現在新票選擇清單，但歷史仍可追溯。
-- 虛擬票號格式為 `款式編號-本號-本內序號`，初始至少三位補零，例如 `001-023-057`；任一段超過 999 時自然增加位數，不截斷、不循環。
-- 彩券款式編號與 `gameType` 是不同概念；多款彩券可共用同一 gameType。
+- 第一款「三星連線」是 Built-in Base Pack，不是主程式硬編碼特例。
+- Built-in Base Pack 必須完整符合與外部 Pack 相同的 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`，並走相同 loader / validator / engine / renderer pipeline。
+- Built-in Base Pack 隨程式提供、免使用者手動匯入，且不可刪除／解除安裝。
+- `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 ScratchPack 可自行宣稱的 schema 欄位。
 
 ## 6. 批次與售罄
 
@@ -71,7 +64,7 @@
 - 建立新批次會結束原 Active 批次；舊批次之後不可再抽票。
 - 發行新批次屬高影響操作，設定頁每張彩券列內提供「發行新一批」操作，執行前必須經兩次自畫確認。
 - 批次售罄後不得自動建立下一批；由使用者手動決定是否發行新批次。
-- 結算後如果目前同款 Active 批次已無剩餘票，左側動作按鈕必須 Disabled，文字顯示 **「本批次已售完」**，不需要 Tooltip；另一顆按鈕顯示 **「挑其他款」**。
+- 結算後如果目前同款 Active 批次已無剩餘票，左側動作按鈕 Disabled，文字顯示 **「本批次已售完」**；另一顆按鈕顯示 **「挑其他款」**。
 - 正常仍有票時，結算按鈕文字為 **「再來一張」** 與 **「挑其他款」**。
 
 ## 7. 有限票池與交易一致性
@@ -90,35 +83,20 @@
 - 正常兌獎才計入兌獎金額。
 - 最終個人損益 = 累計兌獎 - 累計投入。
 
-## 9. Game Rule / gameType 相容性
+## 9. GameType 相容性
 
-- ScratchPack 只選擇主程式已公開支援的 gameType，不得在彩券包內攜帶任意遊戲程式碼。
-- `gameType` 使用字串，例如 `"1"`、未來變體可使用 `"1-2"`；不使用 `gameVersion`。
-- 已發布 gameType 的核心勝負判定與語意永遠不修改。新的核心規則或會改變勝負判定的變體必須新增新的 gameType，不得偷偷改舊規則。
-- 既有 gameType 可以新增不改變核心勝負判定的 optional 參數；舊 ScratchPack 沒有該參數時，必須套用能保持舊行為的明確 default，確保向下相容。
-- Prize Pool / Prize Tier 保持通用資料，只保存獎金與張數；玩法引擎負責依抽中的 payout 產生合法結果，不把玩法專屬 outcome 欄位污染通用獎池資料。
-- 同一資料只能有一個權威來源；Prize Tier 不得在 manifest、美術路徑欄位、圖片 metadata 或其他平行檔案再次定義。V1 詳細 schema 在實作前只由 `SCRATCHPACK_V1_PLAN.md` 定義；正式實作後由 `SCRATCHPACK_SPEC.md` 接管，不在多檔複製同一 schema。
-
-### gameType `"1"` — 星星連線
-
-- `gridSize` 目前允許 3、4、5。
-- N x N 必須完整 N 顆星成一線：3x3 = 三星一線、4x4 = 四星一線、5x5 = 五星一線。
-- 只計算所有完整橫列、完整直列與兩條完整大對角線。
-- 短斜線、局部連線、Wildcard 或其他替代規則不屬於 gameType `"1"`。
-- 可使用不改變中獎判定的生成參數，例如 `allowNearMissStars`；此參數缺省時必須維持舊行為。目前正式 $500 三星連線可啟用 near-miss 星星，但生成結果必須精確維持抽中獎項所需的線數。
+- ScratchPack 只能選主程式已公開支援的 GameType，不得攜帶任意遊戲程式碼。
+- 已發布 GameType 的核心勝負判定與語意永遠不修改；改變核心規則時新增新的 GameType / variant ID。
+- 既有 GameType 可以新增不改變核心勝負判定的 optional 參數；舊 Pack 缺少新欄位時必須套用保持舊行為的明確 default。
+- Prize Pool / Prize Tier 保持通用資料；玩法專屬 outcome 不污染通用 Prize Pool。
+- 同一資料只能有一個權威來源；GameType 詳細契約只存在 `GAMETYPE_SPEC.md`。
 
 ## 10. ScratchPack 與資源
 
-- 外部彩券包副檔名為 `.scratchpack`。
-- ScratchPack 檔案格式使用頂層 `formatVersion`；它只代表封裝/manifest 結構版本，與 gameType 無關。
-- ScratchPack 只允許資料、美術與音效，不允許攜帶或執行任意程式碼、DLL、EXE 或 script。
-- 彩券包至少可描述：名稱、面額、canvas code、gameType、玩法合法參數、issueSize、ticketsPerBook、獎項表、刮區數量與每區 x/y/width/height/shape，以及所需美術資源。
-- 第一階段刮膜 shape 只使用主程式公開支援的簡單幾何；未來只新增新的官方 shape，不讓彩券包自行執行形狀程式碼。
-- 自訂銀膜可選；未提供時使用主程式預設銀膜。
-- 美術欄位只負責指向包內資源，不承擔 Prize Tier、面額、中獎率、最高獎金等結構化資料；主程式也不得從資源檔名或圖片內容反推這些資料。
-- `priceDisplay = 0` 代表底圖已包含完整面額美術，主程式完全不畫；`priceDisplay = 1` 代表主程式在該 Canvas 的官方位置繪製完整標準面額徽章（外框 + 底色 + 面額文字）。
-- 使用 `priceDisplay = 1` 時，彩券底圖不得殘留舊面額文字/底塊；票號同理只由程式動態繪製，不得把舊票號底塊燒在 PNG 裡。
-- 官方 Canvas code、gameType、shape 與其合法參數需由未來 ScratchPack Developer Guide 公開代碼對照；既有代碼不得重新定義。
+- ScratchPack 詳細 schema、Canvas code、資源欄位、Scratch Zone、Prize Pool 與驗證規則只存在 `SCRATCHPACK_SPEC.md`。
+- 美術欄位只指向包內資源，不承擔 Prize Tier、中獎率、最高獎金或其他平行業務資料。
+- 主程式不得從資源檔名或圖片內容反推業務資料。
+- ScratchPack 不允許執行任意程式碼、DLL、EXE 或 script。
 
 ## 11. 刮獎輸入與硬幣
 
@@ -126,24 +104,24 @@
 - 單一刮獎區達約 78%（可經實測微調）時，只標記該區已完成，不自動清除剩餘銀膜；使用者仍可繼續刮乾淨。
 - 只有所有必要刮獎區都達完成門檻後，才執行自動判定與兌獎。
 - 「全部刮開」直接清除所有必要刮膜並完成兌獎。
-- 自畫硬幣與實際刮除必須使用同一個 mouse event pipeline 與同一個座標點；不得再建立第二套 MouseMove 追蹤造成硬幣與刮點分離。
-- 待機時顯示硬幣正面；按住刮獎時切換成側立/傾斜刮獎視覺；滑鼠移動期間硬幣必須持續跟著實際刮點。
+- 自畫硬幣與實際刮除使用同一個 mouse event pipeline 與同一座標點；不得再建立第二套 MouseMove 追蹤造成硬幣與刮點分離。
+- 待機時顯示硬幣正面；按住刮獎時切換成側立／傾斜刮獎視覺；滑鼠移動期間硬幣持續跟著實際刮點。
 
 ## 12. 設定與挑選彩券 UI
 
 - 挑選彩券預設顯示所有啟用且有 Active 批次的彩券；面額篩選提供「全部、100、200、300、500、1000、2000、5000」等官方選項。
-- 面額篩選不得使用傳統 RadioButton / ComboBox 外觀；正式版以一致的小型鈔票圖示/卡片呈現，程式只負責排列、選取、Hover 與篩選邏輯。
-- 設定頁彩券列採 accordion：點一列展開詳細資料，再點同一列收起；點其他列時原列收起、新列展開。
+- 面額篩選不得使用傳統 RadioButton / ComboBox 外觀；正式版以一致的小型鈔票圖示／卡片呈現。
+- 設定頁彩券列採 accordion；點一列展開詳細資料，再點同一列收起；點其他列時原列收起、新列展開。
 - 展開內容的獎池只顯示「獎金 / 發行張數 / 剩餘」。
-- 「啟用中 / 已停用」直接做成每列狀態按鈕，點擊即可切換，不再放全域「啟用 / 停用」按鈕。
-- 「發行新一批」直接放在每列操作區，不再放全域發行按鈕；底部只保留真正全域性的操作，例如匯入 ScratchPack、立即備份、關閉。
+- 「啟用中 / 已停用」直接做成每列狀態按鈕。
+- 「發行新一批」直接放在每列操作區；底部只保留真正全域性的操作，例如匯入 ScratchPack、立即備份、關閉。
 
 ## 13. 中獎音效與效果
 
 - 手動把所有刮區自行刮完時，播放去除前置提示「逼」的中獎音效版本。
-- 「全部刮開」或系統自動揭曉/兌獎時，播放保留前置提示「逼」的版本。
-- 小獎與大獎音效可分開；目前大獎門檻可依現行設計使用 50,000 元以上，若未來改為依 Prize Rank 管理可再更新實作但不得破壞既有票面邏輯。
-- 頭獎與二獎必須有不同的預設 WPF 中獎效果；結果框背景需保留足夠透明度，讓玩家仍看得到背後完整中獎票面。
+- 「全部刮開」或系統自動揭曉／兌獎時，播放保留前置提示「逼」的版本。
+- 小獎與大獎音效可分開；目前大獎門檻可依現行設計使用 50,000 元以上，未來若改為依 Prize Rank 管理不得破壞既有票面邏輯。
+- 頭獎與二獎必須有不同的預設 WPF 中獎效果；結果框背景保留足夠透明度，讓玩家仍看得到背後完整中獎票面。
 
 ## 14. 資料與備份
 
