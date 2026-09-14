@@ -26,10 +26,6 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="刮刮樂" FontFamily="Microsoft JhengHei UI" FontSize="34" FontWeight="Bold" Foreground="#FFF2C9"/>
-                    <TextBlock Text="刮出好運，樂在每一刻" Margin="3,1,0,0" FontSize="13" Foreground="#F0C98A"/>
-                </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border CornerRadius="16" Background="#A3200B0B" BorderBrush="#B77A40" BorderThickness="1" Padding="15,8" Margin="0,0,10,0">
@@ -69,6 +65,7 @@
                     BorderBrush="#68402D26"
                     BorderThickness="1"
                     CornerRadius="30"
+                    Visibility="Collapsed"
                     IsHitTestVisible="False"/>
 
             <Grid Margin="28,12,28,6">
