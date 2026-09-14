@@ -19,10 +19,10 @@ public partial class NewTicketDialog : Window
 
         var options = new List<PriceFilterOption>
         {
-            new(null, "全部", ResolvePriceIcon(null), _tickets.Count > 0)
+            new(null, "全部", _tickets.Count > 0)
         };
         options.AddRange(SupportedPriceFilters.Select(price =>
-            new PriceFilterOption(price, $"${price:N0}", ResolvePriceIcon(price), _tickets.Any(ticket => ticket.Price == price))));
+            new PriceFilterOption(price, $"${price:N0}", _tickets.Any(ticket => ticket.Price == price))));
 
         PriceFilterListBox.ItemsSource = options;
         PriceFilterListBox.SelectedIndex = 0;
@@ -37,7 +37,10 @@ public partial class NewTicketDialog : Window
             .Where(ticket => option.Price is null || ticket.Price == option.Price.Value)
             .OrderBy(ticket => ticket.Price)
             .ThenBy(ticket => ticket.DisplayName)
-            .Select(ticket => new TicketChoice(ticket, ResolveThumbnail(ticket)))
+            .Select(ticket => new TicketChoice(
+                ticket,
+                ResolveThumbnail(ticket),
+                ticket.ActiveBatchNumber > 0 ? $"第 {ticket.ActiveBatchNumber} 批" : "批次未定"))
             .ToList();
 
         TicketListBox.ItemsSource = filtered;
@@ -47,33 +50,16 @@ public partial class NewTicketDialog : Window
             TicketListBox.SelectedIndex = 0;
     }
 
-    private static string ResolvePriceIcon(long? price)
-    {
-        var file = price switch
-        {
-            null => "note_all.png",
-            100 => "note_100.png",
-            200 => "note_200.png",
-            300 => "note_300.png",
-            500 => "note_500.png",
-            1000 => "note_1000.png",
-            2000 => "note_2000.png",
-            5000 => "note_5000.png",
-            _ => "note_all.png"
-        };
-        return Path.Combine(AppContext.BaseDirectory, "UI", "Denominations", file);
-    }
-
     private static string? ResolveThumbnail(TicketDefinition ticket)
     {
         var folder = ticket.RuleId is "ThreeLine" or "1" ? "ThreeStar" : ticket.Id;
-
-        // Build 4 no longer requires a separate thumbnail asset. Use ticket artwork
-        // directly so every enabled ticket instance (including the prize-test ticket)
-        // can be listed independently without being hidden by a missing thumbnail.
         var artwork = ticket.Price == 100 ? "ticket-100.png" : "ticket.png";
         var path = UiAssetLoader.TicketPath(folder, artwork);
-        return File.Exists(path) ? path : null;
+        if (File.Exists(path))
+            return path;
+
+        RuntimeAssetLog.Missing(path, "ticket thumbnail source");
+        return null;
     }
 
     private void Start_OnClick(object sender, RoutedEventArgs e)
@@ -91,6 +77,6 @@ public partial class NewTicketDialog : Window
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
         => DialogResult = false;
 
-    private sealed record PriceFilterOption(long? Price, string Label, string IconPath, bool HasTickets);
-    private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath);
+    private sealed record PriceFilterOption(long? Price, string Label, bool HasTickets);
+    private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath, string BatchText);
 }

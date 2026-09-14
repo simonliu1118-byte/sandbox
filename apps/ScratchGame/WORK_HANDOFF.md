@@ -1,103 +1,49 @@
 # ScratchGame 工作交接
 
-更新日期：2026-09-14
+更新日期：2026-09-15
 
-> 本檔保存目前 ScratchGame 的實際開發狀態與下一輪接手順序。它不是永久 governance 規則；永久規則仍以根目錄治理文件與 `apps/ScratchGame/PROJECT_RULES.md` 為準。
-
-## 1. 目前基準
+## 目前基準
 
 - Repository：`simonliu1118-byte/sandbox`
 - 開發分支：`scratchgame/build3-ui-rebuild`
 - PR：#6
-- 版本：`V0.3.0 Build 5`
-- `BUILD = 5`
-- Build 4 最後 handoff 基準：`ec0655d15eccd84f9f2d1817f077297264c883c0`
-- Build 5 是 Build 4 驗收返修，不是新功能版本。
+- 版本：`V0.3.0 Build 6`
+- Build 6 是 Build 5 使用者實測返修。
 
-## 2. Build 5 本輪主背景決策
+## Build 5 實測確認的問題
 
-使用者已取消「預設 Theme 嵌入 EXE」方案。
+1. Header 底部裝飾與區塊邊界視覺混在一起。
+2. Header / Stage / Footer 沒有真正的程式 separator，造成重疊 / 空隙感。
+3. UserDialog 底部按鈕區受到既有 Button margin 與欄寬影響，右側視覺被切。
+4. 挑彩券仍是一整橫列，且 Build 5 test package 缺 `Tickets/`，因此 thumbnail 空白。
+5. Build 5 test package 缺 `Tickets/`，因此主畫面只看到 scratch overlay，沒有 ticket artwork。
+6. Stage 大咖啡 panel 已移除，但 empty state 尚未改成小型半透明淺色底卡。
+7. Build 5 test package 缺 `Audio/`，因此中獎音效消失。
 
-目前正式方向：**所有可替換 Theme 美術由 EXE 外部資源讀取，不內嵌。**
+## Build 6 修正方向
 
-現階段仍沿用既有 runtime 路徑：
+- Theme 正式改用外部：
+  - `Themes/Default/Frame/header_bg.png`
+  - `Themes/Default/Frame/footer_bg.png`
+  - `Themes/Default/Stage/stage_bg.png`
+- Header / Stage / Footer 中間各增加 5 WPF px 程式金線，不由圖片提供。
+- Header 最底安全帶遮掉預設美術容易誤認為重疊的低位裝飾；Footer 頂端安全帶遮掉舊圖烤入線。
+- Empty state 改成只包住提示內容的小型半透明淺色卡。
+- NewTicketDialog 改成 3 欄左右的卡片式列表：ticket artwork 縮圖、名稱、面額、第幾扸、中獎率。
+- `TicketDefinition` 增加 `ActiveBatchNumber` 顯示用欄位；available-ticket SQL 同步取得 Active batch number。
+- UserDialog 加寬 / 加高，底部 action 使用明確欄距並覆寫按鈕 Margin，避免右側裁切。
+- Runtime package 必須包含 Theme + Tickets + Audio；用 `tools/package_portable.py` 驗證，缺檔直接失敗。
+- GitHub Actions artifact 改名 `exe-only`，避免再把單一 EXE 誤當完整 portable package。
+- Theme / ticket thumbnail 缺檔寫 `%LOCALAPPDATA%\ScratchGame\logs\runtime-assets.log`。
 
-```text
-ScratchGame.exe
-UI/
-├─ topbar_bg.png
-├─ stage_bg.png
-└─ footer_bg.png
-```
+## Runtime asset recovery source for this Build 6 test package
 
-本輪正式尺寸：
+- ThreeStar ticket art：從已保存的 `ScratchGame-V0.3.0-Build4-test-win-x64.zip` 回收最新 Build 4 ticket / silver-star。
+- 四個 win audio：從已保存的 `ScratchGame-V0.3.0-Build3-win-x64.zip` 回收原本已驗證的 WAV。
+- Default Theme：使用 Build 5 已確認方向的 Header / Stage / Footer 美術。
 
-- Header / `topbar_bg.png`：1920×144
-- Stage / `stage_bg.png`：1920×900
-- Footer / `footer_bg.png`：1920×156
+## Build 6 驗收後仍待處理
 
-外觀概念名稱：
-
-- **介面框架（Frame Theme）**：Header + Footer 成套；目前預設「新春紅金」。
-- **舞台主題（Stage Theme）**：中央 Stage；目前預設「招財好運」。
-
-未來 Theme 商店／多主題資料夾格式尚未實作；Build 5 不為此提前增加 manifest 或資料模型。
-
-## 3. Build 5 主畫面變更
-
-`MainWindow.xaml`：
-
-- Header 美術已負責「刮刮樂／刮出好運・樂在每一刻」，所以舊 WPF 標題 StackPanel 在本輪隱藏，避免重複 visual owner。
-- 玩家資訊、使用者、設定仍由 WPF 負責。
-- `StagePanelOverlay` 在 Build 5 驗收包設為 `Collapsed`；本輪先直接檢查純 Stage 背景，不畫中央咖啡色暗板。
-- Ticket / Scratch / result / coin / footer action 等互動層維持既有程式責任。
-
-## 4. Build 5 驗收包資源
-
-本輪測試包必須在 EXE 同層帶上：
-
-- `UI/topbar_bg.png`
-- `UI/stage_bg.png`
-- `UI/footer_bg.png`
-
-Theme 缺檔代表測試／portable package 不完整；不再設計 EXE 內嵌 fallback。
-
-## 5. 尚未完成／仍需驗收
-
-Build 5 這輪只處理主背景分層與外部 Theme 方向，以下 Build 4 待驗收項目仍保留：
-
-1. 最終 `Tickets/ThreeStar/ticket.png`：1080×882、無假延伸區、無右側裁切。
-2. ticket.png 定稿後重新量測九宮格 geometry，移除臨時 +1 px 依賴。
-3. denomination selected border 是否仍裁切。
-4. 設定 row action / scrollbar 實測。
-5. 獎項測試票未出現在挑選清單的實際 DB / Active batch / remaining 原因。
-6. UserDialog 框架實測。
-7. coin / debris 手感實測。
-8. result hide/show 與按鈕視覺實測。
-9. Windows EXE / 工作列 / 檔案總管 icon 實測。
-
-## 6. ScratchPack V1
-
-完整設計仍在 docs-only 分支：
-
-- Branch：`docs/scratchpack-v1-plan`
-- `apps/ScratchGame/SCRATCHPACK_V1_PLAN.md`
-- `apps/ScratchGame/SCRATCHPACK_V1_HANDOFF.md`
-
-Build 5 UI 驗收完成前，**不要開始 ScratchPack V1 功能實作**。
-
-既有重要定案不可倒退：
-
-- `canvas=1 = 1080×882`
-- ScratchPack V1 沒有 `thumbnail.png`
-- V1 沒有 universal `contentBox`
-- Maker 必須 GameType-aware
-- ScratchPack 只放資料／美術，不帶 executable code
-
-## 7. 下一個接手順序
-
-1. 先確認 Build 5 Windows CI 成功。
-2. 用包含三張外部 UI PNG 的完整測試包做使用者驗收。
-3. 若主背景分層通過，再回到最終 ThreeStar ticket.png 與 geometry。
-4. 之後依序處理設定、測試票 DB 原因、UserDialog、coin/debris/result/icon。
-5. Build 4/5 UI correction round 全部驗收後，才進 ScratchPack V1。
+- 最終 ThreeStar `ticket.png` 美術仍需依 canvas=1 重新定稿，再量九宮格 geometry；Build 6 先恢復現有可測票面，不把這項混入本輪資源 / layout 修復。
+- 繼續驗 denomination selected border、Settings row action / scrollbar、測試票 DB availability 根因、coin/debris/result/icon。
+- Build 6 UI correction 驗收前，不開始 ScratchPack V1 實作。

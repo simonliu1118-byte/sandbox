@@ -57,7 +57,13 @@ public sealed class CatalogService(AppDatabase database)
         var command = connection.CreateCommand();
         command.CommandText = """
             SELECT t.id, t.display_name, t.price, t.rule_id, t.issue_size,
-                   t.published_win_rate, t.enabled, t.locked, t.source_package_id
+                   t.published_win_rate, t.enabled, t.locked, t.source_package_id,
+                   COALESCE((
+                       SELECT MAX(b.batch_number)
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                   ), 0) AS active_batch_number
             FROM ticket_definitions t
             WHERE t.enabled = 1
               AND EXISTS (
@@ -83,10 +89,16 @@ public sealed class CatalogService(AppDatabase database)
         await using var connection = await database.OpenConnectionAsync(cancellationToken);
         var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, display_name, price, rule_id, issue_size,
-                   published_win_rate, enabled, locked, source_package_id
-            FROM ticket_definitions
-            WHERE id = $id
+            SELECT t.id, t.display_name, t.price, t.rule_id, t.issue_size,
+                   t.published_win_rate, t.enabled, t.locked, t.source_package_id,
+                   COALESCE((
+                       SELECT MAX(b.batch_number)
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                   ), 0) AS active_batch_number
+            FROM ticket_definitions t
+            WHERE t.id = $id
             LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", ticketId);
@@ -121,7 +133,8 @@ public sealed class CatalogService(AppDatabase database)
             reader.GetString(0), reader.GetString(1), reader.GetInt64(2),
             reader.GetString(3), reader.GetInt64(4), reader.GetDouble(5),
             reader.GetInt64(6) != 0, reader.GetInt64(7) != 0,
-            reader.IsDBNull(8) ? null : reader.GetString(8));
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0);
 
     public async Task<PendingTicket?> GetPendingForUserAsync(
         string userId,
