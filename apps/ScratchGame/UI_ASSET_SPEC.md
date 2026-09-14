@@ -44,7 +44,7 @@ Theme / ticket / audio 都是 EXE 外部資源；目前不把可替換 Theme 嵌
 
 ## 3. Header / Stage / Footer 邊界
 
-Header、Stage、Footer 是三個獨立圖片區。兩條粗金色分隔線由 WPF 程式繪製，**不屬任何 Theme PNG**：
+Header、Stage、Footer 是三個獨立圖片區。兩條粗金色分隔線由 WPF 程式繪製，**不屬任何 Theme PNG**，目前標準高度為 **4 px**：
 
 ```text
 Header image
@@ -54,7 +54,7 @@ program gold separator
 Footer image
 ```
 
-圖片不可跨 Row 壓到 separator。預設舊 footer 圖若仍帶有烤入金線，程式顯示時會用 footer 頂端安全帶遮掉，真正邊界以程式 separator 為準。
+圖片不可跨 Row 壓到 separator。Header 與 Footer 正式圖應保持純圖片，不得自行烤入額外程式邊界線；真正邊界一律以程式 separator 為準。
 
 ## 4. Stage empty state
 
