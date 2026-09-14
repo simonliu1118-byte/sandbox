@@ -155,7 +155,8 @@ ellipse
 - `circle` 必須 `width == height`。
 - zone 必須完整落在 Canvas 內，ID 不得重複。
 - GameType 需要多少刮區，就必須剛好有多少；不允許額外裝飾刮區。
-- GameType-specific mapping 與數量要求只看 `GAMETYPE_SPEC.md`。
+- `scratch.zones` 在共通層只定義 geometry；其陣列順序預設不具有全域玩法語意。
+- 特定 GameType 可以在 `GAMETYPE_SPEC.md` 明確收緊 zone 的數量、尺寸、排列、陣列順序或 mapping；這些限制只對該 GameType 生效。
 
 基本 zone：
 
@@ -209,7 +210,7 @@ maxPrize = max(prizes.amount where count > 0)
 - `winningCount=0` 時 `maxPrize=0`。
 - `loseCount`、`winRate`、`maxPrize` 與 EV / RTP 等都只做 Derived Data，不另存權威欄位。
 
-具有固定 tier 順序語意的 GameType 可保留 `count=0` 的固定 tier；細節由 `GAMETYPE_SPEC.md` 定義。
+具有固定必備 Tier 集合的 GameType 可以要求即使 `count=0` 也保留該 Tier；其 outcome mapping 與排序規則由 `GAMETYPE_SPEC.md` 定義。
 
 ## 9. GameType 契約
 
@@ -234,7 +235,7 @@ GAMETYPE_SPEC.md
 - `art.*` 只含合法包內相對路徑。
 - Canvas code 支援；`art.ticket` 存在、可解碼且尺寸完全符合 Canvas。
 - 所有座標合法；`priceDisplay=1` 時 `priceDisplayArea` 合法；`serialDisplayArea` 合法。
-- zone ID、shape 與 GameType mapping 合法。
+- zone ID、shape，以及 GameType-specific 的 zone 數量、geometry、順序／mapping 合法。
 - `issueSize % ticketsPerBook == 0`、`Σ prizes.count <= issueSize`。
 - GameType、玩法參數與 Renderer 限制符合 `GAMETYPE_SPEC.md`。
 - 所有被引用 PNG 可正常解碼。
@@ -254,19 +255,26 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」
 - 主程式初始化時自動確認並註冊。
 - Built-in 與 Imported Pack 共用 loader / validator / engine / renderer / finite-pool / redemption pipeline。
 - Built-in Base Pack 不提供刪除／解除安裝；缺少或損壞視為程式發行內容不完整。
+- Built-in Base Pack 可停用／重新啟用；停用只影響新票選擇，狀態由 runtime database 管理，不寫入 ScratchPack schema。
 - `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 Pack 可自行宣稱的 manifest / ticket 欄位。
-
-是否允許使用者停用 Built-in Base Pack 屬產品行為，不屬 ScratchPack 檔案格式，保留在 `TODO.md`。
 
 外部 Pack 由使用者匯入；匯入後與 Built-in Pack 使用同一套 runtime model。解除安裝與歷史資料保存屬 runtime lifecycle，不寫入 Pack schema。
 
-第一款 Built-in Base Pack「三星連線」：
+第一款正式 Built-in Base Pack「三星連線」：
 
 - `gameType="1"`。
 - `canvas=1`，票面 PNG 必須 1080×882。
+- 正式版面額為 500、`issueSize=10000`。
 - 正式美術使用可辨識檔名，例如 `assets/three-star.png`。
 - 基本款票面不放中獎率與「最高可中 N 元」宣傳字樣。
-- 它同時是第一個 V1 reference Pack，不另維護測試版 ticket definition。
+- 正式 Built-in Base Pack 不另維護主程式硬編碼的平行 ticket definition。
+
+開發階段可以另外維護一個獨立的「三星連線測試 Pack」作為 V1 conformance / loader / renderer / Prize Tier 測試 fixture：
+
+- 測試 Pack 也必須完整符合相同的 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`。
+- 測試 Pack 使用獨立 `packageId`、獨立票池與測試用 `issueSize` / Prize Tier count，不得冒充正式 Built-in Base Pack。
+- 測試 Pack 是獨立 ScratchPack，不是主程式內另一套硬編碼 ticket definition。
+- 測試 Pack 是否隨正式 portable 發行屬發行／測試流程決策，不寫入 ScratchPack schema。
 
 ## 12. 相容性與文件責任
 
