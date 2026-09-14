@@ -66,12 +66,14 @@
 - V1 ScratchPack 不自訂中獎音效／動畫。
 - 正式 `SCRATCHPACK_SPEC.md` 仍是目前已實作舊格式；在新 V1 真正完成前，不可把本計畫當成目前 App 已支援 schema。
 
-## 5. 與目前 Build 3 工作的關係
+## 5. 與目前 Build 4 工作的關係
 
-Build 3 使用者實測修正保存在另一條開發分支：
+Build 3 使用者實測後的 Build 4 correction 保存在開發分支：
 
 - Branch：`scratchgame/build3-ui-rebuild`
 - File：`apps/ScratchGame/WORK_HANDOFF.md`
-- Handoff commit：`da928abe685514da517ba4eb7d2ce15e0839adcc`
+- 最新 handoff commit：`ec0655d15eccd84f9f2d1817f077297264c883c0`
+- Build 4 source / icon commit：`7d8d98f84c80b6aa18b91a47f7a6ab251424d2dc`
+- Windows CI Run #43：success，但尚未完成使用者驗收。
 
-Build 3 尚未驗收前，先完成該 handoff 的 UI / asset / interaction correction；通過後再開始 ScratchPack V1。
+目前仍有 `stage_bg.png`、ThreeStar 最終 `ticket.png` 與若干 UI 實測項目待完成；**Build 4 驗收前不要開始 ScratchPack V1 實作**。
