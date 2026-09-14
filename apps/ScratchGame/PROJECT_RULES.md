@@ -56,6 +56,7 @@ ScratchPack schema 的唯一正式來源是 `SCRATCHPACK_SPEC.md`；GameType 規
 - 第一款「三星連線」是 Built-in Base Pack，不是主程式硬編碼特例。
 - Built-in Base Pack 必須完整符合與外部 Pack 相同的 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`，並走相同 loader / validator / engine / renderer pipeline。
 - Built-in Base Pack 隨程式提供、免使用者手動匯入，且不可刪除／解除安裝。
+- Built-in Base Pack 允許停用／重新啟用；停用只影響新票選擇，不移除 Pack、批次或歷史資料。
 - `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 ScratchPack 可自行宣稱的 schema 欄位。
 
 ## 6. 批次與售罄
