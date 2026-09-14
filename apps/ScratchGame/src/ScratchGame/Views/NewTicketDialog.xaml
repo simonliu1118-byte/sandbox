@@ -42,12 +42,23 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="12" Padding="3" Margin="1">
-                            <Image Source="{Binding IconPath}" Stretch="Uniform" SnapsToDevicePixels="True"/>
+                        <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="12" Padding="3" Margin="2">
+                            <Border x:Name="Note" CornerRadius="7" BorderBrush="#98612F" BorderThickness="1" Background="#3A2118">
+                                <Grid Margin="7,4">
+                                    <Ellipse Width="17" Height="17" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#5B2E1C" Stroke="#C98B3D" StrokeThickness="1"/>
+                                    <TextBlock Text="✦" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,-1,0,0" Foreground="#D9A44F" FontSize="9"/>
+                                    <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FBE5B8" FontFamily="Microsoft JhengHei UI" FontWeight="SemiBold" FontSize="14"/>
+                                    <TextBlock Text="$" HorizontalAlignment="Right" VerticalAlignment="Bottom" Foreground="#B98245" FontSize="10" Margin="0,0,1,-2"/>
+                                </Grid>
+                            </Border>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionChrome" Property="BorderBrush" Value="#FFD66A"/><Setter TargetName="SelectionChrome" Property="Background" Value="#2EEDAA3B"/></Trigger>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionChrome" Property="Background" Value="#24FFFFFF"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="SelectionChrome" Property="BorderBrush" Value="#FFD66A"/>
+                                <Setter TargetName="SelectionChrome" Property="Background" Value="#26F2B54C"/>
+                                <Setter TargetName="Note" Property="BorderBrush" Value="#E6A94F"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionChrome" Property="Background" Value="#18FFFFFF"/></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SelectionChrome" Property="Opacity" Value="0.28"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

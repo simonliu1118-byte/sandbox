@@ -15,10 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\ScratchGame.ico" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\ScratchGame.ico" />
-  </ItemGroup>
 </Project>

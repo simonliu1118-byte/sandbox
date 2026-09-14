@@ -67,8 +67,12 @@ public partial class NewTicketDialog : Window
     private static string? ResolveThumbnail(TicketDefinition ticket)
     {
         var folder = ticket.RuleId is "ThreeLine" or "1" ? "ThreeStar" : ticket.Id;
-        var file = ticket.Price == 100 ? "thumbnail-100.png" : "thumbnail.png";
-        var path = UiAssetLoader.TicketPath(folder, file);
+
+        // Build 4 no longer requires a separate thumbnail asset. Use ticket artwork
+        // directly so every enabled ticket instance (including the prize-test ticket)
+        // can be listed independently without being hidden by a missing thumbnail.
+        var artwork = ticket.Price == 100 ? "ticket-100.png" : "ticket.png";
+        var path = UiAssetLoader.TicketPath(folder, artwork);
         return File.Exists(path) ? path : null;
     }
 

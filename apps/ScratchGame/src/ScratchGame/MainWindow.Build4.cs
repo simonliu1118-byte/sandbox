@@ -13,12 +13,24 @@ public partial class MainWindow
     private readonly Random _build4DebrisRandom = new();
     private Point? _build4LastDebrisPoint;
     private DateTime _build4LastDebrisUtc = DateTime.MinValue;
+    private bool _build4MouseHookInstalled;
 
     private void TicketStage_Build4LayoutUpdated(object? sender, EventArgs e)
     {
-        // Build 4: the ticket artwork's white scratch interiors start one design pixel
-        // farther right/down than the Build 3 mask placement. Keep hit testing and the
-        // visible ScratchSurface together by moving the surface itself exactly once.
+        // Keep the debris listener in the same routed mouse pipeline even though the
+        // existing PreviewMouseMove handler marks scratch movement as handled.
+        if (!_build4MouseHookInstalled)
+        {
+            TicketOverlayCanvas.AddHandler(
+                UIElement.MouseMoveEvent,
+                new MouseEventHandler(TicketOverlayCanvas_Build4MouseMove),
+                handledEventsToo: true);
+            _build4MouseHookInstalled = true;
+        }
+
+        // The actual white scratch interiors start one design pixel farther right/down
+        // than Build 3. Move the symbol and ScratchSurface together so rendering,
+        // hit-testing and mask geometry still have exactly one coordinate owner.
         foreach (var surface in _scratchRegions)
         {
             if (Equals(surface.Tag, "Build4Aligned"))
@@ -26,12 +38,35 @@ public partial class MainWindow
 
             var left = Canvas.GetLeft(surface);
             var top = Canvas.GetTop(surface);
-            if (!double.IsNaN(left))
-                Canvas.SetLeft(surface, left + 1);
-            if (!double.IsNaN(top))
-                Canvas.SetTop(surface, top + 1);
+            if (double.IsNaN(left) || double.IsNaN(top))
+                continue;
+
+            var symbol = TicketOverlayCanvas.Children
+                .OfType<TextBlock>()
+                .FirstOrDefault(text =>
+                    Math.Abs(Canvas.GetLeft(text) - left) < 0.01 &&
+                    Math.Abs(Canvas.GetTop(text) - top) < 0.01 &&
+                    Math.Abs(text.Width - surface.Width) < 0.01 &&
+                    Math.Abs(text.Height - surface.Height) < 0.01);
+
+            if (symbol is not null)
+            {
+                Canvas.SetLeft(symbol, left + 1);
+                Canvas.SetTop(symbol, top + 1);
+            }
+
+            Canvas.SetLeft(surface, left + 1);
+            Canvas.SetTop(surface, top + 1);
             surface.Tag = "Build4Aligned";
         }
+
+        // Build 4 ticket art keeps only a compact real footer instead of the old
+        // artificial fill area. Keep the serial inside that footer.
+        var serialBadge = TicketOverlayCanvas.Children
+            .OfType<Border>()
+            .FirstOrDefault(border => Equals(border.Tag, "ProgramSerialBadge"));
+        if (serialBadge is not null)
+            Canvas.SetTop(serialBadge, 675);
     }
 
     private void HideResultOverlay_OnClick(object sender, RoutedEventArgs e)
@@ -58,6 +93,9 @@ public partial class MainWindow
             return;
 
         var point = e.GetPosition(TicketOverlayCanvas);
+        if (!IsPointInsideScratchRegion(point))
+            return;
+
         var now = DateTime.UtcNow;
         if (_build4LastDebrisPoint is Point last)
         {
@@ -70,6 +108,22 @@ public partial class MainWindow
         _build4LastDebrisPoint = point;
         _build4LastDebrisUtc = now;
         EmitScratchDebris(point);
+    }
+
+    private bool IsPointInsideScratchRegion(Point point)
+    {
+        foreach (var region in _scratchRegions)
+        {
+            var left = Canvas.GetLeft(region);
+            var top = Canvas.GetTop(region);
+            if (double.IsNaN(left) || double.IsNaN(top))
+                continue;
+
+            if (point.X >= left && point.X <= left + region.Width &&
+                point.Y >= top && point.Y <= top + region.Height)
+                return true;
+        }
+        return false;
     }
 
     private void EmitScratchDebris(Point point)
@@ -114,7 +168,8 @@ public partial class MainWindow
             var dy = _build4DebrisRandom.NextDouble() * 24 + 7;
             translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(0, dx, duration));
             translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, dy, duration));
-            rotate.BeginAnimation(RotateTransform.AngleProperty,
+            rotate.BeginAnimation(
+                RotateTransform.AngleProperty,
                 new DoubleAnimation(rotate.Angle, rotate.Angle + _build4DebrisRandom.Next(-120, 121), duration));
 
             var fade = new DoubleAnimation(0.9, 0, duration)
