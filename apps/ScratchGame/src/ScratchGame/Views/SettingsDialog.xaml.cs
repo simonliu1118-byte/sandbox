@@ -2,6 +2,8 @@ using Microsoft.Win32;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media;
 using ScratchGame.Data;
 using ScratchGame.Services;
 
@@ -40,6 +42,11 @@ public partial class SettingsDialog : Window
 
     private async void TicketRow_OnClick(object sender, RoutedEventArgs e)
     {
+        // Row actions are independent controls. Clicking 啟用/停用 or 發行新一批
+        // must never also toggle the accordion row.
+        if (IsInsideButton(e.OriginalSource as DependencyObject))
+            return;
+
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
@@ -53,6 +60,16 @@ public partial class SettingsDialog : Window
         if (_expandedRow is not null)
             _expandedRow.IsExpanded = false;
         await ExpandRowAsync(row);
+    }
+
+    private static bool IsInsideButton(DependencyObject? source)
+    {
+        for (var current = source; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is ButtonBase)
+                return true;
+        }
+        return false;
     }
 
     private async Task ExpandRowAsync(TicketRowViewModel row)
@@ -78,7 +95,7 @@ public partial class SettingsDialog : Window
         try
         {
             await _admin.SetEnabledAsync(row.Ticket.Id, !row.Ticket.Enabled);
-            await ReloadAsync(row.Ticket.Id);
+            await ReloadAsync();
         }
         catch (Exception ex)
         {
@@ -112,7 +129,7 @@ public partial class SettingsDialog : Window
         try
         {
             var number = await _admin.StartNextBatchAsync(ticket.Id);
-            await ReloadAsync(ticket.Id);
+            await ReloadAsync();
             GameModal.Info(this, "發行完成", $"「{ticket.DisplayName}」第 {number} 批已開始。");
         }
         catch (Exception ex)

@@ -12,10 +12,28 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <Window.Resources>
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="13"/>
+            <Setter Property="Background" Value="#21100D"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Width="13" Background="#21100D" CornerRadius="7" Padding="3,2">
+                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Focusable="False" Opacity="0"/></Track.DecreaseRepeatButton>
+                                <Track.Thumb><Thumb Cursor="Hand" MinHeight="34"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="#AA7136" BorderBrush="#E4B35E" BorderThickness="1" CornerRadius="5"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+                                <Track.IncreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Focusable="False" Opacity="0"/></Track.IncreaseRepeatButton>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="PriceNoteItem" TargetType="ListBoxItem">
-            <Setter Property="Width" Value="112"/>
+            <Setter Property="Width" Value="101"/>
             <Setter Property="Height" Value="68"/>
-            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="Margin" Value="4,0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -24,25 +42,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="SelectionChrome"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="2"
-                                CornerRadius="12"
-                                Padding="3">
+                        <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="12" Padding="3" Margin="1">
                             <Image Source="{Binding IconPath}" Stretch="Uniform" SnapsToDevicePixels="True"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="SelectionChrome" Property="BorderBrush" Value="#FFD66A"/>
-                                <Setter TargetName="SelectionChrome" Property="Background" Value="#2EEDAA3B"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="SelectionChrome" Property="Background" Value="#24FFFFFF"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="SelectionChrome" Property="Opacity" Value="0.28"/>
-                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="SelectionChrome" Property="BorderBrush" Value="#FFD66A"/><Setter TargetName="SelectionChrome" Property="Background" Value="#2EEDAA3B"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionChrome" Property="Background" Value="#24FFFFFF"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SelectionChrome" Property="Opacity" Value="0.28"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -58,43 +64,32 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Row"
-                                Background="#2AFFFFFF"
-                                BorderBrush="#5C6B4635"
-                                BorderThickness="0,0,0,1"
-                                Padding="18,14">
+                        <Border x:Name="Row" Background="#2AFFFFFF" BorderBrush="#5C6B4635" BorderThickness="0,0,0,1" Padding="16,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="210"/>
+                                    <ColumnDefinition Width="170"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="Accent" Width="4" Background="Transparent" CornerRadius="2" Margin="0,6"/>
-                                <Border Grid.Column="1" Width="190" Height="155" Background="#24110D" CornerRadius="10" ClipToBounds="True">
+                                <Border Grid.Column="1" Width="150" Height="122" Background="#24110D" CornerRadius="9" ClipToBounds="True">
                                     <Image Source="{Binding ThumbnailPath, Mode=OneWay}" Stretch="Uniform"/>
                                 </Border>
-                                <StackPanel Grid.Column="2" Margin="20,6,18,6" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Ticket.DisplayName, Mode=OneWay}" FontSize="24" FontWeight="Bold" Foreground="#FFF0CF"/>
-                                    <TextBlock Margin="0,9,0,0" Foreground="#D9B999" FontSize="15">
-                                        <Run Text="面額 $"/><Run Text="{Binding Ticket.Price, Mode=OneWay, StringFormat={}{0:N0}}"/>
-                                    </TextBlock>
-                                    <TextBlock Margin="0,5,0,0" Text="發行批次" Foreground="#B99676" FontSize="13"/>
+                                <StackPanel Grid.Column="2" Margin="18,4,16,4" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Ticket.DisplayName, Mode=OneWay}" FontFamily="Microsoft JhengHei UI" FontSize="22" FontWeight="Bold" Foreground="#FFF0CF"/>
+                                    <TextBlock Margin="0,7,0,0" Foreground="#D9B999" FontSize="14"><Run Text="面額 $"/><Run Text="{Binding Ticket.Price, Mode=OneWay, StringFormat={}{0:N0}}"/></TextBlock>
+                                    <TextBlock Margin="0,4,0,0" Text="發行批次" Foreground="#B99676" FontSize="12"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,10,0">
                                     <TextBlock Text="發行中獎率" HorizontalAlignment="Right" Foreground="#B99376" FontSize="12"/>
-                                    <TextBlock Text="{Binding Ticket.PublishedWinRate, Mode=OneWay, StringFormat={}{0:P2}}" FontSize="27" FontWeight="Bold" Foreground="#FFD363" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="{Binding Ticket.PublishedWinRate, Mode=OneWay, StringFormat={}{0:P2}}" FontSize="25" FontWeight="Bold" Foreground="#FFD363" HorizontalAlignment="Right"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#52331E17"/>
-                                <Setter TargetName="Accent" Property="Background" Value="#FFD05A"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#43301F18"/>
-                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="#52331E17"/><Setter TargetName="Accent" Property="Background" Value="#FFD05A"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="#43301F18"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -104,37 +99,18 @@
 
     <Border CornerRadius="22" BorderBrush="#B87B40" BorderThickness="1.4" Background="#351610" SnapsToDevicePixels="True">
         <Grid Margin="32,26,32,24">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="78"/>
-                <RowDefinition Height="92"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="70"/>
-            </Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="78"/><RowDefinition Height="92"/><RowDefinition Height="*"/><RowDefinition Height="70"/></Grid.RowDefinitions>
 
             <StackPanel VerticalAlignment="Top">
-                <TextBlock Text="挑選彩券" FontSize="30" FontWeight="Bold" Foreground="#FFE6A6"/>
+                <TextBlock Text="挑選彩券" FontFamily="Microsoft JhengHei UI" FontSize="30" FontWeight="Bold" Foreground="#FFE6A6"/>
                 <TextBlock Text="選一張喜歡的票，開始今天的手氣。" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
             </StackPanel>
 
             <Grid Grid.Row="1" VerticalAlignment="Center">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <TextBlock Text="面額" VerticalAlignment="Center" FontSize="16" Foreground="#F4D9B0"/>
-                <ListBox x:Name="PriceFilterListBox"
-                         Grid.Column="1"
-                         SelectionChanged="PriceFilterListBox_OnSelectionChanged"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                         ItemContainerStyle="{StaticResource PriceNoteItem}">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1"/>
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
+                <ListBox x:Name="PriceFilterListBox" Grid.Column="1" SelectionChanged="PriceFilterListBox_OnSelectionChanged" Background="Transparent" BorderThickness="0" Padding="0,0,8,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource PriceNoteItem}">
+                    <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ListBox.ItemsPanel>
                 </ListBox>
             </Grid>
 
@@ -143,25 +119,18 @@
                     <ListBox x:Name="TicketListBox"
                              BorderThickness="0"
                              Background="Transparent"
+                             Padding="0,0,4,0"
                              HorizontalContentAlignment="Stretch"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Visible"
                              ItemContainerStyle="{StaticResource TicketChoiceItem}"/>
                 </Border>
 
-                <TextBlock x:Name="EmptyTicketText"
-                           Text="這個面額目前沒有仍有庫存的彩券"
-                           Visibility="Collapsed"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Foreground="#CDAE8E"
-                           FontSize="17"/>
+                <TextBlock x:Name="EmptyTicketText" Text="這個面額目前沒有仍有庫存的彩券" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#CDAE8E" FontSize="17"/>
             </Grid>
 
             <Grid Grid.Row="3" Margin="0,16,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="取消" Width="120" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
                     <Button Content="開始刮獎" Width="160" Style="{StaticResource DialogButton}" IsDefault="True" Click="Start_OnClick"/>
