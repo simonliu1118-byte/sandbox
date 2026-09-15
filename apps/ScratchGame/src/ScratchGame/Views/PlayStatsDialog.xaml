@@ -46,14 +46,14 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
-                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="36"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="累計刮卡" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
