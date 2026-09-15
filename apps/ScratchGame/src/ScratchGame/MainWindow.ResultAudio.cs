@@ -9,14 +9,24 @@ public partial class MainWindow
     private readonly MediaPlayer _loseSoundPlayer = new();
     private bool _loseSoundDiagnosticsAttached;
 
-    private void ResultOverlay_OnVisibilityChangedExtended(
+    private async void ResultOverlay_OnVisibilityChangedExtended(
         object sender,
         DependencyPropertyChangedEventArgs e)
     {
         // Keep the existing settlement presentation as the single owner of win effects.
-        // Losing audio is triggered directly from ShowSettlementResult(prize) so it never
-        // depends on display text or result-overlay visibility transitions.
         ResultOverlay_OnVisibilityChanged(sender, e);
+
+        if (ResultOverlay.Visibility != Visibility.Visible)
+            return;
+
+        // ShowSettlementResult sets the loss headline immediately after making the overlay visible.
+        // Yield once so the final settlement state is available. Do not parse ResultAmountText:
+        // a losing result deliberately displays "再試一張吧" instead of "$0".
+        await Task.Yield();
+        if (!string.Equals(ResultHeadline.Text, "本張未中獎", StringComparison.Ordinal))
+            return;
+
+        PlayLoseSound();
     }
 
     private void PlayLoseSound()
