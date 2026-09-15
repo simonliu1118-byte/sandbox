@@ -17,11 +17,15 @@ public partial class MainWindow
         ResultOverlay_OnVisibilityChanged(sender, e);
 
         if (ResultOverlay.Visibility != Visibility.Visible)
+        {
+            ResetResultTransitionUi();
             return;
+        }
 
-        // ShowSettlementResult sets the loss headline immediately after making the overlay visible.
-        // Yield once so the final settlement state is available. Do not parse ResultAmountText:
-        // a losing result deliberately displays "再試一張吧" instead of "$0".
+        // ShowSettlementResult sets the loss headline after making the result overlay visible.
+        // Yield once so the final settlement text is available, then use the explicit loss state.
+        // Do not parse ResultAmountText here: a losing result deliberately displays "再試一張吧"
+        // instead of "$0", so parsing UI text can never be a reliable loss trigger.
         await Task.Yield();
         if (!string.Equals(ResultHeadline.Text, "本張未中獎", StringComparison.Ordinal))
             return;
