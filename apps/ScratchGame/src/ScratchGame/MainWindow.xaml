@@ -2,7 +2,6 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="刮刮樂"
-        Icon="Assets/ScratchGame.ico"
         Width="1280" Height="960"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
