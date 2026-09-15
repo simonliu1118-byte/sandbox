@@ -54,7 +54,7 @@ ThreeStar-Test 目前使用 `brushed-silver-three-star`。
 
 ## ThreeStar-Test
 
-Pack 位置：
+Pack source 位置：
 
 ```text
 apps/ScratchGame/reference-packs/ThreeStar-Test/
@@ -84,8 +84,15 @@ priceDisplayArea: x=852 y=43 width=201 height=82
 serialDisplayArea: x=364 y=774 width=350 height=59
 ```
 
-因 ThreeStar-Test 的 ticket 與 foil 都引用 Built-in 共用資源，依目前 V1 SPEC，`.scratchpack` 本體不需要再重複攜帶這兩張 PNG；最小內容可只有 `manifest.json` 與 `ticket.json`。
+因 ThreeStar-Test 的 ticket 與 foil 都引用 Built-in 共用資源，依目前 V1 SPEC，`.scratchpack` 本體不需要再重複攜帶這兩張 PNG；內容只有 `manifest.json` 與 `ticket.json`。
+
+ThreeStar-Test 已依目前 SPEC 封裝並完成基本 conformance 檢查，結果 **PASS**。持久化測試產物保存於 ChatGPT Library：
+
+```text
+/ScratchGame/Reference-Packs/ThreeStar-Test/ThreeStar-Test.scratchpack
+/ScratchGame/Reference-Packs/ThreeStar-Test/ThreeStar-Test_conformance.txt
+```
 
 ## 下一步
 
-先完成並驗收 ThreeStar-Test `.scratchpack` fixture 與基本 conformance 檢查，再進入 V1 loader / validator。不要另外新增平行資源欄位或為 ThreeStar 開專屬例外。
+下一階段才進入 V1 loader / validator。Loader 必須直接依目前 SPEC 的 `ResourceRef`、GameType-scoped Built-in ticket resolver 與全域 foil resolver 實作，不得另外新增平行資源欄位或為 ThreeStar 開專屬例外。
