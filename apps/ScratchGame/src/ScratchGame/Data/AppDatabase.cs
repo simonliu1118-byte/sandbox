@@ -55,6 +55,15 @@ public sealed class AppDatabase
                 ON ticket_definitions(source_package_id)
                 WHERE source_package_id IS NOT NULL;
 
+            CREATE TABLE IF NOT EXISTS scratchpack_installations (
+                package_id TEXT PRIMARY KEY,
+                ticket_id TEXT NOT NULL UNIQUE,
+                source_kind TEXT NOT NULL CHECK(source_kind IN ('BuiltIn','Imported')),
+                content_hash TEXT NOT NULL,
+                installed_utc TEXT NOT NULL,
+                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE RESTRICT
+            );
+
             CREATE TABLE IF NOT EXISTS prize_tiers (
                 ticket_id TEXT NOT NULL,
                 tier_id TEXT NOT NULL,
@@ -126,8 +135,8 @@ public sealed class AppDatabase
                 ON ticket_history(user_id, completed_utc DESC);
 
             INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '1')
-            ON CONFLICT(key) DO NOTHING;
+            VALUES ('schema_version', '2')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
