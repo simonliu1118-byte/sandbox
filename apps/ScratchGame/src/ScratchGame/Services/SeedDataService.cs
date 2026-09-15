@@ -4,13 +4,6 @@ namespace ScratchGame.Services;
 
 public sealed class SeedDataService(AppDatabase database)
 {
-    private static readonly string[] RetiredLegacyTicketIds =
-    [
-        "builtin-three-line-100",
-        "builtin-star-line-500-v1",
-        "builtin-star-line-500-prize-test"
-    ];
-
     public async Task EnsureSeedDataAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await database.OpenConnectionAsync(cancellationToken);
@@ -24,27 +17,27 @@ public sealed class SeedDataService(AppDatabase database)
             var addUser = connection.CreateCommand();
             addUser.Transaction = transaction;
             addUser.CommandText = """
-                INSERT INTO users(id, display_name, total_spent, total_redeemed, created_utc)
-                VALUES($id, '玩家 1', 0, 0, $createdUtc);
+                INSERT INTO users(
+                    id, display_name,
+                    total_spent, total_redeemed,
+                    wallet_balance, completed_ticket_count, win_count, max_prize,
+                    grant_count, grant_total_amount,
+                    created_utc)
+                VALUES(
+                    $id, '玩家 1',
+                    0, 0,
+                    $wallet, 0, 0, 0,
+                    0, 0,
+                    $createdUtc);
                 """;
             addUser.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
+            addUser.Parameters.AddWithValue("$wallet", AppDatabase.InitialWalletBalance);
             addUser.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
             await addUser.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        // V0.3 and earlier seeded three development tickets directly into the database.
-        // Existing %LOCALAPPDATA% databases still contain those rows after replacing the EXE.
-        // Retire them non-destructively so pending/history references remain valid while they
-        // disappear from the normal catalog and V0.4 settings UI.
-        foreach (var ticketId in RetiredLegacyTicketIds)
-        {
-            var retire = connection.CreateCommand();
-            retire.Transaction = transaction;
-            retire.CommandText = "UPDATE ticket_definitions SET enabled = 0 WHERE id = $id;";
-            retire.Parameters.AddWithValue("$id", ticketId);
-            await retire.ExecuteNonQueryAsync(cancellationToken);
-        }
-
+        // V0.4 不再攜帶或辨識舊開發期 seed 彩券。測試舊資料由使用者自行清除，
+        // 正式彩券一律由 ScratchPack lifecycle 管理。
         transaction.Commit();
     }
 }
