@@ -68,7 +68,7 @@ public partial class NewTicketDialog : Window
             }
             catch (Exception ex)
             {
-                RuntimeAssetLog.Message($"ScratchPack thumbnail resolve failed: {ex.Message}");
+                RuntimeAssetLog.Error(ticket.SourcePackageId, "ScratchPack ticket thumbnail resolve", ex);
                 return null;
             }
         }
