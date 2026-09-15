@@ -17,7 +17,8 @@ public sealed record TicketDefinition(
     bool Locked,
     string? SourcePackageId = null,
     int ActiveBatchNumber = 0,
-    long MaxPrize = 0);
+    long MaxPrize = 0,
+    DateTimeOffset? ActiveBatchStartedAt = null);
 
 public sealed record UserProfile(
     string Id,
