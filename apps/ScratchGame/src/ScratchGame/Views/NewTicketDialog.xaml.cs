@@ -9,17 +9,17 @@ public partial class NewTicketDialog : Window
 {
     private static readonly long[] SupportedPriceFilters = [100, 200, 300, 500, 1000, 2000, 5000];
     private readonly IReadOnlyList<TicketDefinition> _tickets;
-    private readonly ScratchPackRuntimeService _scratchPackRuntime;
+    private readonly TicketThumbnailCacheService _thumbnailCache;
 
     public TicketDefinition? SelectedTicket { get; private set; }
 
     public NewTicketDialog(
         IReadOnlyList<TicketDefinition> tickets,
-        ScratchPackRuntimeService scratchPackRuntime)
+        TicketThumbnailCacheService thumbnailCache)
     {
         InitializeComponent();
         _tickets = tickets;
-        _scratchPackRuntime = scratchPackRuntime;
+        _thumbnailCache = thumbnailCache;
 
         var options = new List<PriceFilterOption>
         {
@@ -60,15 +60,11 @@ public partial class NewTicketDialog : Window
         {
             try
             {
-                var path = _scratchPackRuntime.Load(ticket).TicketImagePath;
-                if (File.Exists(path))
-                    return path;
-                RuntimeAssetLog.Missing(path, "ScratchPack ticket thumbnail source");
-                return null;
+                return _thumbnailCache.GetOrCreate(ticket);
             }
             catch (Exception ex)
             {
-                RuntimeAssetLog.Error(ticket.SourcePackageId, "ScratchPack ticket thumbnail resolve", ex);
+                RuntimeAssetLog.Error(ticket.SourcePackageId, "ScratchPack ticket thumbnail cache", ex);
                 return null;
             }
         }
