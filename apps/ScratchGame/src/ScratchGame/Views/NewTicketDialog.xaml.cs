@@ -9,13 +9,17 @@ public partial class NewTicketDialog : Window
 {
     private static readonly long[] SupportedPriceFilters = [100, 200, 300, 500, 1000, 2000, 5000];
     private readonly IReadOnlyList<TicketDefinition> _tickets;
+    private readonly ScratchPackRuntimeService _scratchPackRuntime;
 
     public TicketDefinition? SelectedTicket { get; private set; }
 
-    public NewTicketDialog(IReadOnlyList<TicketDefinition> tickets)
+    public NewTicketDialog(
+        IReadOnlyList<TicketDefinition> tickets,
+        ScratchPackRuntimeService scratchPackRuntime)
     {
         InitializeComponent();
         _tickets = tickets;
+        _scratchPackRuntime = scratchPackRuntime;
 
         var options = new List<PriceFilterOption>
         {
@@ -50,15 +54,32 @@ public partial class NewTicketDialog : Window
             TicketListBox.SelectedIndex = 0;
     }
 
-    private static string? ResolveThumbnail(TicketDefinition ticket)
+    private string? ResolveThumbnail(TicketDefinition ticket)
     {
+        if (!string.IsNullOrWhiteSpace(ticket.SourcePackageId))
+        {
+            try
+            {
+                var path = _scratchPackRuntime.Load(ticket).TicketImagePath;
+                if (File.Exists(path))
+                    return path;
+                RuntimeAssetLog.Missing(path, "ScratchPack ticket thumbnail source");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                RuntimeAssetLog.Message($"ScratchPack thumbnail resolve failed: {ex.Message}");
+                return null;
+            }
+        }
+
         var folder = ticket.RuleId is "ThreeLine" or "1" ? "ThreeStar" : ticket.Id;
         var artwork = ticket.Price == 100 ? "ticket-100.png" : "ticket.png";
-        var path = UiAssetLoader.TicketPath(folder, artwork);
-        if (File.Exists(path))
-            return path;
+        var legacyPath = UiAssetLoader.TicketPath(folder, artwork);
+        if (File.Exists(legacyPath))
+            return legacyPath;
 
-        RuntimeAssetLog.Missing(path, "ticket thumbnail source");
+        RuntimeAssetLog.Missing(legacyPath, "legacy ticket thumbnail source");
         return null;
     }
 
