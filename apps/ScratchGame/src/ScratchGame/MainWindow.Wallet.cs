@@ -1,6 +1,7 @@
 using System.Windows;
 using ScratchGame.Data;
 using ScratchGame.Services;
+using ScratchGame.Views;
 
 namespace ScratchGame;
 
