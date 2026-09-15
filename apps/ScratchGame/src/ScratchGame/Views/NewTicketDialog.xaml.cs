@@ -15,6 +15,13 @@ public partial class NewTicketDialog : Window
 
     public NewTicketDialog(
         IReadOnlyList<TicketDefinition> tickets,
+        ScratchPackRuntimeService scratchPackRuntime)
+        : this(tickets, new TicketThumbnailCacheService(scratchPackRuntime))
+    {
+    }
+
+    public NewTicketDialog(
+        IReadOnlyList<TicketDefinition> tickets,
         TicketThumbnailCacheService thumbnailCache)
     {
         InitializeComponent();
