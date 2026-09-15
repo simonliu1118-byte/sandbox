@@ -108,7 +108,7 @@
 
             <StackPanel VerticalAlignment="Top">
                 <TextBlock Text="挑選彩券" FontFamily="Microsoft JhengHei UI" FontSize="30" FontWeight="Bold" Foreground="#FFE6A6"/>
-                <TextBlock Text="選一張喜歡的票，開始今天的手氣。" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
+                <TextBlock Text="選一張喜歡的彩券，開始今天的手氣。" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
             </StackPanel>
 
             <Grid Grid.Row="1" VerticalAlignment="Center">
