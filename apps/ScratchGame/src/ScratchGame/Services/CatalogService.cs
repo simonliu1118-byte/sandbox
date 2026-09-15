@@ -89,7 +89,13 @@ public sealed class CatalogService(AppDatabase database)
                        FROM batches b
                        WHERE b.ticket_id = t.id
                          AND b.status = 'Active'
-                   ), 0) AS active_batch_number
+                   ), 0) AS active_batch_number,
+                   COALESCE((
+                       SELECT MAX(p.amount)
+                       FROM prize_tiers p
+                       WHERE p.ticket_id = t.id
+                         AND p.initial_count > 0
+                   ), 0) AS max_prize
             FROM ticket_definitions t
             WHERE t.enabled = 1
               AND EXISTS (
@@ -122,7 +128,13 @@ public sealed class CatalogService(AppDatabase database)
                        FROM batches b
                        WHERE b.ticket_id = t.id
                          AND b.status = 'Active'
-                   ), 0) AS active_batch_number
+                   ), 0) AS active_batch_number,
+                   COALESCE((
+                       SELECT MAX(p.amount)
+                       FROM prize_tiers p
+                       WHERE p.ticket_id = t.id
+                         AND p.initial_count > 0
+                   ), 0) AS max_prize
             FROM ticket_definitions t
             WHERE t.id = $id
             LIMIT 1;
@@ -160,7 +172,8 @@ public sealed class CatalogService(AppDatabase database)
             reader.GetString(3), reader.GetInt64(4), reader.GetDouble(5),
             reader.GetInt64(6) != 0, reader.GetInt64(7) != 0,
             reader.IsDBNull(8) ? null : reader.GetString(8),
-            reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0);
+            reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0,
+            reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetInt64(10) : 0);
 
     public async Task<PendingTicket?> GetPendingForUserAsync(
         string userId,
