@@ -28,7 +28,7 @@ public sealed class AppDatabase
             ? await GetSchemaVersionAsync(connection, cancellationToken)
             : 0;
 
-        if (existedBeforeOpen && previousSchemaVersion < 3)
+        if (existedBeforeOpen && previousSchemaVersion < 4)
             await CreateMigrationBackupAsync(connection, cancellationToken);
 
         var command = connection.CreateCommand();
@@ -62,6 +62,15 @@ public sealed class AppDatabase
             CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_package_id
                 ON ticket_definitions(source_package_id)
                 WHERE source_package_id IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS scratchpack_installations (
+                package_id TEXT PRIMARY KEY,
+                ticket_id TEXT NOT NULL UNIQUE,
+                source_kind TEXT NOT NULL CHECK(source_kind IN ('BuiltIn','Imported')),
+                content_hash TEXT NOT NULL,
+                installed_utc TEXT NOT NULL,
+                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE CASCADE
+            );
 
             CREATE TABLE IF NOT EXISTS ticket_metadata (
                 ticket_id TEXT PRIMARY KEY,
@@ -166,7 +175,7 @@ public sealed class AppDatabase
             WHERE reserved_count > 0;
 
             INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '3')
+            VALUES ('schema_version', '4')
             ON CONFLICT(key) DO UPDATE SET value = excluded.value;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
