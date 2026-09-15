@@ -139,50 +139,63 @@
                       TextOptions.TextFormattingMode="Display"
                       TextOptions.TextRenderingMode="ClearType"
                       SnapsToDevicePixels="True">
+                    <!-- ResultOverlay itself intentionally has no Effect. The shadow is rendered by a
+                         background-only child so WPF never rasterizes the result text/buttons with it. -->
                     <Border x:Name="ResultOverlay"
                             Visibility="Collapsed"
                             IsVisibleChanged="ResultOverlay_OnVisibilityChangedExtended"
                             Width="420"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Background="#F2381711"
-                            BorderBrush="#F1C05A"
-                            BorderThickness="2"
-                            CornerRadius="20"
-                            Padding="28,20">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#160A06" BlurRadius="22" ShadowDepth="7" Opacity="0.55"/>
-                        </Border.Effect>
-                        <StackPanel>
-                            <TextBlock x:Name="ResultHeadline" Text="恭喜中獎" FontFamily="Microsoft JhengHei UI" FontSize="22" FontWeight="Bold" Foreground="#FFE6A2" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="ResultAmountText" Text="$100" Margin="0,4,0,14" FontFamily="Microsoft JhengHei UI" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
-                                <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
-                            </Grid>
-                            <Border Margin="0,11,0,0"
-                                    HorizontalAlignment="Center"
-                                    Padding="3"
-                                    CornerRadius="10"
-                                    Background="#54231611"
-                                    BorderBrush="#A97845"
-                                    BorderThickness="1">
-                                <Button Content="暫時隱藏"
-                                        Padding="16,6"
-                                        FontFamily="Microsoft JhengHei UI"
-                                        FontSize="12"
-                                        Foreground="#F1D3AD"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Cursor="Hand"
-                                        Click="HideResultOverlay_OnClick"/>
+                            Background="Transparent"
+                            BorderThickness="0">
+                        <Grid>
+                            <Border Background="#F2381711"
+                                    BorderBrush="#F1C05A"
+                                    BorderThickness="2"
+                                    CornerRadius="20"
+                                    IsHitTestVisible="False">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#160A06" BlurRadius="22" ShadowDepth="7" Opacity="0.55"/>
+                                </Border.Effect>
                             </Border>
-                        </StackPanel>
+                            <Border Background="#F2381711"
+                                    BorderBrush="#F1C05A"
+                                    BorderThickness="2"
+                                    CornerRadius="20"
+                                    Padding="28,20">
+                                <StackPanel>
+                                    <TextBlock x:Name="ResultHeadline" Text="恭喜中獎" FontFamily="Microsoft JhengHei UI" FontSize="22" FontWeight="Bold" Foreground="#FFE6A2" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="ResultAmountText" Text="$100" Margin="0,4,0,14" FontFamily="Microsoft JhengHei UI" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="12"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
+                                        <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
+                                    </Grid>
+                                    <Border Margin="0,11,0,0"
+                                            HorizontalAlignment="Center"
+                                            Padding="3"
+                                            CornerRadius="10"
+                                            Background="#54231611"
+                                            BorderBrush="#A97845"
+                                            BorderThickness="1">
+                                        <Button Content="暫時隱藏"
+                                                Padding="16,6"
+                                                FontFamily="Microsoft JhengHei UI"
+                                                FontSize="12"
+                                                Foreground="#F1D3AD"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Cursor="Hand"
+                                                Click="HideResultOverlay_OnClick"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Border>
 
                     <Button x:Name="ResultResumeButton"
