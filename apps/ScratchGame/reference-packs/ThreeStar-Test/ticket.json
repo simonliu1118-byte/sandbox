@@ -13,7 +13,10 @@
   "issueSize": 8,
   "ticketsPerBook": 8,
   "art": {
-    "ticket": "assets/three-star.png"
+    "ticket": {
+      "source": "builtin",
+      "ref": "ticket/style-a-blue"
+    }
   },
   "serialDisplayArea": {
     "x": 364,
@@ -24,7 +27,7 @@
   "scratch": {
     "foil": {
       "source": "builtin",
-      "ref": "brushed-silver-three-star"
+      "ref": "foil/brushed-silver-three-star"
     },
     "zones": [
       {
