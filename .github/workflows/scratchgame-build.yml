@@ -44,54 +44,25 @@ jobs:
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Verify source Windows icon sizes
+      - name: Verify application icon master
         run: |
-          $iconPath = 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico'
-          $bytes = [System.IO.File]::ReadAllBytes($iconPath)
-          if ($bytes.Length -lt 6) {
-            Write-Error 'ScratchGame.ico is too small.'
+          $source = 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame-icon-source.png'
+          if (-not (Test-Path $source)) {
+            Write-Error 'ScratchGame icon master PNG is missing.'
             exit 1
           }
 
-          $reserved = [BitConverter]::ToUInt16($bytes, 0)
-          $type = [BitConverter]::ToUInt16($bytes, 2)
-          $count = [BitConverter]::ToUInt16($bytes, 4)
-          if ($reserved -ne 0 -or $type -ne 1 -or $count -lt 1) {
-            Write-Error 'ScratchGame.ico has an invalid ICONDIR header.'
-            exit 1
+          Add-Type -AssemblyName System.Drawing
+          $image = [System.Drawing.Image]::FromFile((Resolve-Path $source).Path)
+          try {
+            Write-Host "Icon master: $($image.Width)x$($image.Height)"
+            if ($image.Width -ne 256 -or $image.Height -ne 256) {
+              Write-Error 'ScratchGame icon master must be exactly 256x256.'
+              exit 1
+            }
           }
-
-          $sizes = @()
-          for ($i = 0; $i -lt $count; $i++) {
-            $offset = 6 + (16 * $i)
-            if ($offset + 16 -gt $bytes.Length) {
-              Write-Error "ScratchGame.ico directory entry #$($i + 1) is truncated."
-              exit 1
-            }
-
-            $width = [int]$bytes[$offset]
-            $height = [int]$bytes[$offset + 1]
-            if ($width -eq 0) { $width = 256 }
-            if ($height -eq 0) { $height = 256 }
-            $imageBytes = [BitConverter]::ToUInt32($bytes, $offset + 8)
-            $imageOffset = [BitConverter]::ToUInt32($bytes, $offset + 12)
-            if ([uint64]$imageOffset + [uint64]$imageBytes -gt [uint64]$bytes.Length) {
-              Write-Error "ScratchGame.ico image entry ${width}x${height} points outside the file."
-              exit 1
-            }
-            if ($width -ne $height) {
-              Write-Error "ScratchGame.ico contains a non-square entry: ${width}x${height}."
-              exit 1
-            }
-            $sizes += $width
-          }
-
-          $required = @(16,20,24,28,32,40,48,64,72,80,96,128,256)
-          $missing = @($required | Where-Object { $_ -notin $sizes })
-          Write-Host "ICO entries: $($sizes -join ', ')"
-          if ($missing.Count -gt 0) {
-            Write-Error "ScratchGame.ico is missing required Windows icon sizes: $($missing -join ', ')"
-            exit 1
+          finally {
+            $image.Dispose()
           }
 
       - name: Restore Windows x64 runtime packs
@@ -104,6 +75,61 @@ jobs:
           dotnet build 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Verify generated Windows icon sizes
+        run: |
+          $iconPath = 'apps/ScratchGame/src/ScratchGame/obj/ScratchGame.generated.ico'
+          if (-not (Test-Path $iconPath)) {
+            Write-Error 'Generated ScratchGame.ico is missing.'
+            exit 1
+          }
+
+          $bytes = [System.IO.File]::ReadAllBytes($iconPath)
+          if ($bytes.Length -lt 6) {
+            Write-Error 'Generated ScratchGame.ico is too small.'
+            exit 1
+          }
+
+          $reserved = [BitConverter]::ToUInt16($bytes, 0)
+          $type = [BitConverter]::ToUInt16($bytes, 2)
+          $count = [BitConverter]::ToUInt16($bytes, 4)
+          if ($reserved -ne 0 -or $type -ne 1 -or $count -lt 1) {
+            Write-Error 'Generated ScratchGame.ico has an invalid ICONDIR header.'
+            exit 1
+          }
+
+          $sizes = @()
+          for ($i = 0; $i -lt $count; $i++) {
+            $offset = 6 + (16 * $i)
+            if ($offset + 16 -gt $bytes.Length) {
+              Write-Error "Generated icon directory entry #$($i + 1) is truncated."
+              exit 1
+            }
+
+            $width = [int]$bytes[$offset]
+            $height = [int]$bytes[$offset + 1]
+            if ($width -eq 0) { $width = 256 }
+            if ($height -eq 0) { $height = 256 }
+            $imageBytes = [BitConverter]::ToUInt32($bytes, $offset + 8)
+            $imageOffset = [BitConverter]::ToUInt32($bytes, $offset + 12)
+            if ([uint64]$imageOffset + [uint64]$imageBytes -gt [uint64]$bytes.Length) {
+              Write-Error "Generated icon image ${width}x${height} points outside the file."
+              exit 1
+            }
+            if ($width -ne $height) {
+              Write-Error "Generated icon contains a non-square entry: ${width}x${height}."
+              exit 1
+            }
+            $sizes += $width
+          }
+
+          $required = @(16,20,24,28,32,40,48,64,72,80,96,128,256)
+          $missing = @($required | Where-Object { $_ -notin $sizes })
+          Write-Host "Generated ICO entries: $($sizes -join ', ')"
+          if ($missing.Count -gt 0) {
+            Write-Error "Generated ScratchGame.ico is missing native Windows sizes: $($missing -join ', ')"
+            exit 1
+          }
 
       - name: Publish Windows x64 executable
         run: >-
