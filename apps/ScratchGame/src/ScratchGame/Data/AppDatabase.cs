@@ -172,31 +172,8 @@ public sealed class AppDatabase
 
         await EnsureUserAggregateColumnsAsync(connection, cancellationToken);
 
-        // V0.4 起不再保存逐張玩家歷史。若舊資料庫仍有 ticket_history，先把可用資料
-        // 彙總進 users，再刪除逐張紀錄。Pack 解除安裝因此不再依賴歷史資料外鍵。
-        if (previousSchemaVersion < 5 && await TableExistsAsync(connection, "ticket_history", cancellationToken))
-        {
-            var migrateStats = connection.CreateCommand();
-            migrateStats.CommandText = """
-                UPDATE users
-                SET completed_ticket_count = (
-                        SELECT COUNT(*) FROM ticket_history h WHERE h.user_id = users.id
-                    ),
-                    win_count = (
-                        SELECT COUNT(*) FROM ticket_history h
-                        WHERE h.user_id = users.id AND h.prize_amount > 0
-                    ),
-                    max_prize = COALESCE((
-                        SELECT MAX(h.prize_amount) FROM ticket_history h WHERE h.user_id = users.id
-                    ), 0),
-                    wallet_balance = CASE
-                        WHEN 100000 + total_redeemed - total_spent < 0 THEN 0
-                        ELSE 100000 + total_redeemed - total_spent
-                    END;
-                """;
-            await migrateStats.ExecuteNonQueryAsync(cancellationToken);
-        }
-
+        // V0.4 測試階段不保留逐張玩家歷史，也不嘗試從舊 history 回填統計。
+        // 新的累積統計從目前版本開始計算；舊測試資料消失可接受。
         var removeHistory = connection.CreateCommand();
         removeHistory.CommandText = "DROP TABLE IF EXISTS ticket_history;";
         await removeHistory.ExecuteNonQueryAsync(cancellationToken);
