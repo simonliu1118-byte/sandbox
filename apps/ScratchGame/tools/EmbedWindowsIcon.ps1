@@ -25,16 +25,16 @@ using System.Runtime.InteropServices;
 
 namespace ScratchGame
 {
-    internal static class NativeResources
+    public static class NativeResources
     {
-        internal const uint LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
+        public const uint LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern IntPtr BeginUpdateResource(string pFileName, bool bDeleteExistingResources);
+        public static extern IntPtr BeginUpdateResource(string pFileName, bool bDeleteExistingResources);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool UpdateResource(
+        public static extern bool UpdateResource(
             IntPtr hUpdate,
             IntPtr lpType,
             IntPtr lpName,
@@ -44,20 +44,20 @@ namespace ScratchGame
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool EndUpdateResource(IntPtr hUpdate, bool fDiscard);
+        public static extern bool EndUpdateResource(IntPtr hUpdate, bool fDiscard);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+        public static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern IntPtr FindResource(IntPtr hModule, IntPtr lpName, IntPtr lpType);
+        public static extern IntPtr FindResource(IntPtr hModule, IntPtr lpName, IntPtr lpType);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern uint SizeofResource(IntPtr hModule, IntPtr hResInfo);
+        public static extern uint SizeofResource(IntPtr hModule, IntPtr hResInfo);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool FreeLibrary(IntPtr hModule);
+        public static extern bool FreeLibrary(IntPtr hModule);
     }
 }
 '@
