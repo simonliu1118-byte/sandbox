@@ -42,12 +42,14 @@ public sealed class TicketAdminService
     private readonly AppDatabase _database;
     private readonly CatalogService _catalog;
     private readonly ScratchPackImporter _importer;
+    private readonly TicketThumbnailCacheService _thumbnailCache;
 
     public TicketAdminService(AppDatabase database)
     {
         _database = database;
         _catalog = new CatalogService(database);
         _importer = new ScratchPackImporter(database);
+        _thumbnailCache = new TicketThumbnailCacheService(database);
     }
 
     public async Task<IReadOnlyList<TicketAdminItem>> GetTicketsAsync(CancellationToken cancellationToken = default)
@@ -255,6 +257,7 @@ public sealed class TicketAdminService
             var packageDirectory = Path.Combine(_database.DataDirectory, "packages", packageId);
             if (Directory.Exists(packageDirectory))
                 Directory.Delete(packageDirectory, recursive: true);
+            _thumbnailCache.DeleteForPackage(packageId);
         }
     }
 }
