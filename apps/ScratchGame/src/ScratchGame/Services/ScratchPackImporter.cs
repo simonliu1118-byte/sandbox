@@ -7,6 +7,7 @@ namespace ScratchGame.Services;
 public sealed class ScratchPackImporter(AppDatabase database)
 {
     private readonly ScratchPackV1Loader _loader = new();
+    private readonly TicketThumbnailCacheService _thumbnailCache = new(database);
 
     public Task<string> ImportAsync(
         string scratchPackPath,
@@ -50,6 +51,8 @@ public sealed class ScratchPackImporter(AppDatabase database)
                         existingSource == "BuiltIn" &&
                         string.Equals(existingHash, loaded.ContentHash, StringComparison.OrdinalIgnoreCase))
                     {
+                        await reader.DisposeAsync();
+                        await _thumbnailCache.TryEnsureForTicketIdAsync(existingTicketId, cancellationToken);
                         return existingTicketId;
                     }
 
@@ -183,6 +186,9 @@ public sealed class ScratchPackImporter(AppDatabase database)
                 throw;
             }
 
+            // Cache generation is deliberately outside the install transaction.
+            // Failure is logged and lazily retried by the ticket picker; it never invalidates a valid Pack install.
+            await _thumbnailCache.TryEnsureForTicketIdAsync(ticketId, cancellationToken);
             return ticketId;
         }
         finally
