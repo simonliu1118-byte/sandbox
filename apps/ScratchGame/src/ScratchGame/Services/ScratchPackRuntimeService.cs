@@ -9,16 +9,23 @@ public sealed record ResolvedScratchPackTicket(
     string TicketImagePath,
     string FoilImagePath);
 
-public sealed class ScratchPackRuntimeService(AppDatabase database)
+public sealed class ScratchPackRuntimeService
 {
     private readonly ScratchPackV1Loader _loader = new();
+
+    public ScratchPackRuntimeService(AppDatabase database)
+    {
+        Database = database;
+    }
+
+    public AppDatabase Database { get; }
 
     public ResolvedScratchPackTicket Load(TicketDefinition runtimeTicket)
     {
         if (string.IsNullOrWhiteSpace(runtimeTicket.SourcePackageId))
             throw new InvalidOperationException("此彩券不是 ScratchPack V1 安裝項目。");
 
-        var packageRoot = Path.Combine(database.DataDirectory, "packages", runtimeTicket.SourcePackageId);
+        var packageRoot = Path.Combine(Database.DataDirectory, "packages", runtimeTicket.SourcePackageId);
         var definition = _loader.LoadInstalledTicket(packageRoot);
 
         var ticketImagePath = ResolveResourcePath(
@@ -44,7 +51,7 @@ public sealed class ScratchPackRuntimeService(AppDatabase database)
             foilImagePath);
     }
 
-    private static string ResolveResourcePath(
+    public static string ResolveResourcePath(
         ScratchPackResourceRef resource,
         string packageRoot,
         string gameType,
