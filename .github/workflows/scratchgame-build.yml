@@ -59,13 +59,24 @@ jobs:
               exit 1
             }
 
-            $ancestor = $node.ParentNode
-            while ($null -ne $ancestor) {
-              if ($ancestor.LocalName -eq 'Viewbox') {
+            $cursor = $node
+            while ($null -ne $cursor) {
+              if ($cursor.LocalName -eq 'Viewbox') {
                 Write-Error "Program-owned Stage UI '$name' must not be inside a Viewbox. Fractional ticket scaling blurs WPF text."
                 exit 1
               }
-              $ancestor = $ancestor.ParentNode
+
+              # Effects on the UI element itself or any ancestor rasterize the complete subtree,
+              # which can blur WPF text even when the element is outside the ticket Viewbox.
+              $effectProperty = $cursor.ChildNodes | Where-Object {
+                $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -like '*.Effect'
+              } | Select-Object -First 1
+              if ($null -ne $effectProperty) {
+                Write-Error "Program-owned Stage UI '$name' must not inherit an Effect from '$($cursor.LocalName)'. Render shadows on a background-only sibling/child layer instead."
+                exit 1
+              }
+
+              $cursor = $cursor.ParentNode
             }
           }
 
@@ -74,7 +85,7 @@ jobs:
             Write-Error 'TicketStage must remain the design-coordinate child of the ticket Viewbox.'
             exit 1
           }
-          Write-Host 'Stage UI ownership check passed: ticket design space scales; result UI stays native-resolution.'
+          Write-Host 'Stage UI ownership check passed: ticket design space scales; result UI stays native-resolution without parent effects.'
 
       - name: Verify application icon master
         run: |
