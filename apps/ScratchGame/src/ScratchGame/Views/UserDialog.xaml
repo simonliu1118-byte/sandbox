@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="使用者"
-        Width="700" Height="560"
+        Width="760" Height="650"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -68,7 +68,7 @@
 
         <Style x:Key="UserListItem" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0,0,0,9"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -76,7 +76,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Card" Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="13" Padding="16,12">
+                        <Border x:Name="Card" Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="13" Padding="16,13">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -101,7 +101,7 @@
 
             <StackPanel>
                 <TextBlock Text="使用者" FontFamily="Microsoft JhengHei UI" FontSize="29" FontWeight="Bold" Foreground="#FFE6A6"/>
-                <TextBlock Text="每位玩家的投入、兌獎與損益各自獨立保存" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
+                <TextBlock Text="每位玩家的錢包與遊玩統計各自獨立保存" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
             </StackPanel>
 
             <ListBox x:Name="UserListBox"
@@ -115,10 +115,10 @@
                      ScrollViewer.VerticalScrollBarVisibility="Auto">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 
-                            <StackPanel>
                                 <Grid MinHeight="38">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <StackPanel.Style>
@@ -137,18 +137,63 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                    <TextBlock Foreground="#CDAE91" FontSize="12" Text="投入 $"/><TextBlock Foreground="#CDAE91" FontSize="12" Text="{Binding TotalSpent, StringFormat={}{0:N0}}"/>
-                                    <TextBlock Foreground="#876B5B" FontSize="12" Text="　｜　"/>
-                                    <TextBlock Foreground="#CDAE91" FontSize="12" Text="兌獎 $"/><TextBlock Foreground="#CDAE91" FontSize="12" Text="{Binding TotalRedeemed, StringFormat={}{0:N0}}"/>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="18,0,0,0">
+                                    <TextBlock Text="錢包" HorizontalAlignment="Right" Foreground="#B99376" FontSize="11"/>
+                                    <TextBlock Text="{Binding WalletText}" FontSize="21" FontWeight="Bold" Foreground="#FFD46C" HorizontalAlignment="Right"/>
                                 </StackPanel>
-                            </StackPanel>
+                            </Grid>
 
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="18,0,0,0">
-                                <TextBlock Text="損益" HorizontalAlignment="Right" Foreground="#B99376" FontSize="11"/>
-                                <TextBlock Text="{Binding Net, StringFormat={}{0:N0}}" FontSize="20" FontWeight="Bold" Foreground="#FFD46C" HorizontalAlignment="Right"/>
-                            </StackPanel>
-                        </Grid>
+                            <Border Height="1" Background="#614235" Margin="0,9,0,9"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="累計刮卡" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding CompletedTicketCount, StringFormat={}{0:N0} 張}" Foreground="#F6DFC0" FontSize="14" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="中獎張數" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding WinCount, StringFormat={}{0:N0} 張}" Foreground="#F6DFC0" FontSize="14" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="勝率" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding WinRateText}" Foreground="#F6DFC0" FontSize="14" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Text="最大獎金" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding MaxPrizeText}" Foreground="#FFE098" FontSize="14" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="累計投入" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding TotalSpentText}" Foreground="#DCC6AF" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="累計中獎" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding TotalRedeemedText}" Foreground="#DCC6AF" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="總損益" Foreground="#A98670" FontSize="10"/>
+                                    <TextBlock Text="{Binding NetText}" Foreground="#FFD46C" FontSize="13" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Margin="0,9,0,0" Foreground="#9F806B" FontSize="11">
+                                <Run Text="資助 "/><Run Text="{Binding GrantCount, StringFormat={}{0:N0}}"/><Run Text=" 次　｜　累計 "/><Run Text="{Binding GrantTotalText}"/>
+                            </TextBlock>
+                        </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
@@ -161,7 +206,7 @@
 
             <Grid Grid.Row="3" VerticalAlignment="Bottom">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Button Content="重置損益" Width="118" HorizontalAlignment="Left" Style="{StaticResource DialogSecondaryButton}" Click="ResetStats_OnClick"/>
+                <TextBlock Text="遊玩統計從目前版本開始累積，不保存逐張彩券歷史。" VerticalAlignment="Center" Foreground="#9B7D69" FontSize="11"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="取消" Width="108" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
                     <Button Content="切換使用者" Width="132" Style="{StaticResource DialogButton}" IsDefault="True" Click="Select_OnClick"/>
