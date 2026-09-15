@@ -10,15 +10,20 @@ public sealed class ScratchSurface : Image
 {
     private WriteableBitmap? _bitmap;
     private byte[]? _pixels;
+    private bool[]? _insideGeometry;
+    private bool[]? _erased;
     private int _pixelWidth;
     private int _pixelHeight;
     private int _stride;
+    private long _geometryPixels;
     private long _erasedPixels;
     private bool _completionReported;
 
     public double BrushRadius { get; set; } = 24;
     public double CompletionThreshold { get; set; } = 0.78;
     public string? MaskImagePath { get; set; }
+    public string ZoneShape { get; set; } = "rectangle";
+    public double CornerRadius { get; set; }
     public bool IsCompleted => _completionReported;
 
     public event EventHandler? Completed;
@@ -36,7 +41,7 @@ public sealed class ScratchSurface : Image
     public void ErasePoints(IEnumerable<Point> points, bool checkCompletion = true)
     {
         EnsureBitmap();
-        if (_bitmap is null || _pixels is null)
+        if (_bitmap is null || _pixels is null || _insideGeometry is null || _erased is null)
             return;
 
         var changed = false;
@@ -53,24 +58,28 @@ public sealed class ScratchSurface : Image
 
     public void CheckCompletion()
     {
-        if (_completionReported || _pixelWidth <= 0 || _pixelHeight <= 0)
+        if (_completionReported || _geometryPixels <= 0)
             return;
 
-        var total = (long)_pixelWidth * _pixelHeight;
-        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
+        if ((double)_erasedPixels / _geometryPixels >= CompletionThreshold)
             ReportCompletionOnce();
     }
 
     public void RevealAll()
     {
         EnsureBitmap();
-        if (_bitmap is null || _pixels is null)
+        if (_bitmap is null || _pixels is null || _insideGeometry is null || _erased is null)
             return;
 
-        for (var i = 3; i < _pixels.Length; i += 4)
-            _pixels[i] = 0;
+        for (var i = 0; i < _insideGeometry.Length; i++)
+        {
+            if (!_insideGeometry[i])
+                continue;
+            _erased[i] = true;
+            _pixels[i * 4 + 3] = 0;
+        }
 
-        _erasedPixels = (long)_pixelWidth * _pixelHeight;
+        _erasedPixels = _geometryPixels;
         FlushPixels();
         ReportCompletionOnce();
     }
@@ -86,8 +95,29 @@ public sealed class ScratchSurface : Image
         _pixelHeight = height;
         _stride = _pixelWidth * 4;
         _pixels = TryLoadTexture(width, height) ?? CreateFallbackTexture(width, height);
+        _insideGeometry = new bool[width * height];
+        _erased = new bool[width * height];
+        _geometryPixels = 0;
         _erasedPixels = 0;
         _completionReported = false;
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var index = y * width + x;
+                var inside = IsInsideZone(x + 0.5, y + 0.5, width, height);
+                _insideGeometry[index] = inside;
+                if (inside)
+                {
+                    _geometryPixels++;
+                }
+                else
+                {
+                    _pixels[index * 4 + 3] = 0;
+                }
+            }
+        }
 
         _bitmap = new WriteableBitmap(
             _pixelWidth,
@@ -98,6 +128,43 @@ public sealed class ScratchSurface : Image
             null);
         FlushPixels();
         Source = _bitmap;
+    }
+
+    private bool IsInsideZone(double x, double y, int width, int height)
+    {
+        return ZoneShape switch
+        {
+            "ellipse" or "circle" => IsInsideEllipse(x, y, width, height),
+            "roundedRectangle" => IsInsideRoundedRectangle(x, y, width, height),
+            _ => true
+        };
+    }
+
+    private static bool IsInsideEllipse(double x, double y, int width, int height)
+    {
+        var rx = width / 2.0;
+        var ry = height / 2.0;
+        var dx = (x - rx) / rx;
+        var dy = (y - ry) / ry;
+        return dx * dx + dy * dy <= 1.0;
+    }
+
+    private bool IsInsideRoundedRectangle(double x, double y, int width, int height)
+    {
+        var radius = Math.Clamp(CornerRadius, 0, Math.Min(width, height) / 2.0);
+        if (radius <= 0)
+            return true;
+
+        if (x >= radius && x <= width - radius)
+            return true;
+        if (y >= radius && y <= height - radius)
+            return true;
+
+        var cx = x < radius ? radius : width - radius;
+        var cy = y < radius ? radius : height - radius;
+        var dx = x - cx;
+        var dy = y - cy;
+        return dx * dx + dy * dy <= radius * radius;
     }
 
     private byte[]? TryLoadTexture(int width, int height)
@@ -153,7 +220,7 @@ public sealed class ScratchSurface : Image
 
     private bool EraseCircle(Point point)
     {
-        if (_pixels is null)
+        if (_pixels is null || _insideGeometry is null || _erased is null)
             return false;
 
         var radius = Math.Max(1, (int)Math.Round(BrushRadius));
@@ -175,11 +242,12 @@ public sealed class ScratchSurface : Image
                 if (ox * ox + oy * oy > r2)
                     continue;
 
-                var alphaIndex = y * _stride + x * 4 + 3;
-                if (_pixels[alphaIndex] == 0)
+                var pixelIndex = y * _pixelWidth + x;
+                if (!_insideGeometry[pixelIndex] || _erased[pixelIndex])
                     continue;
 
-                _pixels[alphaIndex] = 0;
+                _erased[pixelIndex] = true;
+                _pixels[pixelIndex * 4 + 3] = 0;
                 _erasedPixels++;
                 changed = true;
             }
