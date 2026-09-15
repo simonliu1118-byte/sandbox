@@ -16,12 +16,12 @@
 目前主程式開發線：
 
 ```text
-V0.4.0 / BUILD 0
+V0.4.0 Build 1
 branch: scratchgame/feature-scratchpack-v1-runtime
 PR: #7
 ```
 
-V0.4.0 的目標是 ScratchPack V1 runtime，不另設 importer / ScratchPack 平行產品版號。
+V0.4.0 的目標是 ScratchPack V1 runtime，不另設 importer / ScratchPack 平行產品版號。Build 1 是同一 V0.4.0 工作項目在首包測試交付後的續修。
 
 ## V0.4.0 已完成方向
 
@@ -34,7 +34,8 @@ V0.4.0 的目標是 ScratchPack V1 runtime，不另設 importer / ScratchPack �
 - GameType 1 runtime 改由 Pack 的 game / zones / prizes / ResourceRef 驅動。
 - `scratch.zones` 是 symbol / foil / ScratchSurface geometry 的共同來源。
 - 程式面額與票號使用 Pack 的 `priceDisplayArea` / `serialDisplayArea`。
-- 挑券縮圖與正式票面將使用同一份 Pack/runtime definition；縮圖本身是可重建 cache，不屬於 ScratchPack schema。
+- runtime thumbnail cache 已完成：Pack 安裝後預先產生；挑券頁直接讀 cache；遺失／損壞時自動重建；解除安裝未發行 Imported Pack 時清掉對應 cache。
+- Thumbnail cache 是可丟棄衍生資料，不屬 ScratchPack schema，也不得讓 cache 產生失敗回滾合法 Pack 安裝。
 
 ## Built-in Pack 原則
 
@@ -136,7 +137,7 @@ Pack 安裝成功
 → cache 遺失／損壞時重建
 ```
 
-縮圖是款式預覽，不包含實際票號、某張票的 outcome 或 Pending Ticket 狀態。
+目前 cache 內容包含固定票面、未刮銀膜與 `priceDisplay=1` 的程式面額示意；不包含實際票號、某張票的 outcome 或 Pending Ticket 狀態。
 
 V0.5.0 Maker 的編輯預覽不使用這套 thumbnail cache；Maker 直接依編輯中的設定即時疊圖，避免把一次性編輯預覽和 runtime cache 混成同一功能。
 
@@ -161,11 +162,17 @@ Roadmap 細節只維護於 `TODO.md`。
 - Runtime database migration / migration backup / 舊資料驗證由開發端負責。
 - V1.0.0 發布後再另外討論 Pack 長期更新／跨大版本升級政策；0.x 不提前建立不必要的 upgrade framework。
 
+## V0.4.0 驗證狀態
+
+- Windows x64 CI Run #94：Build / Publish / output verification **PASS**。
+- 測試產物：`ScratchGame-V0.4.0-Build1-ScratchPackV1-test-package.zip`。
+- 測試包包含 ThreeStar-Test 與目前 3 張 GameType 1 Built-in ticket assets / 2 張 Built-in foil assets；ThreeStar-Test 刻意放在 `TestPacks/`，不是 `BuiltInPacks/`。
+
 ## 下一步
 
 繼續 V0.4.0，不提前進入 V0.5.0 Maker：
 
-1. 完成 runtime thumbnail cache。
-2. 使用 ThreeStar-Test 做 Windows 手動匯入 → 發行 Batch 1 → 挑票 → 01-blue → 三星銀膜 → 191×138 zones → 面額／票號 → 刮獎／兌獎實機驗收。
+1. Windows 實機驗收 ThreeStar-Test：手動匯入 → 發行 Batch 1 → 挑票縮圖 → 01-blue → 三星銀膜 → 191×138 zones → 面額／票號 → 刮獎／兌獎。
+2. 驗證 thumbnail cache 第二次開啟直接讀取，以及刪除 cache 後能自動重建。
 3. 修正實機驗收問題。
 4. V0.4.0 通過後再進入 V0.5.0 ScratchPack Maker。
