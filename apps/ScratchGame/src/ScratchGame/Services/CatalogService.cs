@@ -95,7 +95,15 @@ public sealed class CatalogService(AppDatabase database)
                        FROM prize_tiers p
                        WHERE p.ticket_id = t.id
                          AND p.initial_count > 0
-                   ), 0) AS max_prize
+                   ), 0) AS max_prize,
+                   (
+                       SELECT b.started_utc
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                       ORDER BY b.batch_number DESC
+                       LIMIT 1
+                   ) AS active_batch_started_utc
             FROM ticket_definitions t
             WHERE t.enabled = 1
               AND EXISTS (
@@ -134,7 +142,15 @@ public sealed class CatalogService(AppDatabase database)
                        FROM prize_tiers p
                        WHERE p.ticket_id = t.id
                          AND p.initial_count > 0
-                   ), 0) AS max_prize
+                   ), 0) AS max_prize,
+                   (
+                       SELECT b.started_utc
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                       ORDER BY b.batch_number DESC
+                       LIMIT 1
+                   ) AS active_batch_started_utc
             FROM ticket_definitions t
             WHERE t.id = $id
             LIMIT 1;
@@ -173,7 +189,10 @@ public sealed class CatalogService(AppDatabase database)
             reader.GetInt64(6) != 0, reader.GetInt64(7) != 0,
             reader.IsDBNull(8) ? null : reader.GetString(8),
             reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0,
-            reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetInt64(10) : 0);
+            reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetInt64(10) : 0,
+            reader.FieldCount > 11 && !reader.IsDBNull(11)
+                ? DateTimeOffset.Parse(reader.GetString(11))
+                : null);
 
     public async Task<PendingTicket?> GetPendingForUserAsync(
         string userId,
