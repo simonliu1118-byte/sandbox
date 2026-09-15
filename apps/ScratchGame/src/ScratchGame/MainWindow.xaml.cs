@@ -447,6 +447,7 @@ public partial class MainWindow : Window
         if (TryRenderScratchPackTicket(pending, definition))
         {
             UpdateTicketActionState();
+            ApplyCursorPolicy();
             return;
         }
 
@@ -468,6 +469,7 @@ public partial class MainWindow : Window
         }
 
         UpdateTicketActionState();
+        ApplyCursorPolicy();
     }
 
     private void RenderThreeLine(JsonElement root)
@@ -541,6 +543,7 @@ public partial class MainWindow : Window
 
     private void ShowSettlementResult(long prize)
     {
+        ApplyCursorPolicy();
         FooterActionsPanel.Visibility = Visibility.Collapsed;
         ResultOverlay.Visibility = Visibility.Visible;
         SameAgainButton.Content = "再來一張";
@@ -605,6 +608,7 @@ public partial class MainWindow : Window
     {
         _activeScratchPack = null;
         _isBoardScratching = false;
+        Mouse.OverrideCursor = null;
         SetCoinScratchState(false);
         CoinCursorVisual.Visibility = Visibility.Collapsed;
         if (Mouse.Captured == TicketOverlayCanvas)
@@ -640,9 +644,6 @@ public partial class MainWindow : Window
         if (refreshed is not null)
             _currentUser = refreshed;
 
-        UserSummaryText.Text = $"{_currentUser.DisplayName}　損益 {FormatSigned(_currentUser.Net)}";
+        UserSummaryText.Text = $"{_currentUser.DisplayName}　錢包 ${_currentUser.WalletBalance:N0}";
     }
-
-    private static string FormatSigned(long amount)
-        => amount >= 0 ? $"+${amount:N0}" : $"-${Math.Abs(amount):N0}";
 }
