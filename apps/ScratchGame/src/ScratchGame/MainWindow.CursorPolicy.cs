@@ -23,9 +23,6 @@ public partial class MainWindow
             UIElement.MouseLeaveEvent,
             new MouseEventHandler(CursorPolicy_OnMouseEvent),
             handledEventsToo: true);
-        // Use the bubbling button events as the final routed-event pass. The existing
-        // ticket handlers operate on PreviewMouseLeftButtonDown/Up and may temporarily
-        // request the coin; the deferred refresh below then applies the single policy.
         EventManager.RegisterClassHandler(
             typeof(MainWindow),
             UIElement.MouseLeftButtonDownEvent,
@@ -59,28 +56,25 @@ public partial class MainWindow
 
     private void ApplyCursorPolicy()
     {
-        // Normal Windows pointer is the default everywhere. The custom coin exists only
-        // while the left button is actively scratching inside a Scratch Zone.
-        var canShowCoin =
-            _currentPending is not null &&
-            ResultOverlay.Visibility != Visibility.Visible &&
-            ResultOverlay.Opacity > 0 &&
-            TicketOverlayCanvas.IsMouseOver &&
-            _isBoardScratching &&
-            Mouse.LeftButton == MouseButtonState.Pressed;
+        // V0.4 cursor rule:
+        // - while a ticket is still pending, every point inside the Stage uses the coin;
+        // - active scratching changes only the coin artwork to its side/scratch state;
+        // - everywhere else, and immediately after redemption, use the normal pointer.
+        var stagePoint = Mouse.GetPosition(StageBackgroundImage);
+        var insideStage =
+            stagePoint.X >= 0 && stagePoint.Y >= 0 &&
+            stagePoint.X <= StageBackgroundImage.ActualWidth &&
+            stagePoint.Y <= StageBackgroundImage.ActualHeight;
 
-        if (canShowCoin)
+        if (_currentPending is not null && insideStage)
         {
-            var point = Mouse.GetPosition(TicketOverlayCanvas);
-            canShowCoin = IsPointInsideScratchRegion(point);
-            if (canShowCoin)
-            {
-                SetCoinScratchState(true);
-                UpdateCoinCursor(point);
-                return;
-            }
+            Mouse.OverrideCursor = Cursors.None;
+            SetCoinScratchState(_isBoardScratching && Mouse.LeftButton == MouseButtonState.Pressed);
+            UpdateCoinCursor(Mouse.GetPosition(TicketOverlayCanvas));
+            return;
         }
 
+        Mouse.OverrideCursor = null;
         SetCoinScratchState(false);
         CoinCursorVisual.Visibility = Visibility.Collapsed;
         TicketOverlayCanvas.Cursor = Cursors.Arrow;
