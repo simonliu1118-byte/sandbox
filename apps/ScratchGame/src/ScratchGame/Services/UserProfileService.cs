@@ -52,12 +52,6 @@ public sealed class UserProfileService(AppDatabase database)
         return await ReadProfileAsync(connection, userId, cancellationToken);
     }
 
-    // V0.4 起遊玩統計不可任意歸零；舊 UI 會在下一階段移除這個入口。
-    public Task<UserProfile> ResetStatsAsync(
-        string userId,
-        CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("V0.4 起不再提供重置遊玩統計功能。");
-
     private static async Task<UserProfile> ReadProfileAsync(
         Microsoft.Data.Sqlite.SqliteConnection connection,
         string userId,
