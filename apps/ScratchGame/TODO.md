@@ -31,7 +31,7 @@
 - `formatVersion` 與 `gameType` 對照。
 - Canvas code 對照表。
 - Scratch zone / Shape 對照。
-- 預設／自訂銀膜規格。
+- 內建／Pack 自帶銀膜的選擇方式與素材製作建議；schema 直接引用 `SCRATCHPACK_SPEC.md`。
 - `priceDisplay` 與票號安全區說明。
 - 發行量、每本張數、Prize Pool 驗證方式。
 - 圖片格式與資源命名建議。
@@ -49,13 +49,14 @@
 - 評估支援**全畫布銀膜 overlay / mask 模式**：
   - foil 可是一整張與 Canvas 同尺寸的單純銀色底或重複花紋；Canvas 1 即為 1080×882；
   - foil 紋理本身不綁定各 Scratch Zone 位置，因此 zone 放在哪裡都不需要重做銀膜；
-  - runtime 最終只在 Scratch Zone 位置透過遮罩 / clipping 顯示，就像一般市售無特定分格花樣的刮刮樂銀膜；
-  - 作為未來可選銀膜模式，不影響目前 ThreeStar-Test 採用的 reusable single-zone foil template 方向。
+  - runtime 最終只在 Scratch Zone 位置透過既有 `scratch.zones` geometry 做 clipping，就像一般市售無特定分格花樣的刮刮樂銀膜；
+  - 若實作，必須**擴充既有 `scratch.foil` 模型與同一 foil renderer / ScratchSurface pipeline**，不得另建第二套 `mask`、`overlay`、逐 zone 座標或另一套刮除邏輯。
 
 ## ScratchPack Maker 後續
 
 - Maker 專案檔（例如 `.scratchproj`）目前只保留概念，不列入近期正式開發；等 Maker 第一版實際使用後再決定是否需要。
-- 銀膜樣式以**可重用單格 / template** 為目前正式方向；後續需整理內建樣式、縮放規則，以及不同幾何尺寸下的視覺一致性策略。
+- Maker 的銀膜 UI 只操作 `SCRATCHPACK_SPEC.md` 定義的同一個 `scratch.foil`：可選 ScratchGame 公用內建素材，或選擇 Pack 自帶 PNG；不建立另一套自訂銀膜功能。
+- 後續以 runtime 視覺測試確認 reusable single-zone foil template 的安全縮放範圍與必要的 edge-preserving rendering；這屬 renderer / Maker 行為，不另外污染 Pack 的 zone geometry。
 
 ## 刮獎手感與硬幣
 
