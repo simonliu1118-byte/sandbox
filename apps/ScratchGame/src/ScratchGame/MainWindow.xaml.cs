@@ -21,22 +21,13 @@ public partial class MainWindow : Window
     private const int WmSysCommand = 0x0112;
     private const int ScSize = 0xF000;
 
-    private static readonly (double X, double Y)[] ThreeLinePositions =
-    {
-        (274, 216), (464, 216), (654, 216),
-        (274, 345), (464, 345), (654, 345),
-        (274, 474), (464, 474), (654, 474)
-    };
-
-    private const double ThreeLineCellWidth = 180;
-    private const double ThreeLineCellHeight = 122;
-
     private readonly AppDatabase _database = new();
     private readonly CatalogService _catalog;
     private readonly PrizePoolService _prizePool;
     private readonly TicketSwapService _ticketSwap;
     private readonly SeedDataService _seed;
     private readonly BackupService _backup;
+    private readonly ScratchPackRuntimeService _scratchPackRuntime;
     private readonly List<ScratchSurface> _scratchRegions = new();
     private readonly HashSet<ScratchSurface> _completedScratchRegions = new();
 
@@ -56,6 +47,7 @@ public partial class MainWindow : Window
         _ticketSwap = new TicketSwapService(_database);
         _seed = new SeedDataService(_database);
         _backup = new BackupService(_database);
+        _scratchPackRuntime = new ScratchPackRuntimeService(_database);
 
         UiAssetLoader.TrySetImage(TopBarBackgroundImage, UiAssetLoader.UiPath("topbar_bg.png"));
         UiAssetLoader.TrySetImage(StageBackgroundImage, UiAssetLoader.UiPath("stage_bg.png"));
@@ -200,11 +192,12 @@ public partial class MainWindow : Window
 
         try
         {
+            var pack = _scratchPackRuntime.Load(definition);
             _currentDefinition = definition;
             _currentPending = await _prizePool.CreatePendingAsync(
                 _currentUser.Id,
                 definition.Id,
-                amount => GamePayloadFactory.Create(definition.RuleId, amount, definition.Price));
+                amount => GamePayloadFactory.Create(pack.Definition, amount));
 
             RenderPendingTicket(_currentPending, definition);
             await RefreshCurrentUserSummaryAsync();
@@ -245,12 +238,10 @@ public partial class MainWindow : Window
 
         try
         {
+            var pack = _scratchPackRuntime.Load(_currentDefinition);
             var replacement = await _ticketSwap.SwapPendingAsync(
                 _currentPending.Id,
-                amount => GamePayloadFactory.Create(
-                    _currentDefinition.RuleId,
-                    amount,
-                    _currentDefinition.Price));
+                amount => GamePayloadFactory.Create(pack.Definition, amount));
 
             _currentPending = replacement;
             RenderPendingTicket(replacement, _currentDefinition);
@@ -419,121 +410,163 @@ public partial class MainWindow : Window
         ClearTicketOverlay();
         _hasScratched = !string.IsNullOrWhiteSpace(pending.ScratchStateJson);
 
-        using var document = JsonDocument.Parse(pending.PayloadJson);
-        var root = document.RootElement;
-        var ruleId = root.GetProperty("ruleId").GetString();
-
-        switch (ruleId)
+        try
         {
-            case "ThreeLine":
-                LoadTicketArtwork("ThreeStar", "ticket.png");
-                RenderThreeLine(root, pending);
-                break;
-            default:
-                TicketBackgroundImage.Visibility = Visibility.Collapsed;
-                TicketPlaceholderPanel.Visibility = Visibility.Visible;
-                TicketPlaceholderText.Text = "此玩法的新版票面仍在製作中";
-                break;
+            var pack = _scratchPackRuntime.Load(definition);
+            LoadTicketArtwork(pack.TicketImagePath);
+
+            using var document = JsonDocument.Parse(pending.PayloadJson);
+            var root = document.RootElement;
+            var gameType = root.GetProperty("gameType").GetString();
+            switch (gameType)
+            {
+                case "1":
+                    RenderGameType1(root, pending, definition, pack);
+                    break;
+                default:
+                    throw new NotSupportedException($"目前尚未實作 GameType {gameType} 的 renderer。");
+            }
+        }
+        catch (Exception ex)
+        {
+            TicketBackgroundImage.Visibility = Visibility.Collapsed;
+            TicketPlaceholderPanel.Visibility = Visibility.Visible;
+            TicketPlaceholderText.Text = $"彩券載入失敗\n{ex.Message}";
         }
 
         UpdateTicketActionState();
     }
 
-    private void RenderThreeLine(JsonElement root, PendingTicket pending)
+    private void RenderGameType1(
+        JsonElement root,
+        PendingTicket pending,
+        TicketDefinition runtimeDefinition,
+        ResolvedScratchPackTicket pack)
     {
         var cells = root.GetProperty("cells").EnumerateArray()
-            .Select(element => element.GetString() ?? string.Empty)
+            .Select(element => element.GetBoolean())
             .ToArray();
-        var maskPath = GetTicketAssetPath("ThreeStar", "silver-star.png");
+        var zones = pack.Definition.Zones;
 
-        for (var i = 0; i < Math.Min(9, cells.Length); i++)
+        for (var i = 0; i < Math.Min(zones.Count, cells.Length); i++)
         {
-            var position = ThreeLinePositions[i];
+            var zone = zones[i];
+            var isStar = cells[i];
             var symbol = new TextBlock
             {
-                Width = ThreeLineCellWidth,
-                Height = ThreeLineCellHeight,
-                Text = GetDisplaySymbol(cells[i], i),
+                Width = zone.Width,
+                Height = zone.Height,
+                Text = isStar ? "★" : GetDisplaySymbol(i),
                 TextAlignment = TextAlignment.Center,
                 FontFamily = new FontFamily("Microsoft JhengHei UI"),
-                FontSize = cells[i] == "★" ? 58 : 49,
+                FontSize = isStar ? zone.Height * 0.43 : zone.Height * 0.34,
                 FontWeight = FontWeights.Bold,
-                Foreground = cells[i] == "★"
+                Foreground = isStar
                     ? new SolidColorBrush(Color.FromRgb(175, 28, 34))
                     : new SolidColorBrush(Color.FromRgb(98, 58, 27)),
-                Padding = new Thickness(0, 26, 0, 0),
+                Padding = new Thickness(0, zone.Height * 0.22, 0, 0),
                 IsHitTestVisible = false
             };
-            Canvas.SetLeft(symbol, position.X);
-            Canvas.SetTop(symbol, position.Y);
+            Canvas.SetLeft(symbol, zone.X);
+            Canvas.SetTop(symbol, zone.Y);
             TicketOverlayCanvas.Children.Add(symbol);
 
             var scratch = new ScratchSurface
             {
-                Width = ThreeLineCellWidth,
-                Height = ThreeLineCellHeight,
-                BrushRadius = 20,
+                Width = zone.Width,
+                Height = zone.Height,
+                BrushRadius = Math.Clamp(Math.Min(zone.Width, zone.Height) * 0.16, 12, 34),
                 CompletionThreshold = 0.78,
-                MaskImagePath = maskPath
+                MaskImagePath = pack.FoilImagePath,
+                ZoneShape = zone.Shape,
+                CornerRadius = zone.CornerRadius ?? 0
             };
             scratch.Completed += ScratchRegion_OnCompleted;
-            Canvas.SetLeft(scratch, position.X);
-            Canvas.SetTop(scratch, position.Y);
+            Canvas.SetLeft(scratch, zone.X);
+            Canvas.SetTop(scratch, zone.Y);
             TicketOverlayCanvas.Children.Add(scratch);
             _scratchRegions.Add(scratch);
             scratch.ResetMask();
         }
 
+        if (pack.Definition.PriceDisplay && pack.Definition.PriceDisplayArea is not null)
+            RenderPriceBadge(runtimeDefinition.Price, pack.Definition.PriceDisplayArea);
+        RenderSerial(pending, pack.Definition.SerialDisplayArea);
+    }
+
+    private void RenderPriceBadge(long price, ScratchPackRect area)
+    {
+        var border = new Border
+        {
+            Width = area.Width,
+            Height = area.Height,
+            CornerRadius = new CornerRadius(Math.Min(area.Width, area.Height) * 0.18),
+            Background = new SolidColorBrush(Color.FromArgb(230, 255, 248, 222)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(196, 145, 50)),
+            BorderThickness = new Thickness(3),
+            IsHitTestVisible = false,
+            Child = new TextBlock
+            {
+                Text = $"${price:N0}",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontFamily = new FontFamily("Microsoft JhengHei UI"),
+                FontSize = Math.Min(area.Height * 0.5, 38),
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(161, 32, 34))
+            }
+        };
+        Canvas.SetLeft(border, area.X);
+        Canvas.SetTop(border, area.Y);
+        TicketOverlayCanvas.Children.Add(border);
+    }
+
+    private void RenderSerial(PendingTicket pending, ScratchPackRect area)
+    {
         var serial = new TextBlock
         {
-            Width = 178,
-            Height = 24,
+            Width = area.Width,
+            Height = area.Height,
             Text = CreateDisplaySerial(pending),
             TextAlignment = TextAlignment.Center,
             FontFamily = new FontFamily("Consolas"),
-            FontSize = 15,
+            FontSize = Math.Min(area.Height * 0.45, 24),
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(83, 32, 25)),
+            Padding = new Thickness(0, area.Height * 0.22, 0, 0),
             IsHitTestVisible = false
         };
-        Canvas.SetLeft(serial, 55);
-        Canvas.SetTop(serial, 630);
+        Canvas.SetLeft(serial, area.X);
+        Canvas.SetTop(serial, area.Y);
         TicketOverlayCanvas.Children.Add(serial);
     }
 
     private static string CreateDisplaySerial(PendingTicket pending)
     {
-        static int ToSixDigits(string id)
+        static int ToThreeDigits(string id)
         {
             unchecked
             {
                 var hash = 17;
                 foreach (var ch in id)
                     hash = hash * 31 + ch;
-                return Math.Abs(hash % 1_000_000);
+                return Math.Abs(hash % 1000);
             }
         }
 
-        var ticketNumber = ToSixDigits(pending.Id);
-        var batchNumber = Math.Abs(ToSixDigits(pending.BatchId) % 1000);
-        return $"NO. {ticketNumber:000000}-{batchNumber:000}";
+        // Runtime-owned visual serial. Exact persistent style/book/sequence allocation
+        // will replace these deterministic placeholders before formal V1 release.
+        return $"{ToThreeDigits(pending.TicketId):000}-{ToThreeDigits(pending.BatchId):000}-{ToThreeDigits(pending.Id):000}";
     }
 
-    private static string GetDisplaySymbol(string raw, int index)
+    private static string GetDisplaySymbol(int index)
     {
-        if (raw == "★")
-            return "★";
-
         var symbols = new[] { "●", "◆", "▲", "■", "♥", "✦", "⬟", "✚" };
-        var hash = index * 17;
-        foreach (var ch in raw)
-            hash = unchecked(hash * 31 + ch);
-        return symbols[(hash & 0x7FFFFFFF) % symbols.Length];
+        return symbols[index % symbols.Length];
     }
 
-    private void LoadTicketArtwork(params string[] parts)
+    private void LoadTicketArtwork(string path)
     {
-        var path = GetTicketAssetPath(parts);
         if (!File.Exists(path))
         {
             TicketBackgroundImage.Visibility = Visibility.Collapsed;
@@ -552,14 +585,6 @@ public partial class MainWindow : Window
         TicketBackgroundImage.Source = bitmap;
         TicketBackgroundImage.Visibility = Visibility.Visible;
         TicketPlaceholderPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private static string GetTicketAssetPath(params string[] parts)
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "Tickets");
-        foreach (var part in parts)
-            path = Path.Combine(path, part);
-        return path;
     }
 
     private void ShowSettlementResult(long prize)
