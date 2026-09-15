@@ -79,6 +79,8 @@
                     <RowDefinition Height="28"/>
                 </Grid.RowDefinitions>
 
+                <!-- Only ticket-space content belongs in this Viewbox. Program-owned modal text
+                     must stay outside so fractional ticket scaling can never blur UI typography. -->
                 <Viewbox Stretch="Uniform"
                          StretchDirection="Both"
                          HorizontalAlignment="Center"
@@ -127,73 +129,81 @@
                                 </Grid>
                             </Grid>
                         </Canvas>
-
-                        <Border x:Name="ResultOverlay"
-                                Visibility="Collapsed"
-                                IsVisibleChanged="ResultOverlay_OnVisibilityChangedExtended"
-                                Width="520"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="#F2381711"
-                                BorderBrush="#F1C05A"
-                                BorderThickness="2"
-                                CornerRadius="22"
-                                Padding="34,24">
-                            <Border.Effect>
-                                <DropShadowEffect Color="#160A06" BlurRadius="22" ShadowDepth="7" Opacity="0.55"/>
-                            </Border.Effect>
-                            <StackPanel>
-                                <TextBlock x:Name="ResultHeadline" Text="恭喜中獎" FontFamily="Microsoft JhengHei UI" FontSize="26" FontWeight="Bold" Foreground="#FFE6A2" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="ResultAmountText" Text="$100" Margin="0,5,0,17" FontFamily="Microsoft JhengHei UI" FontSize="44" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="14"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="52" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="19" Padding="16,10" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
-                                    <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="52" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="19" Padding="16,10" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
-                                </Grid>
-                                <Border Margin="0,13,0,0"
-                                        HorizontalAlignment="Center"
-                                        Padding="3"
-                                        CornerRadius="10"
-                                        Background="#54231611"
-                                        BorderBrush="#A97845"
-                                        BorderThickness="1">
-                                    <Button Content="暫時隱藏"
-                                            Padding="16,6"
-                                            FontFamily="Microsoft JhengHei UI"
-                                            FontSize="12"
-                                            Foreground="#F1D3AD"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Cursor="Hand"
-                                            Click="HideResultOverlay_OnClick"/>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <Button x:Name="ResultResumeButton"
-                                Visibility="Collapsed"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Margin="0,0,24,24"
-                                Content="顯示中獎結果"
-                                Padding="18,8"
-                                FontFamily="Microsoft JhengHei UI"
-                                FontSize="14"
-                                FontWeight="SemiBold"
-                                Foreground="#FFF0CB"
-                                Background="#E03D1913"
-                                BorderBrush="#D7A456"
-                                BorderThickness="1"
-                                Cursor="Hand"
-                                Click="ShowResultOverlay_OnClick"/>
                     </Grid>
                 </Viewbox>
 
-                <!-- Empty-state card sits outside the Viewbox so text stays crisp. -->
+                <!-- Crisp program-owned Stage UI. This layer must never be placed inside TicketStage/Viewbox. -->
+                <Grid x:Name="StageUiOverlay"
+                      Grid.Row="0"
+                      Panel.ZIndex="20"
+                      TextOptions.TextFormattingMode="Display"
+                      TextOptions.TextRenderingMode="ClearType"
+                      SnapsToDevicePixels="True">
+                    <Border x:Name="ResultOverlay"
+                            Visibility="Collapsed"
+                            IsVisibleChanged="ResultOverlay_OnVisibilityChangedExtended"
+                            Width="420"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="#F2381711"
+                            BorderBrush="#F1C05A"
+                            BorderThickness="2"
+                            CornerRadius="20"
+                            Padding="28,20">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#160A06" BlurRadius="22" ShadowDepth="7" Opacity="0.55"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock x:Name="ResultHeadline" Text="恭喜中獎" FontFamily="Microsoft JhengHei UI" FontSize="22" FontWeight="Bold" Foreground="#FFE6A2" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="ResultAmountText" Text="$100" Margin="0,4,0,14" FontFamily="Microsoft JhengHei UI" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
+                                <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
+                            </Grid>
+                            <Border Margin="0,11,0,0"
+                                    HorizontalAlignment="Center"
+                                    Padding="3"
+                                    CornerRadius="10"
+                                    Background="#54231611"
+                                    BorderBrush="#A97845"
+                                    BorderThickness="1">
+                                <Button Content="暫時隱藏"
+                                        Padding="16,6"
+                                        FontFamily="Microsoft JhengHei UI"
+                                        FontSize="12"
+                                        Foreground="#F1D3AD"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="HideResultOverlay_OnClick"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Button x:Name="ResultResumeButton"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,18,18"
+                            Content="顯示中獎結果"
+                            Padding="16,7"
+                            FontFamily="Microsoft JhengHei UI"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF0CB"
+                            Background="#E03D1913"
+                            BorderBrush="#D7A456"
+                            BorderThickness="1"
+                            Cursor="Hand"
+                            Click="ShowResultOverlay_OnClick"/>
+                </Grid>
+
+                <!-- Empty-state card is also outside the Viewbox so text stays crisp. -->
                 <Grid x:Name="TicketPlaceholderPanel" Margin="16,4" Grid.RowSpan="1" Panel.ZIndex="4">
                     <Border Width="520"
                             HorizontalAlignment="Center"
