@@ -58,6 +58,14 @@ public sealed class ScratchPackV1Loader
             ComputeSha256(scratchPackPath));
     }
 
+    public ScratchPackTicketDefinition LoadInstalledTicket(string packageRoot)
+    {
+        var ticketPath = ResolveInside(packageRoot, "ticket.json");
+        if (!File.Exists(ticketPath))
+            throw new InvalidDataException("已安裝 ScratchPack 缺少 ticket.json。");
+        return ParseTicket(File.ReadAllText(ticketPath), packageRoot);
+    }
+
     public static string ResolveBuiltInTicketPath(string gameType, string reference)
     {
         if (!IsBuiltInTicketSupported(gameType, reference))
@@ -371,6 +379,14 @@ public sealed class ScratchPackV1Loader
         {
             if (canvas != 1 || !IsBuiltInTicketSupported(gameType, resource.Ref))
                 throw new InvalidDataException($"不支援的 built-in 票面：GameType {gameType} / {resource.Ref}");
+
+            var builtInPath = ResolveBuiltInTicketPath(gameType, resource.Ref);
+            var (builtInWidth, builtInHeight) = ReadPngDimensions(builtInPath);
+            if (canvas == 1 && (builtInWidth != Canvas1Width || builtInHeight != Canvas1Height))
+            {
+                throw new InvalidDataException(
+                    $"Built-in 票面 {gameType}/{resource.Ref} 必須精確為 {Canvas1Width}x{Canvas1Height}，實際為 {builtInWidth}x{builtInHeight}。");
+            }
             return;
         }
 
@@ -386,6 +402,7 @@ public sealed class ScratchPackV1Loader
         {
             if (!BuiltInFoils.Contains(resource.Ref))
                 throw new InvalidDataException($"不支援的 built-in 銀膜：{resource.Ref}");
+            _ = ReadPngDimensions(ResolveBuiltInFoilPath(resource.Ref));
             return;
         }
 
