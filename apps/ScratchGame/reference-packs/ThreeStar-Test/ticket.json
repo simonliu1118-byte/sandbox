@@ -15,7 +15,7 @@
   "art": {
     "ticket": {
       "source": "builtin",
-      "ref": "ticket/style-a-blue"
+      "ref": "01-blue"
     }
   },
   "serialDisplayArea": {
@@ -27,7 +27,7 @@
   "scratch": {
     "foil": {
       "source": "builtin",
-      "ref": "foil/brushed-silver-three-star"
+      "ref": "brushed-silver-three-star"
     },
     "zones": [
       {
