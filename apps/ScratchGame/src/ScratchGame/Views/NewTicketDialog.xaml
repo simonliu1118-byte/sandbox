@@ -65,8 +65,9 @@
             </Setter>
         </Style>
 
-        <!-- 145:219 keeps the same ~0.663 width/height ratio as the previous 220:332 card,
-             while six cards fit across the current picker viewport. -->
+        <!-- 145:219 keeps the previous 220:332 aspect ratio (difference <0.1%).
+             With 6px horizontal margins the current viewport fits exactly six cards per row;
+             two 219px cards plus vertical margins fit in the visible list height. -->
         <Style x:Key="TicketCardItem" TargetType="ListBoxItem">
             <Setter Property="Width" Value="145"/>
             <Setter Property="Height" Value="219"/>
@@ -183,8 +184,8 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Never trim a ticket name. Fixed child width allows wrapping; the
-                                         Viewbox only scales downward when an unusually long name needs more room. -->
+                                    <!-- Ticket names are never trimmed. They wrap first; the Viewbox only
+                                         scales downward if the complete name still needs more room. -->
                                     <Viewbox Grid.Row="1"
                                              Margin="2,3,2,1"
                                              Stretch="Uniform"
