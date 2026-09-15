@@ -17,10 +17,13 @@ REQUIRED_ASSETS = (
     "BuiltInAssets/Tickets/gameType1/02.png",
     "BuiltInAssets/Foils/brushed-silver-plain.png",
     "BuiltInAssets/Foils/brushed-silver-three-star.png",
+    "UI/grant-overlay-01.png",
     "Audio/small-win-manual.wav",
     "Audio/small-win-auto.wav",
     "Audio/big-win-manual.wav",
     "Audio/big-win-auto.wav",
+    "Audio/wallet-grant.wav",
+    "Audio/lose.wav",
 )
 
 # Pre-V0.4 local databases may still reference these legacy ticket assets.
