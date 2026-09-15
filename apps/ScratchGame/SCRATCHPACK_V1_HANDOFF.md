@@ -21,14 +21,16 @@
 - 開發階段另有獨立 `ThreeStar-Test` 測試 Pack，不與正式 Built-in Base Pack 共用 packageId 或票池。
 - `ThreeStar-Test/manifest.json` 與 `ticket.json` 已建立；目前測試票池為 8 張，用於覆蓋 0 線與 3×3 所有合法正獎線數。
 - GameType 1 已定案為標準 N×N 網格：直接使用 row-major `scratch.zones`，不使用 `cellZones`；詳細規則只看 `GAMETYPE_SPEC.md`。
+- 銀膜選擇現已統一由 `SCRATCHPACK_SPEC.md` 的 `scratch.foil` 管理；內建公用銀膜與 Pack 自帶銀膜使用同一 schema / renderer pipeline，不再使用舊草案 `art.mask`。
 
 ## ThreeStar-Test 交接入口
 
 - Pack 位置：`apps/ScratchGame/reference-packs/ThreeStar-Test/`
 - 視覺交接與下一步：`apps/ScratchGame/reference-packs/ThreeStar-Test/artwork-drafts/README.md`
-- Git 內已封存 4 張彩券視覺 reference 與 1 張獨立銀膜 reference（輕量 WebP handoff copies）。
-- ChatGPT Library 另保存完整來源生成 PNG：`/ScratchGame/ThreeStar-Handoff-2026-09-15/`。
+- Git 內已封存 4 張彩券視覺 reference 與 1 張早期銀膜 reference（輕量 WebP handoff copies）。
+- ChatGPT Library 的歷史完整來源生成 PNG：`/ScratchGame/ThreeStar-Handoff-2026-09-15/`。
+- ChatGPT Library 的可重用正式銀膜 master：`/ScratchGame/Asset-Library/Foils/`。
 
-目前所有來源生成圖尺寸都是 `1388×1133`，只可作設計 reference；正式 `canvas=1` 必須精確為 `1080×882`。最新工作方向是藍色乾淨底圖，正式化前仍需後製成正確尺寸、重新量測 3×3 刮區 / 面額區 / 票號區，並把銀膜維持為獨立資產。
+目前已接受藍色乾淨底圖正式化方向：Canvas 1 為 **1080×882**；3×3 zone、面額區與票號區已重新量測並寫入 `ThreeStar-Test/ticket.json`。ThreeStar-Test 目前選用公用內建銀膜 `brushed-silver-three-star`。
 
-下一步從 `artwork-drafts/README.md` 接續；不要先做 loader / CI。先完成並接受正式 1080×882 票面與獨立銀膜，再進入程式實作。
+下一步從 `artwork-drafts/README.md` 接續；不要先做 loader / CI。先把已接受的 1080×882 底圖正式放入 `assets/three-star.png`，再進入 V1 loader / validator。
