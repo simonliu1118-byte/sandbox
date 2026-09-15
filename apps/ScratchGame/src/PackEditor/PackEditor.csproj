@@ -10,4 +10,12 @@
     <RootNamespace>PackEditor</RootNamespace>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\..\..\VERSION').Trim())</Version>
   </PropertyGroup>
+
+  <!-- PackEditor is an auxiliary executable of ScratchGame, not a second product.
+       It compiles the authoritative ScratchPack model/loader source directly so
+       ResourceRef and validation rules never fork into an editor-only copy. -->
+  <ItemGroup>
+    <Compile Include="..\ScratchGame\Models\ScratchPackModels.cs" Link="Shared\ScratchPackModels.cs" />
+    <Compile Include="..\ScratchGame\Services\ScratchPackV1Loader.cs" Link="Shared\ScratchPackV1Loader.cs" />
+  </ItemGroup>
 </Project>
