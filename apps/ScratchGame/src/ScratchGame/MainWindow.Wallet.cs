@@ -51,9 +51,11 @@ public partial class MainWindow
         WalletGrantOverlay.Visibility = Visibility.Visible;
         WalletGrantOverlay.Opacity = 1;
 
-        var scale = new ScaleTransform(0.90, 0.90);
+        // Keep the bottom crop outside the visible Stage. The artwork is intentionally
+        // rendered slightly larger and lower so its original cut edge never becomes visible.
+        var scale = new ScaleTransform(1.08, 1.08);
         var rotate = new RotateTransform(-5);
-        var translate = new TranslateTransform(-16, 0);
+        var translate = new TranslateTransform(-16, 46);
         var transforms = new TransformGroup();
         transforms.Children.Add(scale);
         transforms.Children.Add(rotate);
@@ -119,14 +121,14 @@ public partial class MainWindow
         {
             Duration = TimeSpan.FromSeconds(3)
         };
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(0.90, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.06, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.34))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(0.96, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.68))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.08, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.02))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(0.99, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.36))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.05, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.70))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(2.05))));
-        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.08, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.22, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.34))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.12, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.68))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.24, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.02))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.14, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.36))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.21, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.70))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.15, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(2.05))));
+        animation.KeyFrames.Add(new LinearDoubleKeyFrame(1.15, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3))));
         return animation;
     }
 
