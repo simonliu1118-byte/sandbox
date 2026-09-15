@@ -43,11 +43,11 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="12" Padding="3" Margin="2">
-                            <Border x:Name="Note" CornerRadius="7" BorderBrush="#98612F" BorderThickness="1" Background="#3A2118">
+                            <Border x:Name="Note" CornerRadius="7" BorderBrush="{Binding BorderBrush}" BorderThickness="1" Background="{Binding Background}">
                                 <Grid Margin="7,4">
-                                    <Ellipse Width="17" Height="17" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#5B2E1C" Stroke="#C98B3D" StrokeThickness="1"/>
-                                    <TextBlock Text="✦" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,-1,0,0" Foreground="#D9A44F" FontSize="9"/>
-                                    <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FBE5B8" FontFamily="Microsoft JhengHei UI" FontWeight="SemiBold" FontSize="14"/>
+                                    <Ellipse Width="17" Height="17" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{Binding Background}" Stroke="{Binding Accent}" StrokeThickness="1"/>
+                                    <TextBlock Text="✦" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,-1,0,0" Foreground="{Binding Accent}" FontSize="9"/>
+                                    <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground}" FontFamily="Microsoft JhengHei UI" FontWeight="SemiBold" FontSize="14"/>
                                 </Grid>
                             </Border>
                         </Border>
@@ -55,7 +55,7 @@
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="SelectionChrome" Property="BorderBrush" Value="#FFD66A"/>
                                 <Setter TargetName="SelectionChrome" Property="Background" Value="#26F2B54C"/>
-                                <Setter TargetName="Note" Property="BorderBrush" Value="#E6A94F"/>
+                                <Setter TargetName="Note" Property="BorderThickness" Value="1.5"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SelectionChrome" Property="Background" Value="#18FFFFFF"/></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SelectionChrome" Property="Opacity" Value="0.28"/></Trigger>
@@ -66,9 +66,9 @@
         </Style>
 
         <Style x:Key="TicketCardItem" TargetType="ListBoxItem">
-            <Setter Property="Width" Value="430"/>
-            <Setter Property="Height" Value="142"/>
-            <Setter Property="Margin" Value="10,8"/>
+            <Setter Property="Width" Value="220"/>
+            <Setter Property="Height" Value="332"/>
+            <Setter Property="Margin" Value="9,8"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -77,7 +77,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Card" Background="#3A1A14" BorderBrush="#6B4538" BorderThickness="1" CornerRadius="14" Padding="12">
+                        <Border x:Name="Card" Background="#3A1A14" BorderBrush="#6B4538" BorderThickness="1" CornerRadius="14" Padding="10">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -86,7 +86,7 @@
                                 <Setter TargetName="Card" Property="BorderBrush" Value="#B17A43"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Card" Property="Background" Value="#6A544F"/>
+                                <Setter TargetName="Card" Property="Background" Value="#5A423D"/>
                                 <Setter TargetName="Card" Property="BorderBrush" Value="#FFD05A"/>
                                 <Setter TargetName="Card" Property="BorderThickness" Value="2"/>
                             </Trigger>
@@ -145,41 +145,45 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="116"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="174"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
 
-                                    <Border Grid.Column="0" CornerRadius="10" Background="#210E0B" BorderBrush="#5E3C31" BorderThickness="1" ClipToBounds="True" Margin="0,0,14,0">
+                                    <Border Grid.Row="0" CornerRadius="10" Background="#210E0B" BorderBrush="#5E3C31" BorderThickness="1" ClipToBounds="True">
                                         <Grid>
-                                            <Image Source="{Binding ThumbnailPath}" Stretch="Uniform" Margin="4"/>
+                                            <Image Source="{Binding ThumbnailPath}" Stretch="Uniform" Margin="5"/>
                                             <Border Background="#A82B1711" Visibility="Collapsed" x:Name="MissingArtwork">
                                                 <TextBlock Text="找不到票面美術" Foreground="#D7B89A" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="12"/>
                                             </Border>
                                         </Grid>
                                     </Border>
 
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Ticket.DisplayName}"
-                                                   FontFamily="Microsoft JhengHei UI"
-                                                   FontSize="20"
-                                                   FontWeight="Bold"
-                                                   Foreground="#FFF0CF"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Margin="0,10,0,0" Foreground="#E8C39A" FontSize="14">
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding Ticket.DisplayName}"
+                                               Margin="2,9,2,0"
+                                               FontFamily="Microsoft JhengHei UI"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               Foreground="#FFF0CF"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <StackPanel Grid.Row="2" Margin="2,7,2,0" HorizontalAlignment="Center">
+                                        <TextBlock Foreground="#E8C39A" FontSize="13" HorizontalAlignment="Center">
                                             <Run Text="面額 $"/><Run Text="{Binding Ticket.Price, StringFormat={}{0:N0}}"/>
                                         </TextBlock>
-                                        <TextBlock Margin="0,6,0,0" Foreground="#C79E79" FontSize="14">
+                                        <TextBlock Margin="0,4,0,0" Foreground="#C79E79" FontSize="12" HorizontalAlignment="Center">
                                             <Run Text="發行批次 "/><Run Text="{Binding BatchText}"/>
                                         </TextBlock>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                        <TextBlock Text="發行中獎率" Foreground="#D1A785" FontSize="12" HorizontalAlignment="Right"/>
-                                        <TextBlock Margin="0,8,0,0" Text="{Binding Ticket.PublishedWinRate, StringFormat={}{0:P2}}" Foreground="#FFD363" FontSize="22" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                    <StackPanel Grid.Row="3" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,7,0,0">
+                                        <TextBlock Text="發行中獎率" Foreground="#D1A785" FontSize="11" HorizontalAlignment="Center"/>
+                                        <TextBlock Margin="0,2,0,0" Text="{Binding Ticket.PublishedWinRate, StringFormat={}{0:P2}}" Foreground="#FFD363" FontSize="21" FontWeight="Bold" HorizontalAlignment="Center"/>
                                     </StackPanel>
-
                                 </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
