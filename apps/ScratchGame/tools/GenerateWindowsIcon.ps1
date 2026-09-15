@@ -22,7 +22,7 @@ $outputDirectory = [System.IO.Path]::GetDirectoryName($output)
 # Native layers cover Windows shell/taskbar/DPI scenarios instead of relying on
 # one oversized bitmap that Windows has to scale at display time.
 $sizes = @(16, 20, 24, 28, 32, 40, 48, 64, 72, 80, 96, 128, 256)
-$frames = New-Object 'System.Collections.Generic.List[byte[]]'
+$frames = [System.Collections.Generic.List[byte[]]]::new()
 $image = [System.Drawing.Image]::FromFile($source)
 try {
     if ($image.Width -ne 256 -or $image.Height -ne 256) {
@@ -30,9 +30,9 @@ try {
     }
 
     foreach ($size in $sizes) {
-        $bitmap = New-Object System.Drawing.Bitmap(
-            $size,
-            $size,
+        $bitmap = [System.Drawing.Bitmap]::new(
+            [int]$size,
+            [int]$size,
             [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
         try {
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
@@ -43,13 +43,13 @@ try {
                 $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
                 $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
                 $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-                $graphics.DrawImage($image, 0, 0, $size, $size)
+                $graphics.DrawImage($image, 0, 0, [int]$size, [int]$size)
             }
             finally {
                 $graphics.Dispose()
             }
 
-            $stream = New-Object System.IO.MemoryStream
+            $stream = [System.IO.MemoryStream]::new()
             try {
                 $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
                 $frames.Add($stream.ToArray())
@@ -72,7 +72,7 @@ $file = [System.IO.File]::Open(
     [System.IO.FileMode]::Create,
     [System.IO.FileAccess]::Write,
     [System.IO.FileShare]::None)
-$writer = New-Object System.IO.BinaryWriter($file)
+$writer = [System.IO.BinaryWriter]::new($file)
 try {
     # ICONDIR
     $writer.Write([uint16]0)
@@ -98,7 +98,7 @@ try {
     }
 
     foreach ($payload in $frames) {
-        $writer.Write($payload)
+        $writer.Write([byte[]]$payload)
     }
 }
 finally {
