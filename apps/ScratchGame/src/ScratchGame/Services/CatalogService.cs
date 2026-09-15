@@ -60,6 +60,7 @@ public sealed class CatalogService(AppDatabase database)
                    t.published_win_rate, t.enabled, t.locked, t.source_package_id
             FROM ticket_definitions t
             WHERE t.enabled = 1
+              AND t.source_package_id IS NOT NULL
               AND EXISTS (
                   SELECT 1 FROM batches b
                   WHERE b.ticket_id = t.id AND b.status = 'Active'
