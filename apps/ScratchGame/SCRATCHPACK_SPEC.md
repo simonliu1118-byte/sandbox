@@ -1,7 +1,7 @@
 # ScratchPack Format Specification
 
 Specification version: **1.0**  
-Implementation status: **規格已定稿；目前 ScratchGame 尚未完整實作 V1 loader / importer / Maker。**
+Implementation status: **規格已定稿；ScratchGame V0.4.0 正在完成 V1 loader / importer / runtime 實機驗收；Maker 規劃於 V0.5.0。**
 
 本文件是 ScratchPack V1 **封裝、資料格式、共通 ResourceRef 與 built-in asset registry 的唯一正式規格**。GameType 的勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific 驗證只由 `GAMETYPE_SPEC.md` 定義。
 
@@ -45,7 +45,7 @@ assets/
   my-foil.png
 ```
 
-V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式依 `art.ticket` 最終解析出的正式票面等比例產生。
+V1 **不定義、也不接受 `thumbnail.png`**。挑券縮圖屬主程式可重建 runtime cache：Pack 安裝後由正式 Pack / runtime definition 產生；cache 遺失或損壞時重新產生，不成為 Pack 權威資料。
 
 ## 3. `manifest.json`
 
@@ -115,7 +115,7 @@ V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式依 `a
 
 ScratchPack 不保存中獎率、未中獎率、最高獎金、EV、RTP、總本數、未中獎張數等 Derived Data。
 
-挑券卡資料來源：名稱=`name`；面額=`price`；縮圖=`art.ticket` 解析出的票面資源；中獎率由 `prizes` + `issueSize` 算；最高獎由 `max(prizes.amount where count > 0)` 算；批次與發行日期來自 runtime database。
+挑券卡資料來源：名稱=`name`；面額=`price`；縮圖由正式 Pack / runtime definition 產生的 cache；中獎率由 `prizes` + `issueSize` 算；最高獎由 `max(prizes.amount where count > 0)` 算；批次與發行日期來自 runtime database。
 
 ## 5. 共通 ResourceRef、Built-in Asset Registry 與 Canvas
 
@@ -374,23 +374,34 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、必要尺寸、可解
 
 任何驗證失敗都不得留下半套已安裝資料；外部 Pack 匯入必須為原子操作。
 
-## 11. 內建基礎 Pack 與外部 Pack
+## 11. Pack 安裝來源、初始批次與 lifecycle
 
 正式彩券一律以 ScratchPack 定義；主程式不得為某張正式彩券另外硬編碼專屬 Prize Tier、layout、玩法結果或第二套 ticket definition。
 
-第一款「三星連線」是 **Built-in Base Pack**：
+Built-in Pack 與 Imported Pack：
 
-- 使用與外部 `.scratchpack` 完全相同的 V1 schema、ResourceRef、GameType 契約與 runtime pipeline。
-- 隨 ScratchGame 發行內容提供，不要求使用者手動匯入。
-- 主程式初始化時自動確認並註冊。
-- Built-in 與 Imported Pack 共用 loader / validator / engine / renderer / finite-pool / redemption pipeline。
-- Built-in Base Pack 不提供刪除／解除安裝；缺少或損壞視為程式發行內容不完整。
-- Built-in Base Pack 可停用／重新啟用；停用只影響新票選擇，狀態由 runtime database 管理，不寫入 ScratchPack schema。
+- 使用**完全相同**的 `.scratchpack` V1 schema、ResourceRef、GameType 契約與 runtime pipeline。
+- 共用 loader / validator / engine / renderer / finite-pool / redemption pipeline；不得因安裝來源建立第二套玩法或資料格式。
+- 安裝成功後皆由同一個 runtime lifecycle 建立**第 1 批**；使用者不需要再手動做第一次發行。後續批次仍使用一般「發行下一批」流程。
 - `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 Pack 可自行宣稱的 manifest / ticket 欄位。
+- `Hidden / Visible` 也是本機 runtime UI 狀態，不寫入 `.scratchpack`。
 
-外部 Pack 由使用者匯入；匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用目前 GameType 可用的 Built-in ticket ref 與全域 Built-in foil ref，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
+Built-in Pack：
 
-第一款正式 Built-in Base Pack「三星連線」：
+- 隨 ScratchGame 發行內容提供，不要求使用者手動匯入；主程式初始化時自動確認並註冊。
+- 不提供解除安裝；缺少或損壞視為程式發行內容不完整。
+- 可**隱藏 / 解除隱藏**。隱藏後不出現在正常設定主列表或挑券列表，但不刪除 Pack、批次、票池或歷史資料。
+
+Imported Pack：
+
+- 由使用者手動匯入；匯入完成後自動建立第 1 批並可直接遊玩。
+- 可**隱藏 / 解除隱藏**；語意與 Built-in 相同，只影響正常 UI 可見性與新票選擇，不刪除資料。
+- 可要求**解除安裝**；解除安裝的語意是移除該 Imported Pack 的安裝資料、Pack 檔案副本與可重建 cache。
+- 為避免破壞既有 Pending / 歷史資料引用，runtime 可以在仍有未完成票或既有遊玩紀錄時拒絕解除安裝並要求改用「隱藏」。這是資料安全限制，不是新的 Pack schema。
+
+外部 Pack 匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用目前 GameType 可用的 Built-in ticket ref 與全域 Built-in foil ref，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
+
+第一款正式 Built-in Base Pack「三星連線」的內容將由 V0.5.0 ScratchPack Maker 產生後提供給主程式發行流程，不由主程式另外手寫一套 Pack。其既定方向：
 
 - `gameType="1"`。
 - `canvas=1`。
