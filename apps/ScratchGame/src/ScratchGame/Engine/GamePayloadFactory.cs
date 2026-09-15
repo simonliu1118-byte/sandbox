@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ScratchGame.Models;
 
 namespace ScratchGame.Engine;
 
@@ -23,12 +24,13 @@ public static class GamePayloadFactory
     {
         object payload = ruleId switch
         {
-            // GameType 1: 星星連線。現行內建三星連線使用 3x3 並開啟 Near Miss 星星。
+            // Legacy non-Pack route kept only for existing local data created before ScratchPack V1.
             "1" => CreateStarLine(
                 prizeAmount,
                 gridSize: 3,
                 allowNearMissStars: true,
-                payoutToLineCount: BuiltInStarLine500PayoutToLineCount),
+                payoutToLineCount: BuiltInStarLine500PayoutToLineCount,
+                payloadRuleId: "ThreeLine"),
             "ThreeLine" => CreateLegacyThreeLine(prizeAmount),
             "LuckyNumberMatch" => CreateLuckyNumberMatch(prizeAmount),
             "MatchThree" => CreateMatchThree(prizeAmount),
@@ -37,14 +39,52 @@ public static class GamePayloadFactory
         return JsonSerializer.Serialize(payload, JsonOptions);
     }
 
+    public static string Create(ScratchPackTicketDefinition ticket, long prizeAmount)
+    {
+        object payload = ticket.GameType switch
+        {
+            "1" => CreateStarLineFromPack(ticket, prizeAmount),
+            _ => throw new NotSupportedException($"ScratchPack 尚未實作 GameType：{ticket.GameType}")
+        };
+        return JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
+    private static object CreateStarLineFromPack(
+        ScratchPackTicketDefinition ticket,
+        long prizeAmount)
+    {
+        var orderedPrizes = ticket.Prizes.OrderBy(p => p.Amount).ToArray();
+        var legalPositiveLineCounts = Enumerable.Range(1, 2 * ticket.GridSize)
+            .Concat([2 * ticket.GridSize + 2])
+            .ToArray();
+
+        if (orderedPrizes.Length != legalPositiveLineCounts.Length)
+        {
+            throw new InvalidOperationException(
+                $"GameType 1 / {ticket.GridSize}x{ticket.GridSize} Prize Tier 數量與合法連線數不一致。");
+        }
+
+        var payoutToLineCount = new Dictionary<long, int> { [0] = 0 };
+        for (var i = 0; i < orderedPrizes.Length; i++)
+            payoutToLineCount[orderedPrizes[i].Amount] = legalPositiveLineCounts[i];
+
+        return CreateStarLine(
+            prizeAmount,
+            ticket.GridSize,
+            ticket.AllowNearMiss,
+            payoutToLineCount,
+            payloadRuleId: "1");
+    }
+
     private static object CreateStarLine(
         long prizeAmount,
         int gridSize,
         bool allowNearMissStars,
-        IReadOnlyDictionary<long, int> payoutToLineCount)
+        IReadOnlyDictionary<long, int> payoutToLineCount,
+        string payloadRuleId)
     {
         if (gridSize is < 3 or > 5)
-            throw new ArgumentOutOfRangeException(nameof(gridSize), "GameType 1 只支援 3x3、4x4、5x5。 ");
+            throw new ArgumentOutOfRangeException(nameof(gridSize), "GameType 1 只支援 3x3、4x4、5x5。");
 
         if (!payoutToLineCount.TryGetValue(prizeAmount, out var targetLineCount))
             throw new InvalidOperationException($"GameType 1 沒有定義獎金 ${prizeAmount:N0} 對應的連線數。");
@@ -61,8 +101,7 @@ public static class GamePayloadFactory
 
         return new
         {
-            // 目前畫面仍沿用既有 ThreeLine renderer；真正玩法識別以 gameType 為準。
-            ruleId = "ThreeLine",
+            ruleId = payloadRuleId,
             gameType = "1",
             gridSize,
             prizeAmount,
@@ -82,7 +121,7 @@ public static class GamePayloadFactory
         if (targetLineCount < 0 || targetLineCount > lineMasks.Count)
             throw new InvalidOperationException("GameType 1 的目標連線數超出合法範圍。");
 
-        // 3x3 / 4x4 很小，直接枚舉所有星星組合可得到最自然的 Near Miss 盤面。
+        // 3x3 / 4x4 很小，直接枚舉所有星星組合可得到自然的 Near Miss 盤面。
         if (allowNearMissStars && gridSize <= 4)
         {
             var cellCount = gridSize * gridSize;
