@@ -155,17 +155,23 @@
                                     <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="52" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="19" Padding="16,10" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
                                     <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="52" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="19" Padding="16,10" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
                                 </Grid>
-                                <Button Content="暫時隱藏中獎提示"
-                                        Margin="0,13,0,0"
+                                <Border Margin="0,13,0,0"
                                         HorizontalAlignment="Center"
-                                        Padding="12,4"
-                                        FontFamily="Microsoft JhengHei UI"
-                                        FontSize="12"
-                                        Foreground="#D9B998"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Cursor="Hand"
-                                        Click="HideResultOverlay_OnClick"/>
+                                        Padding="3"
+                                        CornerRadius="10"
+                                        Background="#54231611"
+                                        BorderBrush="#A97845"
+                                        BorderThickness="1">
+                                    <Button Content="暫時隱藏"
+                                            Padding="16,6"
+                                            FontFamily="Microsoft JhengHei UI"
+                                            FontSize="12"
+                                            Foreground="#F1D3AD"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Click="HideResultOverlay_OnClick"/>
+                                </Border>
                             </StackPanel>
                         </Border>
 
