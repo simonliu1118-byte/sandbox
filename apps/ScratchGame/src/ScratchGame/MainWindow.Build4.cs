@@ -28,6 +28,12 @@ public partial class MainWindow
             _build4MouseHookInstalled = true;
         }
 
+        // Build 4 alignment corrections belong only to pre-ScratchPack local tickets.
+        // ScratchPack zones and serial placement are authoritative Pack geometry and
+        // must never receive the legacy +1 offset or fixed Y=675 serial override.
+        if (_activeScratchPack is not null)
+            return;
+
         // The actual white scratch interiors start one design pixel farther right/down
         // than Build 3. Move the symbol and ScratchSurface together so rendering,
         // hit-testing and mask geometry still have exactly one coordinate owner.
@@ -60,8 +66,8 @@ public partial class MainWindow
             surface.Tag = "Build4Aligned";
         }
 
-        // Build 4 ticket art keeps only a compact real footer instead of the old
-        // artificial fill area. Keep the serial inside that footer.
+        // Legacy Build 4 ticket art keeps only a compact real footer instead of the old
+        // artificial fill area. Keep the serial inside that footer for legacy tickets only.
         var serialBadge = TicketOverlayCanvas.Children
             .OfType<Border>()
             .FirstOrDefault(border => Equals(border.Tag, "ProgramSerialBadge"));
