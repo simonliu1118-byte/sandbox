@@ -63,7 +63,8 @@ public partial class NewTicketDialog : Window
             .Select(ticket => new TicketChoice(
                 ticket,
                 ResolveThumbnail(ticket),
-                ticket.ActiveBatchNumber > 0 ? $"第 {ticket.ActiveBatchNumber} 批" : "批次未定"))
+                ticket.ActiveBatchNumber > 0 ? $"第 {ticket.ActiveBatchNumber} 批" : "批次未定",
+                $"最高獎金 {ticket.MaxPrize:N0} 元!"))
             .ToList();
 
         TicketListBox.ItemsSource = filtered;
@@ -135,5 +136,9 @@ public partial class NewTicketDialog : Window
         string Foreground,
         string Accent);
 
-    private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath, string BatchText);
+    private sealed record TicketChoice(
+        TicketDefinition Ticket,
+        string? ThumbnailPath,
+        string BatchText,
+        string MaxPrizeText);
 }
