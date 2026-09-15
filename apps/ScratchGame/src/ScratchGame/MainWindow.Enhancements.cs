@@ -33,6 +33,7 @@ public partial class MainWindow
             StatusText.Text = "正在初始化…";
             await _database.InitializeAsync();
             await _seed.EnsureSeedDataAsync();
+            await new BuiltInPackBootstrapService(_database).EnsureInstalledAsync();
             await _backup.BackupIfDueAsync();
 
             var users = await _catalog.GetUsersAsync();
@@ -58,8 +59,6 @@ public partial class MainWindow
 
     private void Window_OnEnhancementsReady(object? sender, EventArgs e)
     {
-        // Mouse tracking is intentionally handled only by the main scratch pipeline.
-        // This method now only prepares services that depend on the rendered window.
         _enhancementTicketNumbers ??= new TicketNumberService(_database);
     }
 
@@ -229,8 +228,6 @@ public partial class MainWindow
             EnsureSerialBadge(serial);
             RemoveProgramPriceBadge();
 
-            // Current built-in tickets already contain a complete denomination badge in their artwork.
-            // Imported ScratchPack tickets may opt into the program-drawn full badge with priceDisplay=1.
             var effectivePriceDisplay = metadata.PriceDisplay == 1 && _currentDefinition.SourcePackageId is not null ? 1 : 0;
             if (effectivePriceDisplay == 1)
                 AddProgramPriceBadge(_currentDefinition.Price);
@@ -251,20 +248,30 @@ public partial class MainWindow
 
     private void EnsureSerialBadge(string serial)
     {
+        var area = CurrentSerialDisplayArea;
+        var x = area?.X ?? 64;
+        var y = area?.Y ?? 742;
+        var width = area?.Width ?? 205;
+        var height = area?.Height ?? 36;
+
         var existing = TicketOverlayCanvas.Children.OfType<Border>()
             .FirstOrDefault(b => Equals(b.Tag, "ProgramSerialBadge"));
         if (existing?.Child is TextBlock existingText)
         {
             existingText.Text = serial;
+            existing.Width = width;
+            existing.Height = height;
+            Canvas.SetLeft(existing, x);
+            Canvas.SetTop(existing, y);
             return;
         }
 
         var badge = new Border
         {
             Tag = "ProgramSerialBadge",
-            MinWidth = 205,
-            Height = 36,
-            CornerRadius = new CornerRadius(9),
+            Width = width,
+            Height = height,
+            CornerRadius = new CornerRadius(Math.Min(9, height / 3.0)),
             Background = new SolidColorBrush(Color.FromRgb(255, 246, 224)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(145, 62, 42)),
             BorderThickness = new Thickness(1.5),
@@ -274,7 +281,7 @@ public partial class MainWindow
             {
                 Text = serial,
                 FontFamily = new FontFamily("Consolas"),
-                FontSize = 15,
+                FontSize = Math.Clamp(height * 0.38, 14, 22),
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(78, 34, 26)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -282,8 +289,8 @@ public partial class MainWindow
                 TextAlignment = TextAlignment.Center
             }
         };
-        Canvas.SetLeft(badge, 64);
-        Canvas.SetTop(badge, 742);
+        Canvas.SetLeft(badge, x);
+        Canvas.SetTop(badge, y);
         TicketOverlayCanvas.Children.Add(badge);
     }
 
@@ -300,12 +307,18 @@ public partial class MainWindow
     private void AddProgramPriceBadge(long price)
     {
         RemoveProgramPriceBadge();
+        var area = CurrentPriceDisplayArea;
+        var x = area?.X ?? 882;
+        var y = area?.Y ?? 42;
+        var width = area?.Width ?? 176;
+        var height = area?.Height ?? 80;
+
         var outer = new Border
         {
             Tag = "ProgramPriceBadge",
-            Width = 176,
-            Height = 80,
-            CornerRadius = new CornerRadius(16),
+            Width = width,
+            Height = height,
+            CornerRadius = new CornerRadius(Math.Min(16, height / 4.0)),
             Background = new SolidColorBrush(Color.FromRgb(181, 119, 25)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(255, 225, 124)),
             BorderThickness = new Thickness(3),
@@ -314,7 +327,7 @@ public partial class MainWindow
         outer.Child = new Border
         {
             Margin = new Thickness(5),
-            CornerRadius = new CornerRadius(12),
+            CornerRadius = new CornerRadius(Math.Min(12, height / 5.0)),
             Background = new SolidColorBrush(Color.FromRgb(255, 246, 207)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(150, 77, 18)),
             BorderThickness = new Thickness(2),
@@ -322,7 +335,7 @@ public partial class MainWindow
             {
                 Text = $"NT${price:N0}",
                 FontFamily = new FontFamily("Microsoft JhengHei UI"),
-                FontSize = 35,
+                FontSize = Math.Clamp(height * 0.43, 24, 38),
                 FontWeight = FontWeights.Black,
                 Foreground = new SolidColorBrush(Color.FromRgb(196, 25, 28)),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -330,8 +343,8 @@ public partial class MainWindow
                 TextAlignment = TextAlignment.Center
             }
         };
-        Canvas.SetLeft(outer, 882);
-        Canvas.SetTop(outer, 42);
+        Canvas.SetLeft(outer, x);
+        Canvas.SetTop(outer, y);
         TicketOverlayCanvas.Children.Add(outer);
     }
 
