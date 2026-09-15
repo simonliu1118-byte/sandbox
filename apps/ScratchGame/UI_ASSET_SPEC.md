@@ -101,6 +101,24 @@ Footer image
 - `wallet-grant.wav`：錢包 grant Stage effect 音效；目前使用裁切後的金幣聲。
 - Audio failure 屬 cosmetic failure，不得回滾兌獎或錢包交易；但正式 portable package 缺必要音效仍視為不完整。
 
-## 8. Packaging
+## 8. Application icon
+
+ScratchGame application icon 的程式建置唯一入口：
+
+```text
+apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico
+```
+
+規則：
+
+- 目前正式圖示為紅金刮刮樂票＋金幣圖案。
+- `.ico` 必須是標準 multi-size icon；目前正式檔包含 16 / 24 / 32 / 48 / 64 / 128 / 256 px 七種尺寸。
+- `ScratchGame.csproj` 的 `ApplicationIcon` 與主視窗 XAML `Icon` 都引用同一個 `ScratchGame.ico`。桌面捷徑、開始功能表與工作列不得另維護第二份 icon 圖檔。
+- Windows 桌面捷徑、開始功能表與工作列一律由最終 EXE 的 application icon 取得。
+- **禁止在 single-file publish 完成後，再用 `BeginUpdateResource`、resource editor 或其他方式改寫最終 EXE。** .NET single-file bundle 將 runtime / application payload 附加於 PE；publish 後重寫 PE 可能截掉 bundle 並造成 EXE 無法啟動。
+- CI 必須直接驗證 untouched published EXE：Windows 能解析 associated icon，且 EXE 能通過實際 startup smoke test。
+- Asset Library 的 `AppIcon/` 保存 approved master PNG 與同版 ICO 作為美術素材備份；程式建置仍只讀 repository 的 `Assets/ScratchGame.ico`。
+
+## 9. Packaging
 
 GitHub Actions 只產出並上傳 `exe-only` artifact。完整 portable package 必須由 `tools/package_portable.py` 驗證 required runtime resources 後建立；缺任一必要 Theme、Built-in resource、UI effect 或 Audio 檔即失敗。
