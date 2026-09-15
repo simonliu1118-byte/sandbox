@@ -44,6 +44,38 @@ jobs:
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
           }
 
+      - name: Verify crisp Stage UI ownership
+        run: |
+          $xamlPath = 'apps/ScratchGame/src/ScratchGame/MainWindow.xaml'
+          [xml]$doc = Get-Content $xamlPath -Raw
+          $ns = [System.Xml.XmlNamespaceManager]::new($doc.NameTable)
+          $ns.AddNamespace('p', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+          $ns.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+
+          foreach ($name in @('ResultOverlay', 'ResultResumeButton')) {
+            $node = $doc.SelectSingleNode("//*[@x:Name='$name']", $ns)
+            if ($null -eq $node) {
+              Write-Error "Required Stage UI element '$name' is missing."
+              exit 1
+            }
+
+            $ancestor = $node.ParentNode
+            while ($null -ne $ancestor) {
+              if ($ancestor.LocalName -eq 'Viewbox') {
+                Write-Error "Program-owned Stage UI '$name' must not be inside a Viewbox. Fractional ticket scaling blurs WPF text."
+                exit 1
+              }
+              $ancestor = $ancestor.ParentNode
+            }
+          }
+
+          $ticketStage = $doc.SelectSingleNode("//*[@x:Name='TicketStage']", $ns)
+          if ($null -eq $ticketStage -or $ticketStage.ParentNode.LocalName -ne 'Viewbox') {
+            Write-Error 'TicketStage must remain the design-coordinate child of the ticket Viewbox.'
+            exit 1
+          }
+          Write-Host 'Stage UI ownership check passed: ticket design space scales; result UI stays native-resolution.'
+
       - name: Verify application icon master
         run: |
           $source = 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame-icon-source.png'
