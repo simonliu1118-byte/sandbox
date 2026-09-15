@@ -104,6 +104,15 @@ public partial class UserDialog : Window
         }
     }
 
+    private void PlayStats_OnClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not UserRow row)
+            return;
+
+        var dialog = new PlayStatsDialog(row.ToProfile()) { Owner = this };
+        dialog.ShowDialog();
+    }
+
     private void UpdateOwnerSummaryIfCurrent(UserProfile profile)
     {
         if (profile.Id != _currentUserId || Owner is not MainWindow owner)
