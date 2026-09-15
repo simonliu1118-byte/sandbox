@@ -25,9 +25,14 @@ public sealed class TicketThumbnailCacheService
     private readonly ScratchPackRuntimeService _runtime;
 
     public TicketThumbnailCacheService(AppDatabase database)
+        : this(new ScratchPackRuntimeService(database))
     {
-        _database = database;
-        _runtime = new ScratchPackRuntimeService(database);
+    }
+
+    public TicketThumbnailCacheService(ScratchPackRuntimeService runtime)
+    {
+        _runtime = runtime;
+        _database = runtime.Database;
     }
 
     public string GetOrCreate(TicketDefinition ticket)
