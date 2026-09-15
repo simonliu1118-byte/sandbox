@@ -60,7 +60,11 @@ jobs:
             Write-Error 'PackEditor.csproj must read apps/ScratchGame/VERSION.'
             exit 1
           }
-          Write-Host 'PackEditor remains an attached ScratchGame executable with the same product version.'
+          if ($project -notmatch 'ScratchPackV1Loader.cs' -or $project -notmatch 'ScratchPackModels.cs') {
+            Write-Error 'PackEditor must compile the authoritative ScratchPack model/loader source rather than maintain editor-only copies.'
+            exit 1
+          }
+          Write-Host 'PackEditor remains an attached ScratchGame executable with shared version and ScratchPack authority.'
 
       - name: Verify crisp Stage UI ownership
         run: |
@@ -101,7 +105,7 @@ jobs:
             Write-Error 'TicketStage must remain the design-coordinate child of the ticket Viewbox.'
             exit 1
           }
-          Write-Host 'Stage UI ownership check passed: ticket design space scales; result UI stays native-resolution without parent effects.'
+          Write-Host 'Stage UI ownership check passed.'
 
       - name: Verify application icon master
         run: |
@@ -124,13 +128,15 @@ jobs:
             $image.Dispose()
           }
 
-      - name: Restore Windows x64 runtime packs
+      - name: Restore ScratchGame Windows x64 runtime packs
         run: >-
           dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -r win-x64
 
-      - name: Restore PackEditor
-        run: dotnet restore 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+      - name: Restore PackEditor Windows x64 runtime packs
+        run: >-
+          dotnet restore 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -r win-x64
 
       - name: Build ScratchGame
         run: >-
@@ -138,10 +144,10 @@ jobs:
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
-      - name: Build PackEditor source
+      - name: Build PackEditor
         run: >-
           dotnet build 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
-          -c Release --no-restore
+          -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
       - name: Verify generated Windows icon sizes
@@ -199,7 +205,7 @@ jobs:
             exit 1
           }
 
-      - name: Publish Windows x64 executable
+      - name: Publish ScratchGame Windows x64 executable
         run: >-
           dotnet publish 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --self-contained true --no-restore
@@ -209,39 +215,53 @@ jobs:
           /p:DebugType=None
           /p:DebugSymbols=false
           /p:Version=${{ steps.version.outputs.version }}
-          -o 'apps/ScratchGame/dist'
+          -o 'apps/ScratchGame/dist/ScratchGame'
 
-      - name: Verify Windows output and shell icon
+      - name: Publish PackEditor Windows x64 executable
+        run: >-
+          dotnet publish 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -c Release -r win-x64 --self-contained true --no-restore
+          /p:PublishSingleFile=true
+          /p:IncludeNativeLibrariesForSelfExtract=true
+          /p:EnableCompressionInSingleFile=true
+          /p:DebugType=None
+          /p:DebugSymbols=false
+          /p:Version=${{ steps.version.outputs.version }}
+          -o 'apps/ScratchGame/dist/PackEditor'
+
+      - name: Verify Windows outputs and ScratchGame shell icon
         run: |
-          $exe = (Resolve-Path 'apps/ScratchGame/dist/ScratchGame.exe').Path
-          if (-not (Test-Path $exe)) {
-            Write-Error 'ScratchGame.exe was not produced.'
-            exit 1
+          $gameExe = (Resolve-Path 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe').Path
+          $editorExe = (Resolve-Path 'apps/ScratchGame/dist/PackEditor/PackEditor.exe').Path
+          foreach ($exe in @($gameExe, $editorExe)) {
+            if (-not (Test-Path $exe)) {
+              Write-Error "Missing published executable: $exe"
+              exit 1
+            }
+            $info = Get-Item $exe
+            Write-Host "$($info.Name) size: $([Math]::Round($info.Length / 1MB, 2)) MB"
+            if ($info.Length -lt 35MB) {
+              Write-Error "$($info.Name) is unexpectedly small for a self-contained single-file build."
+              exit 1
+            }
           }
 
-          $exeInfo = Get-Item $exe
-          Write-Host "Published EXE size: $([Math]::Round($exeInfo.Length / 1MB, 2)) MB"
-          if ($exeInfo.Length -lt 40MB) {
-            Write-Error 'Published EXE is unexpectedly small for the self-contained single-file build. The bundle may have been truncated.'
-            exit 1
-          }
-
-          $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -File -Filter '*.dll')
+          $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -Recurse -File -Filter '*.dll')
           if ($looseDlls.Count -gt 0) {
-            Write-Error "Unexpected loose DLLs: $($looseDlls.Name -join ', ')"
+            Write-Error "Unexpected loose DLLs: $($looseDlls.FullName -join ', ')"
             exit 1
           }
 
           Add-Type -AssemblyName System.Drawing
-          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($gameExe)
           if ($null -eq $icon) {
             Write-Error 'Windows could not resolve an associated application icon from ScratchGame.exe.'
             exit 1
           }
           try {
-            Write-Host "Windows associated icon resolved: $($icon.Width)x$($icon.Height)"
+            Write-Host "ScratchGame associated icon resolved: $($icon.Width)x$($icon.Height)"
             if ($icon.Width -lt 16 -or $icon.Height -lt 16) {
-              Write-Error 'Resolved Windows application icon is invalid.'
+              Write-Error 'Resolved ScratchGame application icon is invalid.'
               exit 1
             }
           }
@@ -249,42 +269,53 @@ jobs:
             $icon.Dispose()
           }
 
-      - name: Smoke launch published executable
+      - name: Smoke launch ScratchGame and PackEditor
         run: |
-          $exe = (Resolve-Path 'apps/ScratchGame/dist/ScratchGame.exe').Path
-          $smokeLocalAppData = Join-Path $env:RUNNER_TEMP 'ScratchGameSmokeLocalAppData'
-          New-Item -ItemType Directory -Force -Path $smokeLocalAppData | Out-Null
           $previousLocalAppData = $env:LOCALAPPDATA
-          $env:LOCALAPPDATA = $smokeLocalAppData
-
           try {
-            $process = Start-Process -FilePath $exe -PassThru
-            $deadline = [DateTime]::UtcNow.AddSeconds(8)
-            while ([DateTime]::UtcNow -lt $deadline) {
-              Start-Sleep -Milliseconds 500
-              $process.Refresh()
-              if ($process.HasExited) {
-                Write-Error "ScratchGame.exe exited during startup smoke test. Exit code: $($process.ExitCode)"
-                exit 1
+            foreach ($name in @('ScratchGame', 'PackEditor')) {
+              $exe = if ($name -eq 'ScratchGame') {
+                (Resolve-Path 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe').Path
+              } else {
+                (Resolve-Path 'apps/ScratchGame/dist/PackEditor/PackEditor.exe').Path
+              }
+              $smokeLocalAppData = Join-Path $env:RUNNER_TEMP "${name}SmokeLocalAppData"
+              New-Item -ItemType Directory -Force -Path $smokeLocalAppData | Out-Null
+              $env:LOCALAPPDATA = $smokeLocalAppData
+              $process = $null
+              try {
+                $process = Start-Process -FilePath $exe -PassThru
+                $deadline = [DateTime]::UtcNow.AddSeconds(6)
+                while ([DateTime]::UtcNow -lt $deadline) {
+                  Start-Sleep -Milliseconds 500
+                  $process.Refresh()
+                  if ($process.HasExited) {
+                    Write-Error "$name exited during startup smoke test. Exit code: $($process.ExitCode)"
+                    exit 1
+                  }
+                }
+                Write-Host "$name remained running for startup smoke test (PID $($process.Id))."
+              }
+              finally {
+                if ($null -ne $process) {
+                  $process.Refresh()
+                  if (-not $process.HasExited) {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                  }
+                  $process.Dispose()
+                }
               }
             }
-
-            Write-Host "ScratchGame.exe remained running for startup smoke test (PID $($process.Id))."
           }
           finally {
-            if ($null -ne $process) {
-              $process.Refresh()
-              if (-not $process.HasExited) {
-                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-              }
-              $process.Dispose()
-            }
             $env:LOCALAPPDATA = $previousLocalAppData
           }
 
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ScratchGame-${{ steps.version.outputs.display }}-exe-only-win-x64
-          path: apps/ScratchGame/dist/ScratchGame.exe
+          name: ScratchGame-${{ steps.version.outputs.display }}-executables-win-x64
+          path: |
+            apps/ScratchGame/dist/ScratchGame/ScratchGame.exe
+            apps/ScratchGame/dist/PackEditor/PackEditor.exe
           retention-days: 14
