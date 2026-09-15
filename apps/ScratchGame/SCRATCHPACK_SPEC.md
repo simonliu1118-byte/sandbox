@@ -3,9 +3,9 @@
 Specification version: **1.0**  
 Implementation status: **規格已定稿；目前 ScratchGame 尚未完整實作 V1 loader / importer / Maker。**
 
-本文件是 ScratchPack V1 **封裝、資料格式、共用 ResourceRef 與 built-in asset code 的唯一正式規格**。GameType 的勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific 驗證只由 `GAMETYPE_SPEC.md` 定義。
+本文件是 ScratchPack V1 **封裝、資料格式、共通 ResourceRef 與 built-in asset registry 的唯一正式規格**。GameType 的勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific 驗證只由 `GAMETYPE_SPEC.md` 定義。
 
-`PROJECT_RULES.md` 只保存永久專案原則；`TODO.md` 只保存未完成工作與未決事項。不得在其他檔案平行維護本文件 schema 或 built-in asset code registry。
+`PROJECT_RULES.md` 只保存永久專案原則；`TODO.md` 只保存未完成工作與未決事項。不得在其他檔案平行維護本文件 schema 或 built-in asset registry。
 
 ## 1. 定位與資料責任
 
@@ -28,7 +28,7 @@ PNG / WAV 對主程式是 opaque render asset。Importer 可檢查路徑、安�
 - V1 只允許資料與 PNG 資源；不得包含 DLL、EXE、script、macro 或任何可執行 payload。
 - V1 暫不開放 ScratchPack 自訂中獎音效或中獎動畫。
 
-最小合法套件可以只有：
+如果 Pack 全部使用 Built-in 資源，最小合法套件可以只有：
 
 ```text
 manifest.json
@@ -64,7 +64,7 @@ V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式依 `a
 - `formatVersion`：V1 必須為字串 `"1.0"`。
 - `packageId`：合法 GUID，套件唯一識別。
 - `author`：作者顯示名稱，可空字串但欄位必須存在。
-- `minimumAppVersion`：最低相容 ScratchGame 版本；若 Pack 引用較新版本才提供的 built-in asset code，必須至少指向首次支援該 code 的版本。
+- `minimumAppVersion`：最低相容 ScratchGame 版本；若 Pack 引用較新版本才提供的 Built-in 資源，必須至少指向首次支援該資源的版本。
 - `ticketFile`：包內 `ticket.json` 相對路徑。
 - `manifest.json` 只承擔封裝層資訊，不重複保存彩券名稱、面額、Prize Tier、Canvas、GameType 或美術資源引用。
 - V1 不另拆 `layout.json` / `prizes.json`。
@@ -87,14 +87,14 @@ V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式依 `a
   "art": {
     "ticket": {
       "source": "builtin",
-      "ref": "ticket/style-a-blue"
+      "ref": "01-blue"
     }
   },
   "serialDisplayArea": { "x": 364, "y": 774, "width": 350, "height": 59 },
   "scratch": {
     "foil": {
       "source": "builtin",
-      "ref": "foil/brushed-silver-three-star"
+      "ref": "brushed-silver-three-star"
     },
     "zones": []
   },
@@ -121,12 +121,12 @@ ScratchPack 不保存中獎率、未中獎率、最高獎金、EV、RTP、總本
 
 ### 5.1 共通 `ResourceRef`
 
-V1 的共用美術資源引用統一使用同一個結構：
+V1 的共用 PNG 資源引用統一使用同一個結構：
 
 ```json
 {
   "source": "builtin",
-  "ref": "ticket/style-a-blue"
+  "ref": "01-blue"
 }
 ```
 
@@ -142,39 +142,57 @@ V1 的共用美術資源引用統一使用同一個結構：
 規則：
 
 - `source` 在 V1 只允許 `builtin`、`package`。
-- `source="builtin"`：`ref` 必須是本節 Built-in Asset Registry 已公開的穩定 code。
 - `source="package"`：`ref` 必須是目前 ScratchPack 內安全的相對 PNG 路徑。
+- `source="builtin"`：`ref` 是對應資源 namespace 內的穩定短代碼；namespace 由**使用欄位與必要上下文**決定，不把已知上下文重複塞進 `ref`。
 - 同一套 `ResourceRef` 同時供 `art.ticket`、`scratch.foil` 與未來其他正式規格化的共用 PNG 資源引用；不得為每一種資源再發明 `ticketCode`、`foilCode`、`ticketFile`、`foilFile` 等平行入口。
-- 欄位本身決定允許的資源類型：`art.ticket` 只能引用 ticket 類資源；`scratch.foil` 只能引用 foil 類資源。類型不符直接驗證失敗。
+- `art.ticket` 的 Built-in namespace 由 `ticket.json.gameType` 決定；完整識別鍵是 **(`gameType`, `ref`)**。
+- `scratch.foil` 的 Built-in namespace 是全域 foil namespace，因銀膜為跨 GameType 共用材質。
+- 因此票面 `ref` 不寫 `ticket/`、`gameType1/` 等前綴；銀膜 `ref` 也不寫 `foil/` 前綴。欄位本身已經提供資源類型上下文。
 - `ResourceRef` 只負責「資源從哪裡來」，不承擔 geometry、GameType、Prize Tier、面額區、票號區或玩法 mapping。
-- built-in code 找不到、版本不支援或類型不符時直接驗證失敗；不可靜默 fallback 成其他資源。
+- Built-in ref 找不到、版本不支援、Canvas 不相容或 namespace 不符時直接驗證失敗；不可靜默 fallback 成其他資源。
 
 ### 5.2 Built-in Asset Registry
 
-**本節是 ScratchPack 可公開引用的 built-in asset code 唯一權威清單。** ChatGPT Library、README、Maker UI 或 runtime 檔名都不得建立另一份具有 schema 權威性的 code registry。
+**本節是 ScratchPack 可公開引用的 Built-in 資源唯一權威清單。** ChatGPT Library、README、Maker UI 或 runtime 檔名都不得建立另一份具有 schema 權威性的 registry。
 
-V1 第一批 built-in ticket assets：
+#### Built-in ticket assets
+
+票面資源**依 GameType 分 namespace**。不同 GameType 可以各自擁有相同的短 `ref`，互不衝突；不得跨 GameType 解析或借用票面。
+
+GameType 1：
 
 ```text
-ticket/style-a-red   Canvas 1  Style A 紅色票面
-ticket/style-a-blue  Canvas 1  Style A 藍色票面
-ticket/style-b-red   Canvas 1  Style B 紅金票面
+ref      Canvas   說明
+01-red   1        Style 01 紅色票面
+01-blue  1        Style 01 藍色票面
+02       1        Style 02 紅金票面
 ```
 
-V1 第一批 built-in foil assets：
+解析例：
 
 ```text
-foil/brushed-silver-plain       一般拉絲銀膜
-foil/brushed-silver-three-star  三星圖樣拉絲銀膜
+gameType="1" + art.ticket.source="builtin" + art.ticket.ref="01-blue"
+→ GameType 1 Built-in ticket 01-blue
+```
+
+若未來 GameType 2 也有 `ref="01-blue"`，它是 GameType 2 自己 namespace 內的另一個資源，與 GameType 1 無關。
+
+#### Built-in foil assets
+
+銀膜為跨 GameType 共用，全域 namespace：
+
+```text
+brushed-silver-plain       一般拉絲銀膜
+brushed-silver-three-star  三星圖樣拉絲銀膜
 ```
 
 共同規則：
 
-- built-in asset 由 ScratchGame 發行內容提供，不需複製進每個 `.scratchpack`；Built-in Pack 與 Imported Pack 都可直接引用。
-- built-in code 一旦正式發布，不得重新指向語意上完全不同的素材；新素材新增新 code。
-- App 內部可使用不同檔名、壓縮格式或最佳化版本，但公開 code 與視覺身份必須保持相容。
-- built-in ticket asset 只是一張固定票面 PNG，不自帶 Scratch Zone、GameType、`priceDisplayArea`、`serialDisplayArea`、Prize Tier 或其他 ticket 定義；這些仍由 `ticket.json` 各自唯一負責。
-- built-in foil asset 只提供銀膜材質，不自帶 Scratch Zone 或刮除判定。
+- Built-in asset 由 ScratchGame 發行內容提供，不需複製進每個 `.scratchpack`；Built-in Pack 與 Imported Pack 都可直接引用。
+- 已發布的 Built-in ref 不得重新指向語意上完全不同的素材；新素材新增新 ref。
+- App 內部可使用不同實體檔名、壓縮格式或最佳化版本，但公開 resolver key 與視覺身份必須保持相容。
+- Built-in ticket asset 只是一張固定票面 PNG，不自帶 Scratch Zone、GameType 規則、`priceDisplayArea`、`serialDisplayArea`、Prize Tier 或其他 ticket 定義；這些仍由 `ticket.json` 各自唯一負責。
+- Built-in foil asset 只提供銀膜材質，不自帶 Scratch Zone 或刮除判定。
 
 ### 5.3 Canvas 與票面
 
@@ -188,7 +206,7 @@ canvas = 1 → 1080 × 882
 
 `art.ticket.source="package"` 時，其 PNG 必須與 Canvas 尺寸完全一致；Maker / Importer 不得偷偷縮放、裁切或重新取樣後放行。
 
-`art.ticket.source="builtin"` 時，registry 中該 ticket code 必須支援目前 `canvas`；不相容直接驗證失敗。
+`art.ticket.source="builtin"` 時，必須先以 `gameType + ref` 在 ticket registry 解析；該資源還必須支援目前 `canvas`。任一條件不符直接驗證失敗。
 
 票面 PNG 可負責：背景、名稱、固定說明、裝飾、刮區固定美術、`priceDisplay=0` 時的完整面額美術與宣傳性固定文字。
 
@@ -259,7 +277,7 @@ V1 每張票必須明確指定一個 `scratch.foil` ResourceRef。Maker 介面�
 ```json
 "foil": {
   "source": "builtin",
-  "ref": "foil/brushed-silver-three-star"
+  "ref": "brushed-silver-three-star"
 }
 ```
 
@@ -277,7 +295,7 @@ V1 每張票必須明確指定一個 `scratch.foil` ResourceRef。Maker 介面�
 - `source="package"` 的 foil PNG 不要求等於 Canvas 尺寸；V1 將其視為可重用的 **single-zone foil template**。
 - 不論 `builtin` 或 `package`，都進入同一套 foil renderer / ScratchSurface / 刮除 pipeline；不得因來源不同建立第二套互動或判定邏輯。
 - 同一張票 V1 只指定一種 foil；所有 Scratch Zone 共用同一 `scratch.foil`。不提供逐 zone foil override。
-- `scratch.zones` 是唯一 geometry / clipping / hit-test 來源。foil code 或 foil PNG 只提供材質，不得定義 zone 的 x/y/width/height、shape、順序或玩法 mapping。
+- `scratch.zones` 是唯一 geometry / clipping / hit-test 來源。foil ref 或 foil PNG 只提供材質，不得定義 zone 的 x/y/width/height、shape、順序或玩法 mapping。
 - runtime 依每個 `scratch.zones` geometry 將 foil template 套入並以 zone shape clipping；自訂 PNG 的 alpha 可參與視覺，但不得被視為新的互動 geometry。
 - V1 不接受舊草案的 `art.mask`，也不以固定檔名 `mask.png` 建立第二套語意。
 - 未來若實作「全 Canvas 銀膜再由 Scratch Zone 遮罩切出」模式，必須擴充同一個 `scratch.foil` ResourceRef / renderer pipeline，不得另建平行的 mask / overlay schema。該模式目前只列 TODO，不屬 V1。
@@ -338,10 +356,12 @@ GAMETYPE_SPEC.md
 - 不存在未定義資源，例如 `thumbnail.png`。
 - `manifest.json` 不重複保存 ticket 業務資料。
 - Prize Tier 只由 `ticket.json.prizes` 定義。
-- 所有 `ResourceRef` 必須存在、格式合法、`source` 合法，且 ref 類型與使用欄位相符。
-- `source="builtin"` 時，`ref` 必須存在於本文件 Built-in Asset Registry，且目前 App 版本與 Canvas/資源類型相容；不支援時直接驗證失敗，不可靜默替代。
+- 所有 `ResourceRef` 必須存在、格式合法、`source` 合法，且 ref namespace 與使用欄位相符。
+- `art.ticket.source="builtin"` 時，以 `gameType + ref` 解析；該 ref 必須存在於該 GameType ticket registry，且目前 App 版本與 Canvas 相容。不得跨 GameType fallback。
+- `scratch.foil.source="builtin"` 時，`ref` 必須存在於全域 foil registry，且目前 App 版本支援。
+- Built-in ref 不支援時直接驗證失敗，不可靜默替代。
 - `source="package"` 時，`ref` 必須是合法包內相對 PNG 路徑，檔案存在且可解碼。
-- `art.ticket.source="package"` 時票面尺寸必須完全符合 Canvas；`art.ticket.source="builtin"` 時 registry code 必須支援該 Canvas。
+- `art.ticket.source="package"` 時票面尺寸必須完全符合 Canvas。
 - `scratch.foil.source="package"` 的 PNG 不要求與 Canvas 同尺寸。
 - 不得接受 `art.mask`、`ticketCode`、`foilCode`、`ticketFile`、`foilFile` 或其他平行資源選擇欄位。
 - 所有座標合法；`priceDisplay=1` 時 `priceDisplayArea` 合法；`serialDisplayArea` 合法。
@@ -368,15 +388,15 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、必要尺寸、可解
 - Built-in Base Pack 可停用／重新啟用；停用只影響新票選擇，狀態由 runtime database 管理，不寫入 ScratchPack schema。
 - `BuiltIn` / `Imported` 是本機 runtime 安裝來源狀態，不是 Pack 可自行宣稱的 manifest / ticket 欄位。
 
-外部 Pack 由使用者匯入；匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用公開 built-in ticket / foil code，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
+外部 Pack 由使用者匯入；匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用目前 GameType 可用的 Built-in ticket ref 與全域 Built-in foil ref，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
 
 第一款正式 Built-in Base Pack「三星連線」：
 
 - `gameType="1"`。
 - `canvas=1`。
 - 正式版面額為 500、`issueSize=10000`。
-- 可直接引用 `ticket/style-a-blue` 等 built-in ticket asset，不需把共用票面 PNG 複製進 Pack。
-- 可直接引用 `foil/brushed-silver-three-star` 等 built-in foil asset，不需把共用銀膜 PNG 複製進 Pack。
+- 可直接引用 GameType 1 的 `01-blue` 等 Built-in ticket asset，不需把共用票面 PNG 複製進 Pack。
+- 可直接引用 `brushed-silver-three-star` 等 Built-in foil asset，不需把共用銀膜 PNG 複製進 Pack。
 - 基本款票面不放中獎率與「最高可中 N 元」宣傳字樣。
 - 正式 Built-in Base Pack 不另維護主程式硬編碼的平行 ticket definition。
 
@@ -391,7 +411,7 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、必要尺寸、可解
 
 - `formatVersion` 只代表 ScratchPack schema / 封裝版本，不代表 GameType 版本。
 - 已發布欄位的語意不得在相同 formatVersion 下偷偷改變；不相容 schema 變更必須升級 `formatVersion`。
-- 已發布的 built-in asset code 視為公開相容性契約；新增視覺使用新 code，不把既有 code 重新指向語意上不同的素材。
-- Built-in Asset Registry 只在本文件維護；素材庫 README、handoff、Maker UI 可引用 code，但不得形成第二份權威清單。
+- 已發布的 Built-in ticket resolver key **(`gameType`, `ref`)** 與全域 foil `ref` 都視為公開相容性契約；新增視覺使用新 ref，不把既有 key 重新指向語意上不同的素材。
+- Built-in Asset Registry 只在本文件維護；素材庫 README、handoff、Maker UI 可引用 ref，但不得形成第二份權威清單。
 - GameType 相容性只由 `GAMETYPE_SPEC.md` 管理。
-- `PROJECT_RULES.md` 不複製 schema；`TODO.md` 不複製 schema、built-in registry 或 GameType 核心規則。
+- `PROJECT_RULES.md` 不複製 schema；`TODO.md` 不複製 schema、Built-in registry 或 GameType 核心規則。
