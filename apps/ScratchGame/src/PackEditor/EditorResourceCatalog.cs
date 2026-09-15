@@ -50,7 +50,7 @@ internal static class EditorResourceCatalog
         if (!File.Exists(path))
             throw new FileNotFoundException("找不到 PNG 資源。", path);
         if (!string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("資源必須是 PNG。", path);
+            throw new InvalidDataException($"資源必須是 PNG：{Path.GetFileName(path)}");
 
         var bitmap = new BitmapImage();
         bitmap.BeginInit();
