@@ -96,10 +96,11 @@ public sealed class TicketAdminService
             var info = connection.CreateCommand();
             info.Transaction = transaction;
             info.CommandText = """
-                SELECT source_package_id,
-                       (SELECT COUNT(*) FROM batches WHERE ticket_id = $id)
-                FROM ticket_definitions
-                WHERE id = $id;
+                SELECT t.source_package_id,
+                       (SELECT COUNT(*) FROM batches WHERE ticket_id = t.id),
+                       (SELECT source_kind FROM scratchpack_installations WHERE ticket_id = t.id LIMIT 1)
+                FROM ticket_definitions t
+                WHERE t.id = $id;
                 """;
             info.Parameters.AddWithValue("$id", ticketId);
             await using var reader = await info.ExecuteReaderAsync(cancellationToken);
@@ -107,8 +108,11 @@ public sealed class TicketAdminService
                 throw new InvalidOperationException("找不到指定彩券。");
             packageId = reader.IsDBNull(0) ? null : reader.GetString(0);
             var batchCount = reader.GetInt64(1);
+            var sourceKind = reader.IsDBNull(2) ? null : reader.GetString(2);
             await reader.DisposeAsync();
 
+            if (string.Equals(sourceKind, "BuiltIn", StringComparison.Ordinal))
+                throw new InvalidOperationException("Built-in Base Pack 不可刪除／解除安裝；如不使用請停用。");
             if (batchCount > 0)
                 throw new InvalidOperationException("這張彩券已經發行過，只能停用，不能刪除。");
 
@@ -117,6 +121,12 @@ public sealed class TicketAdminService
             deleteTiers.CommandText = "DELETE FROM prize_tiers WHERE ticket_id = $id;";
             deleteTiers.Parameters.AddWithValue("$id", ticketId);
             await deleteTiers.ExecuteNonQueryAsync(cancellationToken);
+
+            var deleteInstallation = connection.CreateCommand();
+            deleteInstallation.Transaction = transaction;
+            deleteInstallation.CommandText = "DELETE FROM scratchpack_installations WHERE ticket_id = $id;";
+            deleteInstallation.Parameters.AddWithValue("$id", ticketId);
+            await deleteInstallation.ExecuteNonQueryAsync(cancellationToken);
 
             var deleteTicket = connection.CreateCommand();
             deleteTicket.Transaction = transaction;
