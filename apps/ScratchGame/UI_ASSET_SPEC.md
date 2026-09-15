@@ -112,11 +112,11 @@ apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico
 規則：
 
 - 目前正式圖示為紅金刮刮樂票＋金幣圖案。
-- `.ico` 必須是標準 multi-size icon；目前正式檔包含 16 / 24 / 32 / 48 / 64 / 128 / 256 px 七種尺寸。
+- 正式圖示的高解析 master PNG 保存在 Asset Library；repository 的 `.ico` 是 Windows / C# resource compiler 實際驗證通過的 runtime 版本，目前包含 **16×16 與 32×32 的 32-bit DIB entries**。Windows 可依 Shell / DPI 需求縮放顯示；若未來增加更高尺寸，必須先通過同一套 Windows Build / Shell / startup CI，不能再次使用非標準 ICO。
 - `ScratchGame.csproj` 的 `ApplicationIcon` 與主視窗 XAML `Icon` 都引用同一個 `ScratchGame.ico`。桌面捷徑、開始功能表與工作列不得另維護第二份 icon 圖檔。
 - Windows 桌面捷徑、開始功能表與工作列一律由最終 EXE 的 application icon 取得。
-- **禁止在 single-file publish 完成後，再用 `BeginUpdateResource`、resource editor 或其他方式改寫最終 EXE。** .NET single-file bundle 將 runtime / application payload 附加於 PE；publish 後重寫 PE 可能截掉 bundle 並造成 EXE 無法啟動。
-- CI 必須直接驗證 untouched published EXE：Windows 能解析 associated icon，且 EXE 能通過實際 startup smoke test。
+- **禁止在 single-file publish 完成後，再用 `BeginUpdateResource`、resource editor 或其他方式改寫最終 EXE。** .NET single-file bundle 將 runtime / application payload 附加於 PE；publish 後重寫 PE 可能截掉 bundle並造成 EXE 無法啟動。
+- CI 必須直接驗證 untouched published EXE：self-contained bundle 大小合理、Windows 能解析 associated icon，且 EXE 能通過實際 startup smoke test。
 - Asset Library 的 `AppIcon/` 保存 approved master PNG 與同版 ICO 作為美術素材備份；程式建置仍只讀 repository 的 `Assets/ScratchGame.ico`。
 
 ## 9. Packaging
