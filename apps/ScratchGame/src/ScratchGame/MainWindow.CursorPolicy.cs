@@ -23,14 +23,17 @@ public partial class MainWindow
             UIElement.MouseLeaveEvent,
             new MouseEventHandler(CursorPolicy_OnMouseEvent),
             handledEventsToo: true);
+        // Use the bubbling button events as the final routed-event pass. The existing
+        // ticket handlers operate on PreviewMouseLeftButtonDown/Up and may temporarily
+        // request the coin; the deferred refresh below then applies the single policy.
         EventManager.RegisterClassHandler(
             typeof(MainWindow),
-            UIElement.PreviewMouseLeftButtonDownEvent,
+            UIElement.MouseLeftButtonDownEvent,
             new MouseButtonEventHandler(CursorPolicy_OnMouseButtonEvent),
             handledEventsToo: true);
         EventManager.RegisterClassHandler(
             typeof(MainWindow),
-            UIElement.PreviewMouseLeftButtonUpEvent,
+            UIElement.MouseLeftButtonUpEvent,
             new MouseButtonEventHandler(CursorPolicy_OnMouseButtonEvent),
             handledEventsToo: true);
     }
