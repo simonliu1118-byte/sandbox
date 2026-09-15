@@ -44,6 +44,24 @@ jobs:
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
           }
 
+      - name: Verify PackEditor product identity
+        run: |
+          $editorRoot = 'apps/ScratchGame/src/PackEditor'
+          if (Test-Path (Join-Path $editorRoot 'VERSION')) {
+            Write-Error 'PackEditor must use the ScratchGame VERSION and must not own a parallel VERSION file.'
+            exit 1
+          }
+          if (Test-Path (Join-Path $editorRoot 'BUILD')) {
+            Write-Error 'PackEditor must use the ScratchGame BUILD and must not own a parallel BUILD file.'
+            exit 1
+          }
+          $project = Get-Content (Join-Path $editorRoot 'PackEditor.csproj') -Raw
+          if ($project -notmatch '\.\.\\\.\.\\VERSION') {
+            Write-Error 'PackEditor.csproj must read apps/ScratchGame/VERSION.'
+            exit 1
+          }
+          Write-Host 'PackEditor remains an attached ScratchGame executable with the same product version.'
+
       - name: Verify crisp Stage UI ownership
         run: |
           $xamlPath = 'apps/ScratchGame/src/ScratchGame/MainWindow.xaml'
@@ -66,8 +84,6 @@ jobs:
                 exit 1
               }
 
-              # Effects on the UI element itself or any ancestor rasterize the complete subtree,
-              # which can blur WPF text even when the element is outside the ticket Viewbox.
               $effectProperty = $cursor.ChildNodes | Where-Object {
                 $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -like '*.Effect'
               } | Select-Object -First 1
@@ -113,10 +129,19 @@ jobs:
           dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -r win-x64
 
-      - name: Build
+      - name: Restore PackEditor
+        run: dotnet restore 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+
+      - name: Build ScratchGame
         run: >-
           dotnet build 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --no-restore
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Build PackEditor source
+        run: >-
+          dotnet build 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -c Release --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
       - name: Verify generated Windows icon sizes
@@ -257,8 +282,6 @@ jobs:
             $env:LOCALAPPDATA = $previousLocalAppData
           }
 
-      # Runtime art/audio/ticket resources are intentionally external and are not kept
-      # as repository binaries. This artifact is therefore named EXE-only on purpose.
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
