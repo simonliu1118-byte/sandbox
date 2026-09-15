@@ -155,7 +155,7 @@ public partial class SettingsDialog : Window
         if (!GameModal.Confirm(
                 this,
                 "解除安裝 Pack",
-                $"確定解除安裝「{row.Ticket.DisplayName}」？\n\n這會移除 Imported Pack、尚未使用的批次與快取。若此 Pack 已有遊玩紀錄，系統會拒絕解除安裝以保護歷史資料。",
+                $"確定解除安裝「{row.Ticket.DisplayName}」？\n\n這會移除 Imported Pack、批次／票池資料與可重建快取。已完成的遊玩統計不受影響；若目前仍有此 Pack 的未完成彩券，系統才會拒絕解除安裝。",
                 "解除安裝",
                 "取消"))
             return;
