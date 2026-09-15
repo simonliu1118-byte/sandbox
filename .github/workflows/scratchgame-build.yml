@@ -75,6 +75,13 @@ jobs:
             exit 1
           }
 
+          $exeInfo = Get-Item $exe
+          Write-Host "Published EXE size: $([Math]::Round($exeInfo.Length / 1MB, 2)) MB"
+          if ($exeInfo.Length -lt 40MB) {
+            Write-Error 'Published EXE is unexpectedly small for the self-contained single-file build. The bundle may have been truncated.'
+            exit 1
+          }
+
           $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -File -Filter '*.dll')
           if ($looseDlls.Count -gt 0) {
             Write-Error "Unexpected loose DLLs: $($looseDlls.Name -join ', ')"
