@@ -16,7 +16,8 @@ public sealed record TicketDefinition(
     bool Enabled,
     bool Locked,
     string? SourcePackageId = null,
-    int ActiveBatchNumber = 0);
+    int ActiveBatchNumber = 0,
+    long MaxPrize = 0);
 
 public sealed record UserProfile(
     string Id,
