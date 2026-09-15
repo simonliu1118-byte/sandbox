@@ -12,13 +12,26 @@ REQUIRED_ASSETS = (
     "Themes/Default/Frame/header_bg.png",
     "Themes/Default/Frame/footer_bg.png",
     "Themes/Default/Stage/stage_bg.png",
-    "Tickets/ThreeStar/ticket.png",
-    "Tickets/ThreeStar/ticket-100.png",
-    "Tickets/ThreeStar/silver-star.png",
+    "BuiltInAssets/Tickets/gameType1/01-red.png",
+    "BuiltInAssets/Tickets/gameType1/01-blue.png",
+    "BuiltInAssets/Tickets/gameType1/02.png",
+    "BuiltInAssets/Foils/brushed-silver-plain.png",
+    "BuiltInAssets/Foils/brushed-silver-three-star.png",
+    "UI/grant-overlay-01.png",
     "Audio/small-win-manual.wav",
     "Audio/small-win-auto.wav",
     "Audio/big-win-manual.wav",
     "Audio/big-win-auto.wav",
+    "Audio/wallet-grant.wav",
+    "Audio/lose.wav",
+)
+
+# Pre-V0.4 local databases may still reference these legacy ticket assets.
+# They are copied when available, but are no longer part of the V0.4 ticket-definition pipeline.
+OPTIONAL_LEGACY_ASSETS = (
+    "Tickets/ThreeStar/ticket.png",
+    "Tickets/ThreeStar/ticket-100.png",
+    "Tickets/ThreeStar/silver-star.png",
 )
 
 
@@ -57,17 +70,39 @@ def main() -> int:
         package_root.mkdir(parents=True)
         shutil.copy2(exe, package_root / "ScratchGame.exe")
 
+        copied: list[str] = ["ScratchGame.exe"]
         for relative in REQUIRED_ASSETS:
             source = assets / relative
             destination = package_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+            copied.append(relative)
+
+        for relative in OPTIONAL_LEGACY_ASSETS:
+            source = assets / relative
+            if not source.is_file() or source.stat().st_size == 0:
+                continue
+            destination = package_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            copied.append(relative)
+
+        built_in_packs = assets / "BuiltInPacks"
+        if built_in_packs.is_dir():
+            for source in sorted(built_in_packs.glob("*.scratchpack")):
+                if not source.is_file() or source.stat().st_size == 0:
+                    continue
+                relative = Path("BuiltInPacks") / source.name
+                destination = package_root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+                copied.append(relative.as_posix())
 
         manifest = package_root / "PACKAGE_CONTENTS.txt"
         manifest.write_text(
             "ScratchGame portable package\n"
             "Required runtime resources verified before packaging.\n\n"
-            + "\n".join(["ScratchGame.exe", *REQUIRED_ASSETS])
+            + "\n".join(copied)
             + "\n",
             encoding="utf-8",
         )

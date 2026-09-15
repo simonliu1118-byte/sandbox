@@ -86,8 +86,8 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#FFF2CC"/>
-            <Setter Property="Background" Value="#8C5C2C"/>
-            <Setter Property="BorderBrush" Value="#D5A259"/>
+            <Setter Property="Background" Value="#6C4931"/>
+            <Setter Property="BorderBrush" Value="#B88655"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -97,12 +97,8 @@
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.88"/></Trigger>
-                            <DataTrigger Binding="{Binding Ticket.Enabled}" Value="False">
-                                <Setter Property="Background" Value="#4E403A"/>
-                                <Setter Property="BorderBrush" Value="#79655C"/>
-                                <Setter Property="Foreground" Value="#D7CBC3"/>
-                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.86"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.38"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -154,7 +150,7 @@
                             <TextBlock Grid.Column="2" Text="中獎率" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="玩法" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="4" Text="批次" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="5" Text="狀態" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="5" Text="顯示" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="6" Text="批次操作" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -181,8 +177,8 @@
                                             <TextBlock Grid.Column="2" Text="{Binding WinRateText}" FontSize="14" Foreground="#F7E4C6" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="3" Text="{Binding Ticket.RuleDisplayName}" FontSize="14" Foreground="#F7E4C6" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="4" Text="{Binding Ticket.BatchText}" FontSize="14" Foreground="#F7E4C6" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="5" Content="{Binding Ticket.StatusText}" Tag="{Binding}" Style="{StaticResource RowStatusButton}" Click="ToggleEnabledRow_OnClick"/>
-                                            <Button Grid.Column="6" Content="發行新一批" Tag="{Binding}" Style="{StaticResource RowBatchButton}" Click="StartBatchRow_OnClick"/>
+                                            <Button Grid.Column="5" Content="隱藏" Tag="{Binding}" Style="{StaticResource RowStatusButton}" Click="HideRow_OnClick"/>
+                                            <Button Grid.Column="6" Content="{Binding BatchActionText}" Tag="{Binding}" Style="{StaticResource RowBatchButton}" Click="StartBatchRow_OnClick"/>
                                             <TextBlock Grid.Column="7" Text="{Binding ExpandGlyph}" FontSize="18" Foreground="#E8B65D" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Grid>
 
@@ -217,7 +213,19 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
 
-                                                <Button Content="刪除未發行彩券" Tag="{Binding}" IsEnabled="{Binding CanDelete}" Width="150" Margin="0,14,0,0" HorizontalAlignment="Left" Style="{StaticResource DialogSecondaryButton}" Click="DeleteRow_OnClick"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                                    <Button Content="解除安裝 Pack" Tag="{Binding}" IsEnabled="{Binding CanUninstall}" Width="150" HorizontalAlignment="Left" Style="{StaticResource DialogSecondaryButton}" Click="UninstallRow_OnClick"/>
+                                                    <TextBlock Text="Built-in Pack 僅可隱藏" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#A9856E" FontSize="12">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Ticket.IsBuiltIn}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
@@ -230,7 +238,10 @@
 
             <Grid Grid.Row="2" Margin="0,14,0,0" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Button Content="匯入 ScratchPack" Width="170" HorizontalAlignment="Left" Style="{StaticResource DialogButton}" Click="Import_OnClick"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="匯入 ScratchPack" Width="170" Style="{StaticResource DialogButton}" Click="Import_OnClick"/>
+                    <Button Content="已隱藏 Pack" Width="138" Margin="10,0,0,0" Style="{StaticResource DialogSecondaryButton}" Click="HiddenPacks_OnClick"/>
+                </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="立即備份" Width="120" Style="{StaticResource DialogSecondaryButton}" Click="Backup_OnClick"/>
                     <Button Content="關閉" Width="100" Style="{StaticResource DialogSecondaryButton}" Click="Close_OnClick"/>

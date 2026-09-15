@@ -11,6 +11,7 @@ namespace ScratchGame.Views;
 
 public partial class SettingsDialog : Window
 {
+    private readonly AppDatabase _database;
     private readonly TicketAdminService _admin;
     private readonly BackupService _backup;
     private TicketRowViewModel? _expandedRow;
@@ -18,6 +19,7 @@ public partial class SettingsDialog : Window
     public SettingsDialog(AppDatabase database)
     {
         InitializeComponent();
+        _database = database;
         _admin = new TicketAdminService(database);
         _backup = new BackupService(database);
     }
@@ -42,7 +44,7 @@ public partial class SettingsDialog : Window
 
     private async void TicketRow_OnClick(object sender, RoutedEventArgs e)
     {
-        // Row actions are independent controls. Clicking 啟用/停用 or 發行新一批
+        // Row actions are independent controls. Clicking hide / batch / uninstall
         // must never also toggle the accordion row.
         if (IsInsideButton(e.OriginalSource as DependencyObject))
             return;
@@ -86,7 +88,7 @@ public partial class SettingsDialog : Window
         }
     }
 
-    private async void ToggleEnabledRow_OnClick(object sender, RoutedEventArgs e)
+    private async void HideRow_OnClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
@@ -94,12 +96,12 @@ public partial class SettingsDialog : Window
 
         try
         {
-            await _admin.SetEnabledAsync(row.Ticket.Id, !row.Ticket.Enabled);
+            await _admin.SetHiddenAsync(row.Ticket.Id, hidden: true);
             await ReloadAsync();
         }
         catch (Exception ex)
         {
-            GameModal.Warning(this, "彩券管理", ex.Message);
+            GameModal.Warning(this, "隱藏 Pack", ex.Message);
         }
     }
 
@@ -138,29 +140,34 @@ public partial class SettingsDialog : Window
         }
     }
 
-    private async void DeleteRow_OnClick(object sender, RoutedEventArgs e)
+    private async void UninstallRow_OnClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
-        if (row.Ticket.Locked)
+        if (!row.Ticket.CanUninstall)
         {
-            GameModal.Info(this, "刪除彩券", "這張彩券已經發行過，只能停用，不能刪除。");
+            GameModal.Info(this, "解除安裝", "Built-in Pack 不可解除安裝；不使用時請改用「隱藏」。");
             return;
         }
 
-        if (!GameModal.Confirm(this, "刪除彩券", $"確定刪除尚未發行的「{row.Ticket.DisplayName}」？", "刪除", "取消"))
+        if (!GameModal.Confirm(
+                this,
+                "解除安裝 Pack",
+                $"確定解除安裝「{row.Ticket.DisplayName}」？\n\n這會移除 Imported Pack、批次／票池資料與可重建快取。已完成的遊玩統計不受影響；若目前仍有此 Pack 的未完成彩券，系統才會拒絕解除安裝。",
+                "解除安裝",
+                "取消"))
             return;
 
         try
         {
-            await _admin.DeleteNeverIssuedAsync(row.Ticket.Id);
+            await _admin.UninstallPackAsync(row.Ticket.Id);
             await ReloadAsync();
         }
         catch (Exception ex)
         {
-            GameModal.Warning(this, "無法刪除", ex.Message);
+            GameModal.Warning(this, "無法解除安裝", ex.Message);
         }
     }
 
@@ -180,12 +187,19 @@ public partial class SettingsDialog : Window
         {
             var ticketId = await _admin.ImportScratchPackAsync(picker.FileName);
             await ReloadAsync(ticketId);
-            GameModal.Info(this, "ScratchPack", "彩券包匯入完成。請在該彩券列按「發行新一批」建立第 1 批後即可遊玩。");
+            GameModal.Info(this, "ScratchPack", "彩券包匯入完成，第 1 批已自動發行，可以直接開始遊玩。");
         }
         catch (Exception ex)
         {
             GameModal.Warning(this, "匯入失敗", ex.Message);
         }
+    }
+
+    private async void HiddenPacks_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new HiddenPacksDialog(_database) { Owner = this };
+        dialog.ShowDialog();
+        await ReloadAsync();
     }
 
     private async void Backup_OnClick(object sender, RoutedEventArgs e)
@@ -219,7 +233,8 @@ public partial class SettingsDialog : Window
         public string TicketsPerBookText => Detail is null ? "—" : $"{Detail.TicketsPerBook:N0} 張";
         public string BookCountText => Detail is null ? "—" : $"{Detail.BookCount:N0} 本";
         public string RemainingText => Detail is null ? "—" : $"{Detail.RemainingCount:N0} 張";
-        public bool CanDelete => !Ticket.Locked;
+        public bool CanUninstall => Ticket.CanUninstall;
+        public string BatchActionText => Ticket.ActiveBatchNumber is null ? "發行新一批" : "發行下一批";
         public IReadOnlyList<PrizeRowViewModel> PrizeRows => Detail?.PrizeRows.Select(row => new PrizeRowViewModel(row)).ToList() ?? [];
 
         public bool IsExpanded

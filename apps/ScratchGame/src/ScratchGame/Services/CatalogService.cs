@@ -11,7 +11,10 @@ public sealed class CatalogService(AppDatabase database)
         await using var connection = await database.OpenConnectionAsync(cancellationToken);
         var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, display_name, total_spent, total_redeemed
+            SELECT id, display_name,
+                   total_spent, total_redeemed,
+                   wallet_balance, completed_ticket_count, win_count, max_prize,
+                   grant_count, grant_total_amount
             FROM users
             ORDER BY created_utc, display_name;
             """;
@@ -20,7 +23,9 @@ public sealed class CatalogService(AppDatabase database)
         {
             result.Add(new UserProfile(
                 reader.GetString(0), reader.GetString(1),
-                reader.GetInt64(2), reader.GetInt64(3)));
+                reader.GetInt64(2), reader.GetInt64(3),
+                reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7),
+                reader.GetInt64(8), reader.GetInt64(9)));
         }
         return result;
     }
@@ -39,14 +44,35 @@ public sealed class CatalogService(AppDatabase database)
         await using var connection = await database.OpenConnectionAsync(cancellationToken);
         var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO users(id, display_name, total_spent, total_redeemed, created_utc)
-            VALUES($id, $name, 0, 0, $createdUtc);
+            INSERT INTO users(
+                id, display_name,
+                total_spent, total_redeemed,
+                wallet_balance, completed_ticket_count, win_count, max_prize,
+                grant_count, grant_total_amount,
+                created_utc)
+            VALUES(
+                $id, $name,
+                0, 0,
+                $wallet, 0, 0, 0,
+                0, 0,
+                $createdUtc);
             """;
         command.Parameters.AddWithValue("$id", id);
         command.Parameters.AddWithValue("$name", displayName);
+        command.Parameters.AddWithValue("$wallet", AppDatabase.InitialWalletBalance);
         command.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken);
-        return new UserProfile(id, displayName, 0, 0);
+        return new UserProfile(
+            id,
+            displayName,
+            0,
+            0,
+            AppDatabase.InitialWalletBalance,
+            0,
+            0,
+            0,
+            0,
+            0);
     }
 
     public async Task<IReadOnlyList<TicketDefinition>> GetAvailableTicketsAsync(
@@ -63,7 +89,21 @@ public sealed class CatalogService(AppDatabase database)
                        FROM batches b
                        WHERE b.ticket_id = t.id
                          AND b.status = 'Active'
-                   ), 0) AS active_batch_number
+                   ), 0) AS active_batch_number,
+                   COALESCE((
+                       SELECT MAX(p.amount)
+                       FROM prize_tiers p
+                       WHERE p.ticket_id = t.id
+                         AND p.initial_count > 0
+                   ), 0) AS max_prize,
+                   (
+                       SELECT b.started_utc
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                       ORDER BY b.batch_number DESC
+                       LIMIT 1
+                   ) AS active_batch_started_utc
             FROM ticket_definitions t
             WHERE t.enabled = 1
               AND EXISTS (
@@ -96,7 +136,21 @@ public sealed class CatalogService(AppDatabase database)
                        FROM batches b
                        WHERE b.ticket_id = t.id
                          AND b.status = 'Active'
-                   ), 0) AS active_batch_number
+                   ), 0) AS active_batch_number,
+                   COALESCE((
+                       SELECT MAX(p.amount)
+                       FROM prize_tiers p
+                       WHERE p.ticket_id = t.id
+                         AND p.initial_count > 0
+                   ), 0) AS max_prize,
+                   (
+                       SELECT b.started_utc
+                       FROM batches b
+                       WHERE b.ticket_id = t.id
+                         AND b.status = 'Active'
+                       ORDER BY b.batch_number DESC
+                       LIMIT 1
+                   ) AS active_batch_started_utc
             FROM ticket_definitions t
             WHERE t.id = $id
             LIMIT 1;
@@ -134,7 +188,11 @@ public sealed class CatalogService(AppDatabase database)
             reader.GetString(3), reader.GetInt64(4), reader.GetDouble(5),
             reader.GetInt64(6) != 0, reader.GetInt64(7) != 0,
             reader.IsDBNull(8) ? null : reader.GetString(8),
-            reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0);
+            reader.FieldCount > 9 && !reader.IsDBNull(9) ? reader.GetInt32(9) : 0,
+            reader.FieldCount > 10 && !reader.IsDBNull(10) ? reader.GetInt64(10) : 0,
+            reader.FieldCount > 11 && !reader.IsDBNull(11)
+                ? DateTimeOffset.Parse(reader.GetString(11))
+                : null);
 
     public async Task<PendingTicket?> GetPendingForUserAsync(
         string userId,
@@ -159,6 +217,25 @@ public sealed class CatalogService(AppDatabase database)
             reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetString(7),
             DateTimeOffset.Parse(reader.GetString(8)),
             reader.IsDBNull(9) ? null : reader.GetString(9));
+    }
+
+    public async Task<int> EnsureInitialBatchAsync(
+        string ticketId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await database.OpenConnectionAsync(cancellationToken);
+        var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(MAX(batch_number), 0)
+            FROM batches
+            WHERE ticket_id = $ticketId;
+            """;
+        command.Parameters.AddWithValue("$ticketId", ticketId);
+        var currentMax = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+        if (currentMax > 0)
+            return currentMax;
+
+        return await StartNextBatchAsync(ticketId, cancellationToken);
     }
 
     public async Task<int> StartNextBatchAsync(

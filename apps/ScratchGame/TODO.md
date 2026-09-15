@@ -1,120 +1,227 @@
 # ScratchGame TODO / Future Plan
 
-本檔只記錄未來規劃與待辦，不是永久規則來源；永久規則仍以 `PROJECT_RULES.md` 為準。
+本檔只記錄產品 Roadmap、未來規劃與待辦，不是永久規則來源。ScratchPack schema / ResourceRef / Built-in registry 以 `SCRATCHPACK_SPEC.md` 為唯一權威；GameType 契約以 `GAMETYPE_SPEC.md` 為唯一權威；永久專案原則以 `PROJECT_RULES.md` 為準。
 
-## 已定方向：ScratchPack / Rule Engine
+## 目前 Roadmap
 
-- ScratchPack 為資料與美術資源包，不攜帶 DLL、EXE、script 或任意程式碼。
-- ScratchPack 玩法由主程式公開的 `gameType` 選擇；已發布 gameType 的核心判定規則不改變，未來變體新增新的 gameType，例如 `1-2`。
-- ScratchPack 保留頂層 `formatVersion`，僅代表 ScratchPack 檔案格式版本，不代表玩法版本。
-- `canvas` 使用官方固定尺寸代碼，不允許任意尺寸；Developer Guide 提供尺寸代碼表。**`canvas=1` 已定義為 1080×882 的基本橫式刮刮樂版型**；其他尺寸日後新增代碼，既有代碼語意永不改變。
-- 刮膜形狀初期只支援方形／長方形、圓角矩形、圓形、橢圓等簡單幾何；日後再評估星形、愛心、卡通輪廓或其他形狀。
-- 彩券包可提供自訂銀膜；未提供時使用主程式內建預設銀膜。
-- `priceDisplay=0`：底圖自行包含完整面額；`priceDisplay=1`：主程式在該 Canvas 的標準位置繪製完整面額徽章（外框、底色、金額）。
-- 發行資料包含 `issueSize` 與 `ticketsPerBook`；`issueSize` 必須可被 `ticketsPerBook` 整除，`bookCount` 由主程式自動計算。
-- 彩券號碼採「款式編號-本號-本內序號」，初期至少三位補零，例如 `001-023-057`；任一段超過三位時自然增加位數，不截斷、不循環。同款彩券發行新批次時，本號接續上一批區間，避免票號重複。
-- ScratchPack 主要內容預計包含：彩券主圖、可選縮圖、可選銀膜、玩法代碼、畫布代碼、刮區數量／座標／形狀／大小、玩法允許參數、發行量、每本張數與獎項表。
-- 未來才設計「一張彩券包含多種玩法」；目前規格不預先限制 Game Area 數量，也不先寫尚未定案的多玩法格式。
+### V0.4.0 — ScratchPack V1 Runtime
 
-## 內建彩券 ScratchPack 化
+目前開發階段。目標是完成並實機驗收：
 
-- 未來把正式彩券從主程式 source 中去程式碼化：例如「三星連線」正式彩券應改成由 `.scratchpack` 匯入／安裝，主程式只保留通用玩法引擎、ScratchPack 載入器與共用 UI。
-- 開發／獎項測試彩券可以保留為開發用途，不要求與正式彩券相同的安裝流程。
-- 刪除已安裝彩券包時，該款彩券的專屬定義與資源應一併移除，不應在主程式 source 或 runtime 中留下該款彩券的硬編碼資料。
-- 已發行批次、歷史紀錄、使用者既有遊玩資料與「刪除彩券包」之間的保留／封存規則，等真正實作此功能時再設計，不在目前版本先綁死。
+- ScratchPack V1 loader / validator / importer。
+- Built-in / Imported Pack 共用同一套 loader、validator、engine、renderer、finite-pool、redemption pipeline。
+- Built-in Pack 隨 portable 發行內容提供，程式啟動時自動註冊；不要求使用者手動匯入。
+- Built-in / Imported 身分只屬 runtime installation source，不寫入 `.scratchpack` schema。
+- Built-in ticket ResourceRef 依 GameType namespace 解析；foil 為跨 GameType 共用資源。
+- GameType 1 runtime 完全由 Pack 的 game / zones / prizes / ResourceRef 驅動，不保留三星專屬平行定義。
+- Pack 安裝完成時產生挑券用縮圖 PNG cache；cache 遺失或損壞時可由正式 Pack / runtime definition 重建。
+- ScratchPack V1 本身不接受 `thumbnail.png`；縮圖不是 Pack 權威資料。
+- 完成 ThreeStar-Test 的 Windows 實機匯入、發行、挑票、刮獎、兌獎驗收。
+- 使用者資金模型改為 Wallet；新使用者初始錢包 `$100,000`。
+- 本機版只保存累積遊玩統計，不保存逐張玩家歷史。
 
-## GameType 1：星星連線
+### V0.5.0 — ScratchPack Maker
 
-- `gameType="1"`。
-- `gridSize=3`：3×3，完整三星成一線。
-- `gridSize=4`：4×4，完整四星成一線。
-- `gridSize=5`：5×5，完整五星成一線。
-- 只計完整橫列、完整直列、兩條完整大對角線；短斜線或局部連線不屬於 GameType 1。
-- Prize Tier 本身只保存金額與張數；GameType 1 的玩法設定負責把獎金對應到連線數。
-- 可新增不改變核心勝負判定的 optional 玩法參數；舊 ScratchPack 缺少新參數時必須使用「保持舊行為」的預設值，確保向下相容。
-- 已定 optional 參數：`allowNearMissStars`，預設 `false`。啟用時，生成器可在不增加實際中獎線數的前提下加入額外零散星星／差一顆成線的星星，提高期待感。
-- 若未來要改變中獎判定，例如 Wild 星、短線也算、局部連線等，不可修改 GameType 1，應新增新的 gameType。
+製作 Windows x64 ScratchPack Maker，讓使用者以 GUI 製作正式 `.scratchpack`。
 
-## 未來玩法
+- Maker 直接依編輯中的資料即時計算並疊出預覽；這是一次性編輯預覽，不使用主程式 thumbnail cache，也不另建 Thumbnail Renderer。
+- 選擇官方 Canvas、GameType 與合法玩法參數。
+- 選擇 Built-in ticket / foil 或 Pack 自帶 PNG。
+- 視覺化設定 Scratch Zone geometry。
+- 設定面額、price display、serial area、issueSize、ticketsPerBook、Prize Pool。
+- Maker 只允許產生主程式已正式支援的規格。
+- Maker 與 Importer 對相同 schema / GameType 契約必須得到一致驗證結果，不建立第二套規則。
+- 正式 Built-in Pack 也由 Maker 產生；完成後由使用者提供最終 `.scratchpack`，主程式發行時原樣納入 `BuiltInPacks/`，不另外手寫一套 Built-in Pack 格式。
 
-- 記錄「線路獎金型」玩法構想：每條指定線本身帶獎金，完成該線取得對應獎金；後續擴增玩法時再正式設計。
-- 後續再規劃幸運號碼、三個相同、指定符號獎金、特殊符號／倍率等通用 Rule Engine。
+### V0.6.x ～ V0.9.x — 完整化階段
 
-## ScratchPack Developer Guide
+不預先把每一個 Minor 版號綁死。每完成一個足夠完整、使用者可明顯感受到的功能階段，再依共通版本規則決定是否升 Minor。
 
-未來建立正式 Developer Guide，至少包含：
+主要工作：
 
-- ScratchPack `formatVersion` 說明。
-- `gameType` 對照表與每種玩法可用參數／預設值；介面顯示人類可讀玩法名稱，不直接顯示內部代碼。
-- `canvas` 尺寸代碼表；`canvas=1 = 1080×882`。
-- 刮區座標系與 Shape 代碼表。
-- 預設／自訂銀膜規格。
-- `priceDisplay` 規則與各 Canvas 的標準面額安全區。
-- `issueSize` / `ticketsPerBook` 與整除驗證規則。
-- 圖片格式與資源命名規則。
-- 發行量、獎項表與匯入驗證規則。
-- 完整可重製範例。
-- 後續評估提供 `scratchpack.schema.json` 供程式與其他 AI 驗證。
+- 逐步完成 `GAMETYPE_SPEC.md` 已定義的 GameType 與對應 Renderer / Generator / validation。
+- 完善刮獎手感、銀膜視覺、碎屑／刮痕、硬幣、音效與中獎效果。
+- 建立 Decoration Shop / 收藏／裝備系統。
+- 完善 UI、效能、穩定性與 regression tests。
+- 每次涉及 runtime database schema 的變更，都必須由開發端負責 migration、migration backup 與既有資料驗證。
 
-## ScratchPack 製作器 EXE
+### V1.0.0 — 正式穩定版 Gate
 
-未來製作獨立 Windows x64 可攜式開發工具，讓一般使用者不靠 AI 也能製作 `.scratchpack`：
+V1.0.0 不只以「功能都有」判定，至少須完成：
 
-- 匯入／預覽彩券圖片。
-- 選擇官方 Canvas 尺寸。
-- 選擇主程式支援的 gameType。
-- 依玩法顯示合法參數與選項。
-- 視覺化新增、移動、調整刮區位置／大小／形狀。
-- 選擇使用預設銀膜或匯入自訂銀膜。
-- 選擇底圖自帶面額或使用主程式標準面額徽章。
-- 輸入面額、總發行張數、每本張數與獎項／張數。
-- 即時檢查 `issueSize % ticketsPerBook == 0`、獎項數量、玩法參數及版面是否合法。
-- 預覽並一鍵封裝成 `.scratchpack`。
-- 工具只能產生主程式支援的規格，不允許注入任意程式碼。
+- ScratchPack V1 runtime 穩定。
+- ScratchPack Maker 可完整製作所有當時正式支援的 GameType Pack。
+- 預定 GameType、Decoration Shop 與刮獎體驗完成。
+- 新安裝流程驗證通過。
+- 既有 runtime database 升版 / migration 驗證通過。
+- Maker → Pack → Import / Built-in → 發行 → 挑票 → 刮獎 → 兌獎完整 round-trip regression 通過。
+- 功能 Freeze 後完成一輪只修 bug 的正式驗收，再由使用者決定發布 V1.0.0。
 
-## 刮獎手感與硬幣
+V1.0.0 發布後，再另外討論長期 Pack 更新／跨大版本升級／相容政策；目前 0.x 階段不提前建立不必要的複雜升級框架。
 
-- 主程式使用程式繪製的硬幣游標，不依賴 Windows `.cur`；待機顯示硬幣正面，按住刮獎時切換成以邊緣接觸票面的直立／傾斜狀態。
-- 未來支援多種硬幣、不同刮痕寬度、刮擦聲、銀膜碎屑與更自然的不規則刮除動畫。
-- 規劃「硬幣商店」：玩家可使用遊戲內獲得的可用獎金／收藏金購買不同刮獎硬幣。
-- 商店資金與「彩券投入／兌獎／損益」統計分離，購買硬幣不得回頭改寫彩券損益。
+## GameType 相容與升版安全
 
-## 中獎效果與商店
+GameType 的正式欄位與核心判定以 `GAMETYPE_SPEC.md` 為準。升版安全方向已定：
 
-- 主程式先提供預設的中獎效果分級；一般獎、二獎、頭獎的視覺強度不同，且以 Prize Tier 排名判定，不把特定金額寫死為頭獎。
-- 頭獎效果可包含金色閃光、擴散光圈、星光／金幣粒子與延遲淡入結果框；二獎使用較克制的版本。
-- 結果框維持半透明，讓玩家仍能看到背後已刮開的中獎盤面。
-- 未來規劃「中獎效果商店」：玩家可購買、收藏並裝備不同的一般／二獎／頭獎慶祝效果。
-- 中獎效果只屬於外觀收藏，不得改變中獎率、Prize Tier、獎金或票池。
-- 中獎效果商店與硬幣商店共用未來的獨立收藏／消費資金模型，不回寫彩券損益統計。
+- 已發布欄位不得刪除、改名或偷偷改變原有語意。
+- 後續需要擴充時以新增欄位為主。
+- 新增 optional 欄位必須定義明確 default；舊 Pack 缺少新欄位時必須維持原有行為。
+- 若需求會改變核心勝負判定，而不是單純增加相容 optional 行為，應新增 GameType / variant，不修改既有 GameType 的既定語意。
+- Runtime database schema migration、migration backup 與舊資料驗證由開發端負責，不要求使用者自行處理資料升版。
 
-## 外觀主題與商店
+## Built-in Pack 與 Pack lifecycle
 
-- 主畫面外觀分成兩種獨立收藏類型：
-  - **介面框架（Frame Theme）**：Header + Footer 成套。
-  - **舞台主題（Stage Theme）**：中央 Stage 背景。
-- Frame Theme 的 Header / Footer 不允許跨不同框架混搭；裝備時以一組為單位。
-- Stage Theme 可獨立於 Frame Theme 購買、收藏與裝備。
-- 目前預設 Frame Theme 名稱：**新春紅金**。
-- 目前預設 Stage Theme 名稱：**招財好運**。
-- Theme 美術一律從 EXE 外部資源讀取，不把可替換 Theme 強制嵌入主程式。
-- 未來可在「外觀商店」中增加「介面框架」與「舞台主題」分類，並與硬幣／中獎效果共用收藏、購買、裝備基礎架構。
-- 外觀 Theme 只屬 cosmetic，不得改變彩券票池、中獎率、Prize Tier、獎金或損益統計。
+正式規則仍以 `SCRATCHPACK_SPEC.md` 為準；此處只記錄後續工作：
+
+- Built-in Pack 與 Imported Pack 的 `.scratchpack` 內容格式沒有差別。
+- 正式 Built-in Pack 不由主程式 source 手寫產生；V0.5.0 Maker 完成後，由使用者用 Maker 製作並確認，再提供給發行流程放入 `BuiltInPacks/`。
+- Built-in Pack 啟動自動註冊；Imported Pack 由使用者手動匯入。
+- Imported Pack 可在已有完成遊玩統計後解除安裝；本機累積統計不依賴 Pack 本體或逐張 history。
+- Imported Pack 若仍有 Pending Ticket，解除安裝必須先拒絕，待該張完成兌獎後再移除。
+- 1.0.0 前只處理目前實際需要的安裝與 runtime lifecycle；Pack 更新／替換／跨版本 upgrade policy 留到 V1.0.0 發布後再討論。
+
+## 挑券縮圖 cache
+
+- ScratchPack 不保存 thumbnail；票面 / Pack definition 才是 Source of Truth。
+- 主程式在 Pack 安裝成功後產生一張挑券用 PNG cache，建議基準尺寸 `360×294`（Canvas 1 的 1080×882 等比例 1/3）。
+- 縮圖用來表達「這款彩券長什麼樣」，不是某張已發行 Pending Ticket 的 screenshot。
+- 可包含固定票面、程式面額（若 `priceDisplay=1`）與未刮銀膜示意。
+- 不包含實際票號、某張票的遊戲結果、Prize outcome 或 Pending Ticket 資料。
+- 挑券頁正常只讀 cache；cache 被刪除、損壞或失效時重新產生並寫回。
+- Cache 可全部清除而不影響 Pack、票池、批次或使用者資料。
+- Maker 編輯預覽不使用此 cache；Maker 直接即時疊圖。
+
+## 使用者 Wallet 與遊玩統計
+
+V0.4.0 起，本機版不做逐張玩家歷史。每張彩券完成兌獎時直接更新使用者累積統計；Pack 日後解除安裝不影響已累積的統計。
+
+目前保存：
+
+- `wallet_balance`：目前真正可用於購票的錢包餘額。
+- `completed_ticket_count`：已完成兌獎的累計彩券張數。
+- `win_count`：獎金大於 0 的累計張數。
+- `total_spent`：累計購票投入。
+- `total_redeemed`：累計兌獎金額。
+- `max_prize`：單張最高獎金。
+- `grant_count`：外部資金補充次數。
+- `grant_total_amount`：外部資金補充累計金額。
+
+Derived Data 不另存：
+
+- 勝率 = `win_count / completed_ticket_count`。
+- 總損益 = `total_redeemed - total_spent`；外部資金補充不算中獎或遊玩損益。
+
+資金規則：
+
+- 新使用者初始錢包 `$100,000`。
+- 購票時立即從 Wallet 扣面額並累加 `total_spent`；餘額不足不得建立 Pending Ticket。
+- 兌獎時把獎金加入 Wallet 與 `total_redeemed`，同時更新完成張數、中獎張數與最大獎。
+- 尚未開始刮獎時「換一張」不重複扣款、不重複增加投入。
+- 遊玩統計不提供任意重置功能。
+
+目前測試用資金補充 UI 顯示為 **「黃仁勳給我錢」**，每次增加 `$100,000`。程式內部與 database 維持 generic wallet grant 命名，不把人物名稱寫進資料模型；未來可替換成其他人物／主題而不改 schema。
+
+目前測試階段按鈕固定顯示。後續正式 UI 改為只有 `wallet < 目前可玩彩券的最高面額` 時顯示。
+
+### 「黃仁勳給我錢」後續效果
+
+- 使用者已提供參考照片；正式圖片留一個獨立回合作圖。
+- 圖片只保留中央人物，加入對話框：「乖寶貝把拔給你錢」。
+- 效果大約覆蓋 Stage，總長 **3 秒**；建議前 2 秒完整呈現、最後 1 秒 fade out。
+- 搭配裁切後的 coins drop 音效。
+- 動畫期間避免重複觸發造成多層特效重疊。
+
+### 「乾爹乾媽給我錢」隨機角色化 — 後續 TODO
+
+- 將目前單一人物的 UI 文案進一步改成較泛用的 **「乾爹乾媽給我錢」**。
+- 每次觸發 wallet grant 時，從已安裝／可用的乾爹乾媽角色中**隨機抽一位**顯示，不固定同一人物。
+- 每個角色可以有自己的圖片、對話框文案，以及可選的專屬資助音效；若角色沒有專屬音效則使用共用 fallback 音效。
+- 角色／圖片／音效都屬 cosmetic presentation，不改變每次 grant 的金額、`grant_count`、`grant_total_amount` 或任何遊戲結果。
+- 程式內部仍沿用 generic wallet grant / sponsor effect 模型，不為黃仁勳、比爾蓋茲、川普或其他人物建立人物專屬程式流程。
+- 後續可把乾爹乾媽角色做成 Decoration Shop 的收藏／解鎖內容；隨機抽取只在目前已擁有／已啟用的角色池內進行。
+
+## 詳細玩家歷史 / 線上發行追蹤 — 未來可能性
+
+目前單機版**不保存逐張彩券玩家歷史**，不記錄彩券名稱、packageId、GameType、批次、票號或逐張獎金明細，也不做 Pack history snapshot。
+
+只有未來若發展成連線版、主控端需要管理發行／批次／稽核／同步／客訴追查時，再重新設計 server-side / online history。該設計不得反過來讓目前單機 Pack lifecycle 依賴一套沒有實際用途的逐張 history。
+
+## Decoration Shop / 使用者體驗商店
+
+目前 Roadmap 中的「商店」是 **Decoration Shop**，不是彩券商店。
+
+Decoration Shop 管理 cosmetic / 使用者體驗資源，例如：
+
+- Frame Theme：Header + Footer 成套。
+- Stage Theme：中央舞台背景。
+- 硬幣。
+- 刮痕／銀膜碎屑／刮刮視覺效果。
+- 一般獎／二獎／頭獎等慶祝效果。
+- 中獎／大獎／未中獎結果音效組。
+- 乾爹乾媽 wallet grant 角色／圖片／專屬音效。
+- 後續可擴充其他純視覺／音效收藏。
+
+共同方向：
+
+- Decoration 不得改變 ScratchPack、票池、中獎率、Prize Tier、獎金或彩券損益。
+- Header + Footer 屬同一 Frame Theme，不跨框架拆開混搭。
+- Stage Theme 可獨立收藏與裝備。
+- Theme / Decoration 美術維持 EXE 外部可替換資源，不把可替換 cosmetic 強制嵌入主程式。
+- 商店收藏／消費資金模型與彩券投入／兌獎／損益統計分離。
+
+目前預設：
+
+- Frame Theme：`新春紅金`。
+- Stage Theme：`招財好運`。
+
+## 彩券商店 / Pack Marketplace — 最長期計畫
+
+單機版目前不需要另外製作彩券商店。已安裝 Pack 直接透過現有挑券流程使用即可。
+
+只有未來若真的發展到 Steam、線上內容配送、Workshop / Marketplace 等情境，再研究：
+
+- Ticket Shop / Pack Marketplace。
+- Pack 下載、版本配送與更新。
+- 線上內容索引與安全驗證。
+- Steam Workshop 或其他平台整合。
+
+此項為 V1.0.0 之後的長期 TODO，不阻擋單機版 V1.0.0。
+
+## 刮獎手感、硬幣與中獎效果
+
+- Stage 上存在尚未兌獎的 Pending Ticket 時，游標進入整個 Stage 範圍就顯示硬幣正面；離開 Stage 使用一般 Windows 游標。
+- 實際按住滑鼠刮獎時，硬幣切換為以邊緣接觸票面的直立／傾斜狀態；不要求平常待機游標必須位於 Scratch Zone。
+- 彩券完成兌獎後，即使游標仍停在 Stage，也必須立刻恢復一般 Windows 游標。
+- 後續支援多種硬幣、不同刮痕寬度、刮擦聲、銀膜碎屑與自然不規則刮除動畫。
+- 中獎效果依 Prize Tier 排名分級，不把固定金額寫死成頭獎／二獎。
+- 結果框維持可看到背後中獎盤面的呈現方式。
+- 硬幣、刮刮效果、中獎效果都可成為 Decoration Shop 的收藏／裝備項目，但不得影響遊戲結果。
 
 ## 音效
 
-- 中獎音效分小獎與大獎；目前 `< $50,000` 使用小獎音效，`>= $50,000` 使用大獎音效。
-- 手動把所有刮區刮完時播放「無提示逼聲」版本；按「全部刮開」或系統因關閉／切換使用者／異常恢復而自動揭曉時播放保留提示逼聲的版本。
-- 音效只在完成兌獎、顯示結果時播放，避免提前暴雷。
-- 未來可再評估頭獎專屬音效與 ScratchPack 自訂音效。
+- 目前中獎音效分小獎與大獎；`< $50,000` 使用小獎音效，`>= $50,000` 使用大獎音效。
+- 手動完整刮完與「全部刮開」／系統自動揭曉可以使用不同提示版本，避免手動刮獎時提前暴雷。
+- 音效只在完成兌獎、顯示結果時播放。
+- 增加未中獎音效：使用者提供的笑聲素材前段，裁成約前兩秒內合適的短笑聲。
+- 「黃仁勳給我錢」使用使用者提供的 coins drop 素材，約從 1 秒附近取適當長度。
+- 後續將 **中獎／大獎／未中獎** 三類結果音效做成可選擇、更換的 sound slots；使用者可從已擁有的音效組中選擇目前裝備樣式。
+- Sound slots 只決定播放哪個 cosmetic audio，不改變中獎判定、Prize Tier 或結果 modal 邏輯；預設音效永遠保留作為 fallback。
+- 可將不同結果音效組納入 Decoration Shop 收藏／解鎖系統，讓玩家自行搭配。
+- 後續可再評估頭獎專屬音效與更多結果音效分級，但應延伸同一套 sound-slot 模型，不建立平行播放流程。
 
-## 資料與測試工具
+## 測試與 Conformance
 
-- 正式使用者資料維持在 `%LOCALAPPDATA%\ScratchGame`，更新／替換 EXE 不會刪除資料。
-- 未來設定頁可增加「開啟資料資料夾」與具二次確認的「重置所有資料」，方便測試與維護。
+- 每個正式完成的 GameType 應保留最小 reference / test Pack，驗證合法 Pack、非法 geometry、Prize mapping、Renderer 與 outcome generation。
+- Test Pack 必須走與正式 Pack 相同的 ScratchPack schema / GameType pipeline，不建立測試專屬 loader。
+- 正式使用者資料維持在 `%LOCALAPPDATA%\ScratchGame`；更新／替換 EXE 不得刪除資料。
+- 涉及 database schema 變更時先建立 migration backup，再執行 migration。
+- V0.4 測試階段不要求保留舊的逐張遊玩歷史；舊測試資料可由使用者自行清除，新的累積統計從目前版本開始計算。
+- 後續設定頁可增加「開啟資料資料夾」與具二次確認的「重置所有資料」，供測試與維護。
 
 ## 其他後續
 
-- 擴增更多固定 Canvas 尺寸代碼。
-- 擴增更多官方刮膜幾何形狀。
+- 擴增更多固定 Canvas code；既有 code 語意不得改變。
+- 擴增更多官方 Scratch Zone shape。
+- 評估全 Canvas foil texture + Scratch Zone clipping 模式；若實作必須沿用同一 `scratch.foil` / ScratchSurface pipeline，不建立第二套 mask 系統。
 - 未來再正式設計單張彩券多玩法／Bonus 區架構。
+- 後續建立 ScratchPack Developer Guide 與可機器驗證的 schema / fixture 工具；不得形成與正式 SPEC 平行的規則來源。

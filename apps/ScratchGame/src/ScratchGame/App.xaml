@@ -91,16 +91,16 @@
         </Style>
 
         <Style x:Key="HeaderButton" TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#FFF3D9"/>
             <Setter Property="FontFamily" Value="Microsoft JhengHei UI"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="17,9"/>
-            <Setter Property="Margin" Value="7,0"/>
-            <Setter Property="MinHeight" Value="46"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="MinHeight" Value="44"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="#871A1919"/>
-            <Setter Property="BorderBrush" Value="#C77944"/>
+            <Setter Property="Background" Value="#B3281715"/>
+            <Setter Property="BorderBrush" Value="#B98A4C"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="UseLayoutRounding" Value="True"/>
@@ -109,28 +109,94 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="18"
-                                Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              SnapsToDevicePixels="True"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Chrome"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="15"
+                                    Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  SnapsToDevicePixels="True"/>
+                            </Border>
+                            <Border x:Name="Highlight"
+                                    Margin="2"
+                                    CornerRadius="13"
+                                    BorderBrush="#34FFF0C0"
+                                    BorderThickness="0,1,0,0"
+                                    IsHitTestVisible="False"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#A12B1A18"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.96"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#E7B65B"/>
+                                <Setter TargetName="Highlight" Property="BorderBrush" Value="#7AFFF0C0"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.82"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.78"/>
+                                <Setter TargetName="Highlight" Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <Style x:Key="HeaderGrantButton" TargetType="Button" BasedOn="{StaticResource HeaderButton}">
+            <Setter Property="Foreground" Value="#3B2107"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#E7B648"/>
+            <Setter Property="BorderBrush" Value="#FFE59B"/>
+        </Style>
+
+        <Style x:Key="ResultUtilityButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#F5DCB7"/>
+            <Setter Property="FontFamily" Value="Microsoft JhengHei UI"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="15,6"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#7B2B1B15"/>
+            <Setter Property="BorderBrush" Value="#B6844C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="11"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#A443281E"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#E0AA62"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.76"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ResultPillButton" TargetType="Button" BasedOn="{StaticResource ResultUtilityButton}">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Foreground" Value="#FFF0C9"/>
+            <Setter Property="Background" Value="#E33A1A14"/>
+            <Setter Property="BorderBrush" Value="#D7A456"/>
         </Style>
 
         <Style x:Key="DialogButton" TargetType="Button" BasedOn="{StaticResource ActionButtonBase}">

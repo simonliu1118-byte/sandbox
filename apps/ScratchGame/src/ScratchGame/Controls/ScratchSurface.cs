@@ -13,12 +13,15 @@ public sealed class ScratchSurface : Image
     private int _pixelWidth;
     private int _pixelHeight;
     private int _stride;
+    private long _activePixels;
     private long _erasedPixels;
     private bool _completionReported;
 
     public double BrushRadius { get; set; } = 24;
     public double CompletionThreshold { get; set; } = 0.78;
     public string? MaskImagePath { get; set; }
+    public string ZoneShape { get; set; } = "rectangle";
+    public double CornerRadius { get; set; }
     public bool IsCompleted => _completionReported;
 
     public event EventHandler? Completed;
@@ -53,11 +56,10 @@ public sealed class ScratchSurface : Image
 
     public void CheckCompletion()
     {
-        if (_completionReported || _pixelWidth <= 0 || _pixelHeight <= 0)
+        if (_completionReported || _activePixels <= 0)
             return;
 
-        var total = (long)_pixelWidth * _pixelHeight;
-        if (total > 0 && (double)_erasedPixels / total >= CompletionThreshold)
+        if ((double)_erasedPixels / _activePixels >= CompletionThreshold)
             ReportCompletionOnce();
     }
 
@@ -70,7 +72,7 @@ public sealed class ScratchSurface : Image
         for (var i = 3; i < _pixels.Length; i += 4)
             _pixels[i] = 0;
 
-        _erasedPixels = (long)_pixelWidth * _pixelHeight;
+        _erasedPixels = _activePixels;
         FlushPixels();
         ReportCompletionOnce();
     }
@@ -86,6 +88,8 @@ public sealed class ScratchSurface : Image
         _pixelHeight = height;
         _stride = _pixelWidth * 4;
         _pixels = TryLoadTexture(width, height) ?? CreateFallbackTexture(width, height);
+        ApplyZoneShapeMask(_pixels, width, height);
+        _activePixels = CountVisiblePixels(_pixels);
         _erasedPixels = 0;
         _completionReported = false;
 
@@ -149,6 +153,75 @@ public sealed class ScratchSurface : Image
             }
         }
         return pixels;
+    }
+
+    private void ApplyZoneShapeMask(byte[] pixels, int width, int height)
+    {
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (IsInsideZoneShape(x + 0.5, y + 0.5, width, height))
+                    continue;
+                pixels[y * width * 4 + x * 4 + 3] = 0;
+            }
+        }
+    }
+
+    private bool IsInsideZoneShape(double x, double y, double width, double height)
+    {
+        return ZoneShape switch
+        {
+            "circle" => IsInsideEllipse(x, y, width, height),
+            "ellipse" => IsInsideEllipse(x, y, width, height),
+            "roundedRectangle" => IsInsideRoundedRectangle(x, y, width, height, CornerRadius),
+            _ => true
+        };
+    }
+
+    private static bool IsInsideEllipse(double x, double y, double width, double height)
+    {
+        var rx = width / 2.0;
+        var ry = height / 2.0;
+        if (rx <= 0 || ry <= 0)
+            return false;
+        var dx = (x - rx) / rx;
+        var dy = (y - ry) / ry;
+        return dx * dx + dy * dy <= 1.0;
+    }
+
+    private static bool IsInsideRoundedRectangle(
+        double x,
+        double y,
+        double width,
+        double height,
+        double cornerRadius)
+    {
+        var radius = Math.Clamp(cornerRadius, 0, Math.Min(width, height) / 2.0);
+        if (radius <= 0)
+            return true;
+
+        if (x >= radius && x <= width - radius)
+            return true;
+        if (y >= radius && y <= height - radius)
+            return true;
+
+        var cx = x < radius ? radius : width - radius;
+        var cy = y < radius ? radius : height - radius;
+        var dx = x - cx;
+        var dy = y - cy;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    private static long CountVisiblePixels(byte[] pixels)
+    {
+        long count = 0;
+        for (var i = 3; i < pixels.Length; i += 4)
+        {
+            if (pixels[i] != 0)
+                count++;
+        }
+        return count;
     }
 
     private bool EraseCircle(Point point)

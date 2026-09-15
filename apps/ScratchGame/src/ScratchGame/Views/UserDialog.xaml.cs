@@ -104,32 +104,13 @@ public partial class UserDialog : Window
         }
     }
 
-    private async void ResetStats_OnClick(object sender, RoutedEventArgs e)
+    private void PlayStats_OnClick(object sender, RoutedEventArgs e)
     {
-        if (UserListBox.SelectedItem is not UserRow row)
-        {
-            GameModal.Info(this, "重置損益", "請先選擇要重置的使用者。");
-            return;
-        }
-
-        if (!GameModal.Confirm(
-                this,
-                "重置損益",
-                $"要將「{row.DisplayName}」目前的投入、兌獎與損益歸零嗎？\n\n這不會刪除彩券歷史，也不會改變票池。",
-                "確定重置",
-                "取消"))
+        if ((sender as FrameworkElement)?.DataContext is not UserRow row)
             return;
 
-        try
-        {
-            var reset = await _profiles.ResetStatsAsync(row.Id);
-            row.ApplyProfile(reset);
-            UpdateOwnerSummaryIfCurrent(reset);
-        }
-        catch (Exception ex)
-        {
-            GameModal.Warning(this, "重置損益", ex.Message);
-        }
+        var dialog = new PlayStatsDialog(row.ToProfile()) { Owner = this };
+        dialog.ShowDialog();
     }
 
     private void UpdateOwnerSummaryIfCurrent(UserProfile profile)
@@ -140,10 +121,7 @@ public partial class UserDialog : Window
         if (owner.FindName("UserSummaryText") is not System.Windows.Controls.TextBlock summary)
             return;
 
-        var netText = profile.Net >= 0
-            ? $"+${profile.Net:N0}"
-            : $"-${Math.Abs(profile.Net):N0}";
-        summary.Text = $"{profile.DisplayName}　損益 {netText}";
+        summary.Text = $"{profile.DisplayName}　錢包 ${profile.WalletBalance:N0}";
     }
 
     private void Select_OnClick(object sender, RoutedEventArgs e)
@@ -170,32 +148,85 @@ public partial class UserDialog : Window
         private bool _isEditing;
         private long _totalSpent;
         private long _totalRedeemed;
+        private long _walletBalance;
+        private long _completedTicketCount;
+        private long _winCount;
+        private long _maxPrize;
+        private long _grantCount;
+        private long _grantTotalAmount;
 
         public string Id { get; init; } = string.Empty;
 
         public long TotalSpent
         {
             get => _totalSpent;
-            private set
-            {
-                _totalSpent = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(Net));
-            }
+            private set { _totalSpent = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalSpentText)); OnPropertyChanged(nameof(NetText)); }
         }
 
         public long TotalRedeemed
         {
             get => _totalRedeemed;
+            private set { _totalRedeemed = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalRedeemedText)); OnPropertyChanged(nameof(NetText)); }
+        }
+
+        public long WalletBalance
+        {
+            get => _walletBalance;
+            private set { _walletBalance = value; OnPropertyChanged(); OnPropertyChanged(nameof(WalletText)); }
+        }
+
+        public long CompletedTicketCount
+        {
+            get => _completedTicketCount;
+            private set { _completedTicketCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(WinRateText)); }
+        }
+
+        public long WinCount
+        {
+            get => _winCount;
+            private set { _winCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(WinRateText)); }
+        }
+
+        public long MaxPrize
+        {
+            get => _maxPrize;
+            private set { _maxPrize = value; OnPropertyChanged(); OnPropertyChanged(nameof(MaxPrizeText)); }
+        }
+
+        public long GrantCount
+        {
+            get => _grantCount;
             private set
             {
-                _totalRedeemed = value;
+                _grantCount = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(Net));
+                OnPropertyChanged(nameof(GrantSummaryText));
+            }
+        }
+
+        public long GrantTotalAmount
+        {
+            get => _grantTotalAmount;
+            private set
+            {
+                _grantTotalAmount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(GrantTotalText));
+                OnPropertyChanged(nameof(GrantSummaryText));
             }
         }
 
         public long Net => TotalRedeemed - TotalSpent;
+        public string WalletText => $"${WalletBalance:N0}";
+        public string TotalSpentText => $"${TotalSpent:N0}";
+        public string TotalRedeemedText => $"${TotalRedeemed:N0}";
+        public string NetText => Net >= 0 ? $"+${Net:N0}" : $"-${Math.Abs(Net):N0}";
+        public string MaxPrizeText => $"${MaxPrize:N0}";
+        public string GrantTotalText => $"${GrantTotalAmount:N0}";
+        public string GrantSummaryText => $"資助 {GrantCount:N0} 次　｜　累計 {GrantTotalText}";
+        public string WinRateText => CompletedTicketCount > 0
+            ? ((double)WinCount / CompletedTicketCount).ToString("P2")
+            : "0.00%";
 
         public string DisplayName
         {
@@ -230,9 +261,25 @@ public partial class UserDialog : Window
             EditName = profile.DisplayName;
             TotalSpent = profile.TotalSpent;
             TotalRedeemed = profile.TotalRedeemed;
+            WalletBalance = profile.WalletBalance;
+            CompletedTicketCount = profile.CompletedTicketCount;
+            WinCount = profile.WinCount;
+            MaxPrize = profile.MaxPrize;
+            GrantCount = profile.GrantCount;
+            GrantTotalAmount = profile.GrantTotalAmount;
         }
 
-        public UserProfile ToProfile() => new(Id, DisplayName, TotalSpent, TotalRedeemed);
+        public UserProfile ToProfile() => new(
+            Id,
+            DisplayName,
+            TotalSpent,
+            TotalRedeemed,
+            WalletBalance,
+            CompletedTicketCount,
+            WinCount,
+            MaxPrize,
+            GrantCount,
+            GrantTotalAmount);
 
         private void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

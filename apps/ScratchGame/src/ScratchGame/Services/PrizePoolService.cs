@@ -31,8 +31,31 @@ public sealed class PrizePoolService(AppDatabase database)
         var pendingId = Guid.NewGuid().ToString("D");
         var createdAt = DateTimeOffset.UtcNow;
 
-        // Schema 3：抽出票時即視為已發行，直接從 Remaining 扣除。
-        // consumed_count 在資料庫內代表「已發行張數（含尚未刮完與已完成）」；不再建立 Reservation。
+        // 購票與扣款是同一個交易。錢包不足時整個交易回滾，票池不會被吃掉。
+        var charge = connection.CreateCommand();
+        charge.Transaction = transaction;
+        charge.CommandText = """
+            UPDATE users
+            SET wallet_balance = wallet_balance - $price,
+                total_spent = total_spent + $price
+            WHERE id = $userId
+              AND wallet_balance >= $price;
+            """;
+        charge.Parameters.AddWithValue("$price", ticket.Price);
+        charge.Parameters.AddWithValue("$userId", userId);
+        if (await charge.ExecuteNonQueryAsync(cancellationToken) != 1)
+        {
+            var exists = connection.CreateCommand();
+            exists.Transaction = transaction;
+            exists.CommandText = "SELECT EXISTS(SELECT 1 FROM users WHERE id = $userId);";
+            exists.Parameters.AddWithValue("$userId", userId);
+            if (Convert.ToInt64(await exists.ExecuteScalarAsync(cancellationToken)) == 0)
+                throw new InvalidOperationException("找不到目前使用者。");
+
+            throw new InvalidOperationException($"錢包餘額不足，這張彩券需要 ${ticket.Price:N0}。");
+        }
+
+        // Schema 3 起：抽出票即視為已發行，直接從 Remaining 扣除。
         var issue = connection.CreateCommand();
         issue.Transaction = transaction;
         issue.CommandText = """
@@ -48,19 +71,8 @@ public sealed class PrizePoolService(AppDatabase database)
         if (await issue.ExecuteNonQueryAsync(cancellationToken) != 1)
             throw new InvalidOperationException("獎池已被其他操作更新，請重新抽票。");
 
-        var charge = connection.CreateCommand();
-        charge.Transaction = transaction;
-        charge.CommandText = """
-            UPDATE users
-            SET total_spent = total_spent + $price
-            WHERE id = $userId;
-            """;
-        charge.Parameters.AddWithValue("$price", ticket.Price);
-        charge.Parameters.AddWithValue("$userId", userId);
-        if (await charge.ExecuteNonQueryAsync(cancellationToken) != 1)
-            throw new InvalidOperationException("找不到目前使用者。");
-
-        // 欄位名稱 reserved_* 為既有資料庫相容名稱；Schema 3 起語意是「這張已發行票的既定獎項」。
+        // 欄位名稱 reserved_* 為既有資料庫相容名稱；Schema 3 起語意是
+        //「這張已發行票的既定獎項」。
         var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
@@ -108,24 +120,22 @@ public sealed class PrizePoolService(AppDatabase database)
         var pending = await GetPendingForSettlementAsync(
             connection, transaction, pendingTicketId, cancellationToken);
 
-        // 獎項在「發行」時已從 Remaining 扣除，因此兌獎不再修改票池，只完成使用者與歷史資料。
-        if (pending.ReservedAmount > 0)
-        {
-            var credit = connection.CreateCommand();
-            credit.Transaction = transaction;
-            credit.CommandText = """
-                UPDATE users
-                SET total_redeemed = total_redeemed + $amount
-                WHERE id = $userId;
-                """;
-            credit.Parameters.AddWithValue("$amount", pending.ReservedAmount);
-            credit.Parameters.AddWithValue("$userId", pending.UserId);
-            if (await credit.ExecuteNonQueryAsync(cancellationToken) != 1)
-                throw new InvalidOperationException("找不到 Pending Ticket 所屬使用者。");
-        }
-
-        await InsertHistoryAsync(
-            connection, transaction, pending, pending.ReservedAmount, cancellationToken);
+        // V0.4 不再保存逐張玩家歷史。完成一張票時直接更新不可逆的累積統計。
+        var settle = connection.CreateCommand();
+        settle.Transaction = transaction;
+        settle.CommandText = """
+            UPDATE users
+            SET wallet_balance = wallet_balance + $amount,
+                total_redeemed = total_redeemed + $amount,
+                completed_ticket_count = completed_ticket_count + 1,
+                win_count = win_count + CASE WHEN $amount > 0 THEN 1 ELSE 0 END,
+                max_prize = CASE WHEN $amount > max_prize THEN $amount ELSE max_prize END
+            WHERE id = $userId;
+            """;
+        settle.Parameters.AddWithValue("$amount", pending.ReservedAmount);
+        settle.Parameters.AddWithValue("$userId", pending.UserId);
+        if (await settle.ExecuteNonQueryAsync(cancellationToken) != 1)
+            throw new InvalidOperationException("找不到 Pending Ticket 所屬使用者。");
 
         // 票號一旦實際發行並完成結算就永久標記已使用，不能因 Pending 被刪除後再次釋出。
         var consumeSerial = connection.CreateCommand();
@@ -222,11 +232,8 @@ public sealed class PrizePoolService(AppDatabase database)
         var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            SELECT p.id, p.user_id, p.ticket_id, p.batch_id,
-                   p.reserved_tier_id, p.reserved_amount, p.price,
-                   b.batch_number
+            SELECT p.id, p.user_id, p.reserved_amount
             FROM pending_tickets p
-            JOIN batches b ON b.id = p.batch_id
             WHERE p.id = $id
             LIMIT 1;
             """;
@@ -236,33 +243,9 @@ public sealed class PrizePoolService(AppDatabase database)
             throw new InvalidOperationException("找不到尚未完成的彩券。");
 
         return new PendingSettlement(
-            reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
-            reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt32(7));
-    }
-
-    private static async Task InsertHistoryAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        PendingSettlement pending,
-        long prizeAmount,
-        CancellationToken cancellationToken)
-    {
-        var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            INSERT INTO ticket_history(
-                id, user_id, ticket_id, batch_number,
-                price, prize_amount, completed_utc)
-            VALUES($id, $userId, $ticketId, $batchNumber, $price, $prize, $completedUtc);
-            """;
-        command.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
-        command.Parameters.AddWithValue("$userId", pending.UserId);
-        command.Parameters.AddWithValue("$ticketId", pending.TicketId);
-        command.Parameters.AddWithValue("$batchNumber", pending.BatchNumber);
-        command.Parameters.AddWithValue("$price", pending.Price);
-        command.Parameters.AddWithValue("$prize", prizeAmount);
-        command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-        await command.ExecuteNonQueryAsync(cancellationToken);
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetInt64(2));
     }
 
     private static async Task DeletePendingAsync(
@@ -283,10 +266,5 @@ public sealed class PrizePoolService(AppDatabase database)
     private sealed record PendingSettlement(
         string Id,
         string UserId,
-        string TicketId,
-        string BatchId,
-        string ReservedTierId,
-        long ReservedAmount,
-        long Price,
-        int BatchNumber);
+        long ReservedAmount);
 }

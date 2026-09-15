@@ -21,8 +21,7 @@ public partial class MainWindow : Window
     private const int WmSysCommand = 0x0112;
     private const int ScSize = 0xF000;
 
-    // canvas=1 = 1080x882. These positions are measured from the actual ticket artwork.
-    // Symbol, scratch mask and hit-testing all share this single geometry source.
+    // Legacy local-data geometry retained only for pre-ScratchPack tickets already present in an old database.
     private static readonly (double X, double Y)[] ThreeLinePositions =
     {
         (281, 225), (466, 225), (652, 225),
@@ -100,6 +99,7 @@ public partial class MainWindow : Window
             StatusText.Text = "正在初始化…";
             await _database.InitializeAsync();
             await _seed.EnsureSeedDataAsync();
+            await new BuiltInPackBootstrapService(_database).EnsureInstalledAsync();
             await _backup.BackupIfDueAsync();
 
             var users = await _catalog.GetUsersAsync();
@@ -191,7 +191,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var dialog = new NewTicketDialog(tickets) { Owner = this };
+            var dialog = new NewTicketDialog(tickets, new ScratchPackRuntimeService(_database)) { Owner = this };
             if (dialog.ShowDialog() != true || dialog.SelectedTicket is null)
                 return;
 
@@ -214,7 +214,7 @@ public partial class MainWindow : Window
             _currentPending = await _prizePool.CreatePendingAsync(
                 _currentUser.Id,
                 definition.Id,
-                amount => GamePayloadFactory.Create(definition.RuleId, amount, definition.Price));
+                amount => CreatePayloadForTicket(definition, amount));
 
             RenderPendingTicket(_currentPending, definition);
             await RefreshCurrentUserSummaryAsync();
@@ -259,10 +259,7 @@ public partial class MainWindow : Window
         {
             var replacement = await _ticketSwap.SwapPendingAsync(
                 _currentPending.Id,
-                amount => GamePayloadFactory.Create(
-                    _currentDefinition.RuleId,
-                    amount,
-                    _currentDefinition.Price));
+                amount => CreatePayloadForTicket(_currentDefinition, amount));
 
             _currentPending = replacement;
             RenderPendingTicket(replacement, _currentDefinition);
@@ -304,7 +301,6 @@ public partial class MainWindow : Window
             return;
 
         var point = e.GetPosition(TicketOverlayCanvas);
-        // The visible coin and the actual scratch point intentionally use the exact same MouseMove event.
         UpdateCoinCursor(point);
 
         if (!_isBoardScratching || e.LeftButton != MouseButtonState.Pressed)
@@ -448,6 +444,13 @@ public partial class MainWindow : Window
         ClearTicketOverlay();
         _hasScratched = !string.IsNullOrWhiteSpace(pending.ScratchStateJson);
 
+        if (TryRenderScratchPackTicket(pending, definition))
+        {
+            UpdateTicketActionState();
+            ApplyCursorPolicy();
+            return;
+        }
+
         using var document = JsonDocument.Parse(pending.PayloadJson);
         var root = document.RootElement;
         var ruleId = root.GetProperty("ruleId").GetString();
@@ -466,6 +469,7 @@ public partial class MainWindow : Window
         }
 
         UpdateTicketActionState();
+        ApplyCursorPolicy();
     }
 
     private void RenderThreeLine(JsonElement root)
@@ -527,27 +531,7 @@ public partial class MainWindow : Window
     }
 
     private void LoadTicketArtwork(params string[] parts)
-    {
-        var path = GetTicketAssetPath(parts);
-        if (!File.Exists(path))
-        {
-            TicketBackgroundImage.Visibility = Visibility.Collapsed;
-            TicketPlaceholderPanel.Visibility = Visibility.Visible;
-            TicketPlaceholderText.Text = "找不到彩券美術資源";
-            return;
-        }
-
-        var bitmap = new BitmapImage();
-        bitmap.BeginInit();
-        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-        bitmap.UriSource = new Uri(path, UriKind.Absolute);
-        bitmap.EndInit();
-        bitmap.Freeze();
-
-        TicketBackgroundImage.Source = bitmap;
-        TicketBackgroundImage.Visibility = Visibility.Visible;
-        TicketPlaceholderPanel.Visibility = Visibility.Collapsed;
-    }
+        => LoadTicketArtworkPath(GetTicketAssetPath(parts));
 
     private static string GetTicketAssetPath(params string[] parts)
     {
@@ -559,6 +543,7 @@ public partial class MainWindow : Window
 
     private void ShowSettlementResult(long prize)
     {
+        ApplyCursorPolicy();
         FooterActionsPanel.Visibility = Visibility.Collapsed;
         ResultOverlay.Visibility = Visibility.Visible;
         SameAgainButton.Content = "再來一張";
@@ -621,7 +606,9 @@ public partial class MainWindow : Window
 
     private void ClearTicketOverlay()
     {
+        _activeScratchPack = null;
         _isBoardScratching = false;
+        Mouse.OverrideCursor = null;
         SetCoinScratchState(false);
         CoinCursorVisual.Visibility = Visibility.Collapsed;
         if (Mouse.Captured == TicketOverlayCanvas)
@@ -657,9 +644,6 @@ public partial class MainWindow : Window
         if (refreshed is not null)
             _currentUser = refreshed;
 
-        UserSummaryText.Text = $"{_currentUser.DisplayName}　損益 {FormatSigned(_currentUser.Net)}";
+        UserSummaryText.Text = $"{_currentUser.DisplayName}　錢包 ${_currentUser.WalletBalance:N0}";
     }
-
-    private static string FormatSigned(long amount)
-        => amount >= 0 ? $"+${amount:N0}" : $"-${Math.Abs(amount):N0}";
 }
