@@ -4,6 +4,9 @@ namespace ScratchGame.Data;
 
 public sealed class AppDatabase
 {
+    public const long InitialWalletBalance = 100_000;
+    public const long DefaultWalletGrantAmount = 100_000;
+
     public string DataDirectory { get; }
     public string DatabasePath { get; }
     public string BackupDirectory { get; }
@@ -28,7 +31,7 @@ public sealed class AppDatabase
             ? await GetSchemaVersionAsync(connection, cancellationToken)
             : 0;
 
-        if (existedBeforeOpen && previousSchemaVersion < 4)
+        if (existedBeforeOpen && previousSchemaVersion < 5)
             await CreateMigrationBackupAsync(connection, cancellationToken);
 
         var command = connection.CreateCommand();
@@ -41,8 +44,14 @@ public sealed class AppDatabase
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 display_name TEXT NOT NULL,
-                total_spent INTEGER NOT NULL DEFAULT 0,
-                total_redeemed INTEGER NOT NULL DEFAULT 0,
+                total_spent INTEGER NOT NULL DEFAULT 0 CHECK(total_spent >= 0),
+                total_redeemed INTEGER NOT NULL DEFAULT 0 CHECK(total_redeemed >= 0),
+                wallet_balance INTEGER NOT NULL DEFAULT 100000 CHECK(wallet_balance >= 0),
+                completed_ticket_count INTEGER NOT NULL DEFAULT 0 CHECK(completed_ticket_count >= 0),
+                win_count INTEGER NOT NULL DEFAULT 0 CHECK(win_count >= 0),
+                max_prize INTEGER NOT NULL DEFAULT 0 CHECK(max_prize >= 0),
+                grant_count INTEGER NOT NULL DEFAULT 0 CHECK(grant_count >= 0),
+                grant_total_amount INTEGER NOT NULL DEFAULT 0 CHECK(grant_total_amount >= 0),
                 created_utc TEXT NOT NULL
             );
 
@@ -152,33 +161,53 @@ public sealed class AppDatabase
             CREATE INDEX IF NOT EXISTS ix_serial_pending
                 ON batch_serial_claims(pending_ticket_id);
 
-            CREATE TABLE IF NOT EXISTS ticket_history (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                ticket_id TEXT NOT NULL,
-                batch_number INTEGER NOT NULL,
-                price INTEGER NOT NULL,
-                prize_amount INTEGER NOT NULL CHECK(prize_amount >= 0),
-                completed_utc TEXT NOT NULL,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
-                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE RESTRICT
-            );
-
-            CREATE INDEX IF NOT EXISTS ix_history_user_time
-                ON ticket_history(user_id, completed_utc DESC);
-
             -- Schema 3 起不再使用 Reservation。舊 Pending 的 reserved 數量視為已經發行，
             -- 轉入 consumed_count；之後 reserved_count 永遠維持 0，只為舊資料庫相容而保留欄位。
             UPDATE batch_prize_state
             SET consumed_count = consumed_count + reserved_count,
                 reserved_count = 0
             WHERE reserved_count > 0;
-
-            INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '4')
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await EnsureUserAggregateColumnsAsync(connection, cancellationToken);
+
+        // V0.4 起不再保存逐張玩家歷史。若舊資料庫仍有 ticket_history，先把可用資料
+        // 彙總進 users，再刪除逐張紀錄。Pack 解除安裝因此不再依賴歷史資料外鍵。
+        if (previousSchemaVersion < 5 && await TableExistsAsync(connection, "ticket_history", cancellationToken))
+        {
+            var migrateStats = connection.CreateCommand();
+            migrateStats.CommandText = """
+                UPDATE users
+                SET completed_ticket_count = (
+                        SELECT COUNT(*) FROM ticket_history h WHERE h.user_id = users.id
+                    ),
+                    win_count = (
+                        SELECT COUNT(*) FROM ticket_history h
+                        WHERE h.user_id = users.id AND h.prize_amount > 0
+                    ),
+                    max_prize = COALESCE((
+                        SELECT MAX(h.prize_amount) FROM ticket_history h WHERE h.user_id = users.id
+                    ), 0),
+                    wallet_balance = CASE
+                        WHEN 100000 + total_redeemed - total_spent < 0 THEN 0
+                        ELSE 100000 + total_redeemed - total_spent
+                    END;
+                """;
+            await migrateStats.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var removeHistory = connection.CreateCommand();
+        removeHistory.CommandText = "DROP TABLE IF EXISTS ticket_history;";
+        await removeHistory.ExecuteNonQueryAsync(cancellationToken);
+
+        var schema = connection.CreateCommand();
+        schema.CommandText = """
+            INSERT INTO app_meta(key, value)
+            VALUES ('schema_version', '5')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """;
+        await schema.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken = default)
@@ -195,6 +224,40 @@ public sealed class AppDatabase
             """;
         await pragma.ExecuteNonQueryAsync(cancellationToken);
         return connection;
+    }
+
+    private static async Task EnsureUserAggregateColumnsAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var columns = connection.CreateCommand();
+        columns.CommandText = "PRAGMA table_info(users);";
+        await using (var reader = await columns.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+                existing.Add(reader.GetString(1));
+        }
+
+        var additions = new (string Name, string Sql)[]
+        {
+            ("wallet_balance", "ALTER TABLE users ADD COLUMN wallet_balance INTEGER NOT NULL DEFAULT 100000 CHECK(wallet_balance >= 0);"),
+            ("completed_ticket_count", "ALTER TABLE users ADD COLUMN completed_ticket_count INTEGER NOT NULL DEFAULT 0 CHECK(completed_ticket_count >= 0);"),
+            ("win_count", "ALTER TABLE users ADD COLUMN win_count INTEGER NOT NULL DEFAULT 0 CHECK(win_count >= 0);"),
+            ("max_prize", "ALTER TABLE users ADD COLUMN max_prize INTEGER NOT NULL DEFAULT 0 CHECK(max_prize >= 0);"),
+            ("grant_count", "ALTER TABLE users ADD COLUMN grant_count INTEGER NOT NULL DEFAULT 0 CHECK(grant_count >= 0);"),
+            ("grant_total_amount", "ALTER TABLE users ADD COLUMN grant_total_amount INTEGER NOT NULL DEFAULT 0 CHECK(grant_total_amount >= 0);")
+        };
+
+        foreach (var (name, sql) in additions)
+        {
+            if (existing.Contains(name))
+                continue;
+
+            var alter = connection.CreateCommand();
+            alter.CommandText = sql;
+            await alter.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task<int> GetSchemaVersionAsync(
