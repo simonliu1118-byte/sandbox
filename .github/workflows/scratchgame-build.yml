@@ -67,22 +67,68 @@ jobs:
           /p:Version=${{ steps.version.outputs.version }}
           -o 'apps/ScratchGame/dist'
 
-      - name: Embed and verify Windows shell icon
-        run: >-
-          & 'apps/ScratchGame/tools/EmbedWindowsIcon.ps1'
-          -ExePath 'apps/ScratchGame/dist/ScratchGame.exe'
-          -IconPath 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico'
-
-      - name: Verify Windows output
+      - name: Verify Windows output and shell icon
         run: |
-          if (-not (Test-Path 'apps/ScratchGame/dist/ScratchGame.exe')) {
+          $exe = (Resolve-Path 'apps/ScratchGame/dist/ScratchGame.exe').Path
+          if (-not (Test-Path $exe)) {
             Write-Error 'ScratchGame.exe was not produced.'
             exit 1
           }
+
           $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -File -Filter '*.dll')
           if ($looseDlls.Count -gt 0) {
             Write-Error "Unexpected loose DLLs: $($looseDlls.Name -join ', ')"
             exit 1
+          }
+
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+          if ($null -eq $icon) {
+            Write-Error 'Windows could not resolve an associated application icon from ScratchGame.exe.'
+            exit 1
+          }
+          try {
+            Write-Host "Windows associated icon resolved: $($icon.Width)x$($icon.Height)"
+            if ($icon.Width -lt 16 -or $icon.Height -lt 16) {
+              Write-Error 'Resolved Windows application icon is invalid.'
+              exit 1
+            }
+          }
+          finally {
+            $icon.Dispose()
+          }
+
+      - name: Smoke launch published executable
+        run: |
+          $exe = (Resolve-Path 'apps/ScratchGame/dist/ScratchGame.exe').Path
+          $smokeLocalAppData = Join-Path $env:RUNNER_TEMP 'ScratchGameSmokeLocalAppData'
+          New-Item -ItemType Directory -Force -Path $smokeLocalAppData | Out-Null
+          $previousLocalAppData = $env:LOCALAPPDATA
+          $env:LOCALAPPDATA = $smokeLocalAppData
+
+          try {
+            $process = Start-Process -FilePath $exe -PassThru
+            $deadline = [DateTime]::UtcNow.AddSeconds(8)
+            while ([DateTime]::UtcNow -lt $deadline) {
+              Start-Sleep -Milliseconds 500
+              $process.Refresh()
+              if ($process.HasExited) {
+                Write-Error "ScratchGame.exe exited during startup smoke test. Exit code: $($process.ExitCode)"
+                exit 1
+              }
+            }
+
+            Write-Host "ScratchGame.exe remained running for startup smoke test (PID $($process.Id))."
+          }
+          finally {
+            if ($null -ne $process) {
+              $process.Refresh()
+              if (-not $process.HasExited) {
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+              }
+              $process.Dispose()
+            }
+            $env:LOCALAPPDATA = $previousLocalAppData
           }
 
       # Runtime art/audio/ticket resources are intentionally external and are not kept
