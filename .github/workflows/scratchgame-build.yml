@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - 'apps/ScratchGame/src/**'
+      - 'apps/ScratchGame/tools/**'
       - 'apps/ScratchGame/VERSION'
       - 'apps/ScratchGame/BUILD'
       - '.github/workflows/scratchgame-build.yml'
@@ -65,6 +66,12 @@ jobs:
           /p:DebugSymbols=false
           /p:Version=${{ steps.version.outputs.version }}
           -o 'apps/ScratchGame/dist'
+
+      - name: Embed and verify Windows shell icon
+        run: >-
+          & 'apps/ScratchGame/tools/EmbedWindowsIcon.ps1'
+          -ExePath 'apps/ScratchGame/dist/ScratchGame.exe'
+          -IconPath 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico'
 
       - name: Verify Windows output
         run: |
