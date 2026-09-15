@@ -28,12 +28,24 @@ public partial class NewTicketDialog : Window
         _tickets = tickets;
         _thumbnailCache = thumbnailCache;
 
+        var allPalette = GetPricePalette(null);
         var options = new List<PriceFilterOption>
         {
-            new(null, "全部", _tickets.Count > 0)
+            new(null, "全部", _tickets.Count > 0,
+                allPalette.Background, allPalette.Border, allPalette.Foreground, allPalette.Accent)
         };
         options.AddRange(SupportedPriceFilters.Select(price =>
-            new PriceFilterOption(price, $"${price:N0}", _tickets.Any(ticket => ticket.Price == price))));
+        {
+            var palette = GetPricePalette(price);
+            return new PriceFilterOption(
+                price,
+                $"${price:N0}",
+                _tickets.Any(ticket => ticket.Price == price),
+                palette.Background,
+                palette.Border,
+                palette.Foreground,
+                palette.Accent);
+        }));
 
         PriceFilterListBox.ItemsSource = options;
         PriceFilterListBox.SelectedIndex = 0;
@@ -101,6 +113,27 @@ public partial class NewTicketDialog : Window
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
         => DialogResult = false;
 
-    private sealed record PriceFilterOption(long? Price, string Label, bool HasTickets);
+    private static (string Background, string Border, string Foreground, string Accent) GetPricePalette(long? price)
+        => price switch
+        {
+            100 => ("#5B2422", "#B96755", "#FFE5D6", "#E87B63"),
+            200 => ("#244A35", "#5A9B70", "#E1F5E7", "#73BF86"),
+            300 => ("#194951", "#4F9EA7", "#DDF7F8", "#5FC0C9"),
+            500 => ("#60401C", "#C18A39", "#FFF0C9", "#E1A43F"),
+            1000 => ("#243D62", "#5C83BC", "#E2ECFF", "#739CE0"),
+            2000 => ("#432D60", "#8866B3", "#F0E4FF", "#A67BD8"),
+            5000 => ("#5B2948", "#AE5F89", "#FFE2F1", "#D276A8"),
+            _ => ("#4A3020", "#98612F", "#FBE5B8", "#D9A44F")
+        };
+
+    private sealed record PriceFilterOption(
+        long? Price,
+        string Label,
+        bool HasTickets,
+        string Background,
+        string BorderBrush,
+        string Foreground,
+        string Accent);
+
     private sealed record TicketChoice(TicketDefinition Ticket, string? ThumbnailPath, string BatchText);
 }
