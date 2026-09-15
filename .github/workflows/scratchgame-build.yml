@@ -44,6 +44,56 @@ jobs:
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
           }
 
+      - name: Verify source Windows icon sizes
+        run: |
+          $iconPath = 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico'
+          $bytes = [System.IO.File]::ReadAllBytes($iconPath)
+          if ($bytes.Length -lt 6) {
+            Write-Error 'ScratchGame.ico is too small.'
+            exit 1
+          }
+
+          $reserved = [BitConverter]::ToUInt16($bytes, 0)
+          $type = [BitConverter]::ToUInt16($bytes, 2)
+          $count = [BitConverter]::ToUInt16($bytes, 4)
+          if ($reserved -ne 0 -or $type -ne 1 -or $count -lt 1) {
+            Write-Error 'ScratchGame.ico has an invalid ICONDIR header.'
+            exit 1
+          }
+
+          $sizes = @()
+          for ($i = 0; $i -lt $count; $i++) {
+            $offset = 6 + (16 * $i)
+            if ($offset + 16 -gt $bytes.Length) {
+              Write-Error "ScratchGame.ico directory entry #$($i + 1) is truncated."
+              exit 1
+            }
+
+            $width = [int]$bytes[$offset]
+            $height = [int]$bytes[$offset + 1]
+            if ($width -eq 0) { $width = 256 }
+            if ($height -eq 0) { $height = 256 }
+            $imageBytes = [BitConverter]::ToUInt32($bytes, $offset + 8)
+            $imageOffset = [BitConverter]::ToUInt32($bytes, $offset + 12)
+            if ([uint64]$imageOffset + [uint64]$imageBytes -gt [uint64]$bytes.Length) {
+              Write-Error "ScratchGame.ico image entry ${width}x${height} points outside the file."
+              exit 1
+            }
+            if ($width -ne $height) {
+              Write-Error "ScratchGame.ico contains a non-square entry: ${width}x${height}."
+              exit 1
+            }
+            $sizes += $width
+          }
+
+          $required = @(16,20,24,28,32,40,48,64,72,80,96,128,256)
+          $missing = @($required | Where-Object { $_ -notin $sizes })
+          Write-Host "ICO entries: $($sizes -join ', ')"
+          if ($missing.Count -gt 0) {
+            Write-Error "ScratchGame.ico is missing required Windows icon sizes: $($missing -join ', ')"
+            exit 1
+          }
+
       - name: Restore Windows x64 runtime packs
         run: >-
           dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
