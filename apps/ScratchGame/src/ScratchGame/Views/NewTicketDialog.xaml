@@ -30,9 +30,11 @@
             </Setter>
         </Style>
 
+        <!-- Compact denomination chips: the controls use less vertical space while the actual
+             price text is larger than Build 4. The old standalone "面額" label is intentionally gone. -->
         <Style x:Key="PriceNoteItem" TargetType="ListBoxItem">
-            <Setter Property="Width" Value="101"/>
-            <Setter Property="Height" Value="66"/>
+            <Setter Property="Width" Value="105"/>
+            <Setter Property="Height" Value="42"/>
             <Setter Property="Margin" Value="4,0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -42,12 +44,12 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="12" Padding="3" Margin="2">
+                        <Border x:Name="SelectionChrome" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="10" Padding="2" Margin="1">
                             <Border x:Name="Note" CornerRadius="7" BorderBrush="{Binding BorderBrush}" BorderThickness="1" Background="{Binding Background}">
-                                <Grid Margin="7,4">
-                                    <Ellipse Width="17" Height="17" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{Binding Background}" Stroke="{Binding Accent}" StrokeThickness="1"/>
-                                    <TextBlock Text="✦" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,-1,0,0" Foreground="{Binding Accent}" FontSize="9"/>
-                                    <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground}" FontFamily="Microsoft JhengHei UI" FontWeight="SemiBold" FontSize="14"/>
+                                <Grid Margin="5,2">
+                                    <Ellipse Width="13" Height="13" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{Binding Background}" Stroke="{Binding Accent}" StrokeThickness="1"/>
+                                    <TextBlock Text="✦" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3,-2,0,0" Foreground="{Binding Accent}" FontSize="7"/>
+                                    <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground}" FontFamily="Microsoft JhengHei UI" FontWeight="SemiBold" FontSize="16.5"/>
                                 </Grid>
                             </Border>
                         </Border>
@@ -65,13 +67,12 @@
             </Setter>
         </Style>
 
-        <!-- 145:219 keeps the previous 220:332 aspect ratio (difference <0.1%).
-             With 6px horizontal margins the current viewport fits exactly six cards per row;
-             two 219px cards plus vertical margins fit in the visible list height. -->
+        <!-- 182x256 plus 5/4px margins is sized so the current 1060x760 picker fits
+             five cards across and two complete rows before a vertical scrollbar is needed. -->
         <Style x:Key="TicketCardItem" TargetType="ListBoxItem">
-            <Setter Property="Width" Value="145"/>
-            <Setter Property="Height" Value="219"/>
-            <Setter Property="Margin" Value="6,5"/>
+            <Setter Property="Width" Value="182"/>
+            <Setter Property="Height" Value="256"/>
+            <Setter Property="Margin" Value="5,4"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -108,39 +109,37 @@
     <Border CornerRadius="22" BorderBrush="#B87B40" BorderThickness="1.4" Background="#351610" SnapsToDevicePixels="True">
         <Grid Margin="30,24,30,22">
             <Grid.RowDefinitions>
-                <RowDefinition Height="72"/>
-                <RowDefinition Height="86"/>
+                <RowDefinition Height="64"/>
+                <RowDefinition Height="46"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="66"/>
+                <RowDefinition Height="58"/>
             </Grid.RowDefinitions>
 
             <StackPanel VerticalAlignment="Top">
                 <TextBlock Text="挑選彩券" FontFamily="Microsoft JhengHei UI" FontSize="30" FontWeight="Bold" Foreground="#FFE6A6"/>
-                <TextBlock Text="選一張喜歡的彩券，開始今天的手氣。" Margin="1,5,0,0" Foreground="#D8B392" FontSize="13"/>
+                <TextBlock Text="選一張喜歡的彩券，開始今天的手氣。" Margin="1,4,0,0" Foreground="#D8B392" FontSize="13"/>
             </StackPanel>
 
-            <Grid Grid.Row="1" VerticalAlignment="Center">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <TextBlock Text="面額" VerticalAlignment="Center" FontSize="16" Foreground="#F4D9B0"/>
-                <ListBox x:Name="PriceFilterListBox"
-                         Grid.Column="1"
-                         SelectionChanged="PriceFilterListBox_OnSelectionChanged"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         Padding="0,0,8,0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                         ItemContainerStyle="{StaticResource PriceNoteItem}">
-                    <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                </ListBox>
-            </Grid>
+            <ListBox x:Name="PriceFilterListBox"
+                     Grid.Row="1"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     SelectionChanged="PriceFilterListBox_OnSelectionChanged"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     ItemContainerStyle="{StaticResource PriceNoteItem}">
+                <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+            </ListBox>
 
-            <Grid Grid.Row="2" Margin="0,6,0,0">
-                <Border BorderBrush="#654034" BorderThickness="1" CornerRadius="14" Background="#29120E" Padding="10" ClipToBounds="True">
+            <Grid Grid.Row="2" Margin="0,2,0,0">
+                <Border BorderBrush="#654034" BorderThickness="1" CornerRadius="14" Background="#29120E" Padding="8" ClipToBounds="True">
                     <ListBox x:Name="TicketListBox"
                              BorderThickness="0"
                              Background="Transparent"
-                             Padding="2,0,4,0"
+                             Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.CanContentScroll="False"
@@ -154,16 +153,45 @@
                             <DataTemplate>
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="98"/>
-                                        <RowDefinition Height="31"/>
+                                        <!-- Required card order: name, price, thumbnail, max prize, win rate, date/batch. -->
+                                        <RowDefinition Height="28"/>
+                                        <RowDefinition Height="22"/>
+                                        <RowDefinition Height="125"/>
                                         <RowDefinition Height="20"/>
-                                        <RowDefinition Height="15"/>
-                                        <RowDefinition Height="16"/>
-                                        <RowDefinition Height="27"/>
+                                        <RowDefinition Height="14"/>
+                                        <RowDefinition Height="21"/>
+                                        <RowDefinition Height="18"/>
                                     </Grid.RowDefinitions>
 
-                                    <Border Grid.Row="0"
-                                            Margin="1"
+                                    <!-- Never use ellipsis for ticket names. Wrap first; only scale down when
+                                         the complete wrapped name cannot fit the reserved name area. -->
+                                    <Viewbox Grid.Row="0"
+                                             Margin="2,0"
+                                             Stretch="Uniform"
+                                             StretchDirection="DownOnly"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Ticket.DisplayName}"
+                                                   Width="166"
+                                                   FontFamily="Microsoft JhengHei UI"
+                                                   FontSize="14.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#FFF2D3"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"/>
+                                    </Viewbox>
+
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding PriceText}"
+                                               FontFamily="Microsoft JhengHei UI"
+                                               FontSize="15"
+                                               FontWeight="Bold"
+                                               Foreground="#FFD66F"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+
+                                    <Border Grid.Row="2"
+                                            Margin="2"
                                             CornerRadius="8"
                                             Background="#210E0B"
                                             BorderBrush="#5E3C31"
@@ -184,67 +212,45 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Ticket names are never trimmed. They wrap first; the Viewbox only
-                                         scales downward if the complete name still needs more room. -->
-                                    <Viewbox Grid.Row="1"
-                                             Margin="2,3,2,1"
-                                             Stretch="Uniform"
-                                             StretchDirection="DownOnly"
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Ticket.DisplayName}"
-                                                   Width="126"
-                                                   FontFamily="Microsoft JhengHei UI"
-                                                   FontSize="14.5"
-                                                   FontWeight="Bold"
-                                                   Foreground="#FFF2D3"
-                                                   TextAlignment="Center"
-                                                   TextWrapping="Wrap"/>
-                                    </Viewbox>
-
-                                    <TextBlock Grid.Row="2"
-                                               Text="{Binding PriceText}"
-                                               FontFamily="Microsoft JhengHei UI"
-                                               FontSize="13.5"
-                                               FontWeight="SemiBold"
-                                               Foreground="#FFD66F"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="3"
-                                               Text="{Binding BatchText}"
-                                               FontFamily="Microsoft JhengHei UI"
-                                               FontSize="10"
-                                               Foreground="#D4B79E"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-
-                                    <Viewbox Grid.Row="4"
-                                             Margin="1,0"
+                                    <Viewbox Grid.Row="3"
+                                             Margin="2,0"
                                              Stretch="Uniform"
                                              StretchDirection="DownOnly"
                                              HorizontalAlignment="Center"
                                              VerticalAlignment="Center">
                                         <TextBlock Text="{Binding MaxPrizeText}"
-                                                   Width="130"
+                                                   Width="166"
                                                    FontFamily="Microsoft JhengHei UI"
-                                                   FontSize="10.5"
+                                                   FontSize="11.5"
                                                    FontWeight="SemiBold"
                                                    Foreground="#FFE0A0"
                                                    TextAlignment="Center"/>
                                     </Viewbox>
 
-                                    <StackPanel Grid.Row="5" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Text="發行中獎率"
-                                                   Foreground="#D1AE91"
-                                                   FontSize="9"
-                                                   HorizontalAlignment="Center"/>
-                                        <TextBlock Text="{Binding WinRateText}"
-                                                   Foreground="#FFD45E"
-                                                   FontSize="17"
-                                                   FontWeight="Bold"
-                                                   HorizontalAlignment="Center"/>
-                                    </StackPanel>
+                                    <TextBlock Grid.Row="4"
+                                               Text="中獎率"
+                                               FontFamily="Microsoft JhengHei UI"
+                                               Foreground="#D1AE91"
+                                               FontSize="9.5"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Bottom"/>
+
+                                    <TextBlock Grid.Row="5"
+                                               Text="{Binding WinRateText}"
+                                               FontFamily="Microsoft JhengHei UI"
+                                               Foreground="#FFD45E"
+                                               FontSize="17"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+
+                                    <TextBlock Grid.Row="6"
+                                               Text="{Binding BatchText}"
+                                               FontFamily="Microsoft JhengHei UI"
+                                               FontSize="9.5"
+                                               Foreground="#D4B79E"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
                                 </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}">
@@ -265,7 +271,7 @@
                            FontSize="17"/>
             </Grid>
 
-            <Grid Grid.Row="3" Margin="0,14,0,0">
+            <Grid Grid.Row="3" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="12"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Button Grid.Column="1" Content="取消" Width="120" Margin="0" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
                 <Button Grid.Column="3" Content="開始刮獎" Width="160" Margin="0" Style="{StaticResource DialogButton}" IsDefault="True" Click="Start_OnClick"/>
