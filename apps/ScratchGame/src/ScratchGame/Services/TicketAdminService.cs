@@ -244,12 +244,7 @@ public sealed class TicketAdminService
             info.CommandText = """
                 SELECT t.source_package_id,
                        s.source_kind,
-                       (SELECT COUNT(*) FROM pending_tickets p WHERE p.ticket_id = t.id),
-                       (SELECT COUNT(*) FROM ticket_history h WHERE h.ticket_id = t.id),
-                       (SELECT COALESCE(SUM(bs.consumed_count), 0)
-                        FROM batch_prize_state bs
-                        JOIN batches b ON b.id = bs.batch_id
-                        WHERE b.ticket_id = t.id)
+                       (SELECT COUNT(*) FROM pending_tickets p WHERE p.ticket_id = t.id)
                 FROM ticket_definitions t
                 LEFT JOIN scratchpack_installations s ON s.ticket_id = t.id
                 WHERE t.id = $id
@@ -265,15 +260,11 @@ public sealed class TicketAdminService
             packageId = reader.GetString(0);
             sourceKind = reader.GetString(1);
             var pendingCount = reader.GetInt64(2);
-            var historyCount = reader.GetInt64(3);
-            var consumedCount = reader.GetInt64(4);
 
             if (sourceKind == "BuiltIn")
                 throw new InvalidOperationException("Built-in Pack 不可解除安裝；不使用時請改用「隱藏」。");
             if (pendingCount > 0)
                 throw new InvalidOperationException("此 Pack 仍有尚未完成的彩券，請先完成兌獎後再解除安裝。");
-            if (historyCount > 0 || consumedCount > 0)
-                throw new InvalidOperationException("此 Pack 已有遊玩紀錄。為保留歷史資料，目前只能隱藏，不能解除安裝。");
         }
 
         var packageDirectory = Path.Combine(_database.DataDirectory, "packages", packageId);
