@@ -1,74 +1,89 @@
 # ScratchGame 工作交接
 
-更新日期：2026-09-15
+更新日期：2026/09/16
 
 ## 目前基準
 
 - Repository：`simonliu1118-byte/sandbox`
-- 開發分支：`scratchgame/build3-ui-rebuild`
-- PR：#6
-- 版本：`V0.3.0 Build 7`
-- Build 7 是 Build 6 使用者實測返修，重點是修正 Header 邊界、Empty-state 清晰度、挑彩券 runtime XAML 錯誤與卡片樣式。
+- 主開發分支：`scratchgame/feature-scratchpack-v1-runtime`
+- PR：#7
+- 目前版本：`V0.5.0`
+- ScratchGame 與 PackEditor 共用同一條版本線；PackEditor 不是獨立產品。
+- 最近 Windows CI：Run #161，ScratchGame / PackEditor build、publish、兩個 EXE startup smoke test 全部 PASS。
 
-## Build 5 實測確認的問題
+## 權威文件
 
-1. Header 底部裝飾與區塊邊界視覺混在一起。
-2. Header / Stage / Footer 沒有真正的程式 separator，造成重疊 / 空隙感。
-3. UserDialog 底部按鈕區受到既有 Button margin 與欄寬影響，右側視覺被切。
-4. 挑彩券仍是一整橫列，且 Build 5 test package 缺 `Tickets/`，因此 thumbnail 空白。
-5. Build 5 test package 缺 `Tickets/`，因此主畫面只看到 scratch overlay，沒有 ticket artwork。
-6. Stage 大咖啡 panel 已移除，但 empty state 尚未改成小型半透明淺色底卡。
-7. Build 5 test package 缺 `Audio/`，因此中獎音效消失。
+- 永久專案規則：`apps/ScratchGame/PROJECT_RULES.md`
+- ScratchPack V1 schema / ResourceRef / Built-in registry：`apps/ScratchGame/SCRATCHPACK_SPEC.md`
+- GameType 契約：`apps/ScratchGame/GAMETYPE_SPEC.md`
+- Roadmap / 未來工作：`apps/ScratchGame/TODO.md`
+- ScratchPack 狀態索引：`apps/ScratchGame/SCRATCHPACK_V1_HANDOFF.md`
 
-## Build 6 修正方向
+不要依舊版 V0.3 / V0.4 handoff 內容直接修改；以最新 branch source、VERSION / BUILD 與上述權威文件為準。
 
-- Theme 正式改用外部：
-  - `Themes/Default/Frame/header_bg.png`
-  - `Themes/Default/Frame/footer_bg.png`
-  - `Themes/Default/Stage/stage_bg.png`
-- Header / Stage / Footer 中間各增加 5 WPF px 程式金線，不由圖片提供。
-- Header 最底安全帶遮掉預設美術容易誤認為重疊的低位裝飾；Footer 頂端安全帶遮掉舊圖烤入線。
-- Empty state 改成只包住提示內容的小型半透明淺色卡。
-- NewTicketDialog 改成 3 欄左右的卡片式列表：ticket artwork 縮圖、名稱、面額、第幾批、中獎率。
-- `TicketDefinition` 增加 `ActiveBatchNumber` 顯示用欄位；available-ticket SQL 同步取得 Active batch number。
-- UserDialog 加寬 / 加高，底部 action 使用明確欄距並覆寫按鈕 Margin，避免右側裁切。
-- Runtime package 必須包含 Theme + Tickets + Audio；用 `tools/package_portable.py` 驗證，缺檔直接失敗。
-- GitHub Actions artifact 改名 `exe-only`，避免再把單一 EXE 誤當完整 portable package。
-- Theme / ticket thumbnail 缺檔寫 `%LOCALAPPDATA%\ScratchGame\logs\runtime-assets.log`。
+## V0.4.x 主程式現況
 
-## Runtime asset recovery source for this Build 6 test package
+已完成主要 ScratchPack runtime 與 UI 整理：
 
-- ThreeStar ticket art：從已保存的 `ScratchGame-V0.3.0-Build4-test-win-x64.zip` 回收最新 Build 4 ticket / silver-star。
-- 四個 win audio：從已保存的 `ScratchGame-V0.3.0-Build3-win-x64.zip` 回收原本已驗證的 WAV。
-- Default Theme：使用 Build 5 已確認方向的 Header / Stage / Footer 美術。
+- ScratchPack V1 loader / validator / importer / runtime。
+- Built-in / Imported Pack 共用同一 pipeline。
+- GameType 1 由 Pack game / zones / prizes / ResourceRef 驅動。
+- finite pool / Pending Ticket / batch / redemption pipeline。
+- Wallet：新使用者初始 `$100,000`；購票扣款、兌獎回款。
+- 本機只保存累積統計，不保存逐張玩家歷史。
+- 挑券 thumbnail cache 可由 Pack 重建。
+- Header / Footer / Player Card / StatusText / 使用者與遊玩紀錄 modal 已重整。
+- 結果 modal 已移出票面 Viewbox，並有 CI 防止文字 UI 再被 Viewbox / parent Effect 模糊化。
+- 未中獎 `lose.wav`、wallet grant 與 win audio 已納入 runtime asset 管理。
 
-## Build 6 驗收後仍待處理
+## V0.5.0 PackEditor 現況
 
-- 最終 ThreeStar `ticket.png` 美術仍需依 canvas=1 重新定稿，再量九宮格 geometry；Build 6 先恢復現有可測票面，不把這項混入本輪資源 / layout 修復。
-- 繼續驗 denomination selected border、Settings row action / scrollbar、測試票 DB availability 根因、coin/debris/result/icon。
-- Build 6 UI correction 驗收前，不開始 ScratchPack V1 實作。
+程式位置：
 
+```text
+apps/ScratchGame/src/PackEditor/
+```
 
-## 2026-09-15 使用者實測（Build 6 後續）新增問題與處理方針
+執行檔：`PackEditor.exe`，與 `ScratchGame.exe` 共用版本，正式 portable 方向為放在同一資料夾並共用 `BuiltInAssets/`。
 
-1. **中間 Empty-state 文字發糊**
-   - 根因：Empty-state card 放在 `Viewbox` 內，整體被縮放，文字被一起插值。
-   - 處理：把 `TicketPlaceholderPanel` 移出 `Viewbox`，改為覆蓋在 Stage 上方，保留同視覺但不再縮放字。
+目前已完成：
 
-2. **Header 金線上方多一條紅線 / 區塊邊界不乾淨**
-   - 根因：`MainWindow.xaml` 已有 separator，`MainWindow.Build6.cs` 又動態再加一次 separator / mask，造成雙重疊加。
-   - 處理：Build6 code-behind 不再新增 separator / mask，只保留 row height 校正。
+- 新增 Pack，自動產生 UUID v4 packageId。
+- 基本資料：名稱、作者、GameType、面額、Canvas、minimum app version。
+- Built-in ticket / foil 與自訂 PNG 選擇。
+- Canvas 1 自訂票面必須精確 1080×882。
+- GameType 1：3×3 / 4×4 / 5×5；整組 grid 參數自動產生 row-major zones。
+- Price Area / Serial Area / Scratch Zones 的中央 geometry 預覽。
+- Prize Pool amount / count 編輯；合法線數由 GameType 1 衍生。
+- 中獎率、未中獎張數、總銷售、總獎金、平均獎金（期望值）、獎金回饋率即時計算。
+- 輸出時建立真實 `.scratchpack`，再以正式 `ScratchPackV1Loader` round-trip 驗證後才寫出。
+- PackEditor 編譯直接共用 ScratchGame 的 ScratchPack model / loader source，不維護第二份 validator。
 
-3. **Header 左側標題美術有殘影 / 疊字**
-   - 根因：目前 `Themes/Default/Frame/header_bg.png` 本身左側標題區就有壞圖（可直接從資產看到 `刮刮樂` 疊字）。
-   - 處理：更換預設 header asset，保留左側標題、右側留給 WPF 動態玩家與按鈕。
+## PackEditor create-only 決策
 
-4. **挑彩券視窗卡片樣式不符合最新決策**
-   - 根因：Build 6 仍保留舊版窄卡思路，且 `NewTicketDialog.Build6.cs` 用 `XamlReader.Parse(...)` 於 runtime 重寫 UI，維護性差。
-   - 處理：卡片 layout 改回 XAML 靜態定義；採橫式卡片（縮圖 + 名稱 + 面額 + 第幾批 + 中獎率），一排可放 2 張左右，之後再微調密度。
+這是目前正式方向：
 
-5. **挑彩券後錯誤 / 建立彩券後閃退**
-   - 目前畫面訊息：`'x' is an undeclared prefix. Line 13, position 17.`
-   - 已知高風險來源：runtime `XamlReader.Parse(...)` 做 UI 重寫。
-   - 先處理：移除 `NewTicketDialog.Build6.cs` 的 runtime XAML 改寫，先把票券選擇 UI 固定回 XAML 版本，縮小錯誤面。
-   - 若仍存在，再回頭追主票面建立流程的動態 XAML / control factory。
+- **不提供開啟既有 `.scratchpack`。**
+- **不提供修改、覆寫或另存既有 Pack。**
+- 每次新增都是新 Pack，產生新的 UUID v4 packageId。
+- 相同 packageId 的 Pack 不作為版本更新入口；Importer 本身已拒絕相同 packageId 重複安裝。
+- Built-in 若 packageId 相同但內容 hash 改變，也會拒絕，避免偷偷改寫已發布 Pack。
+
+因此後續 PackEditor UI 中現有的 disabled「開啟／儲存」按鈕應移除，而不是實作。
+
+## V0.5.0 下一步
+
+1. 實機驗 PackEditor 第一版：新增 → 設資料 → 設 geometry → 設 Prize Pool → 驗證 → 輸出 → ScratchGame 匯入。
+2. 移除「開啟／儲存既有 Pack」UI。
+3. 讓中央預覽可直接拖曳整組 Scratch Grid、Price Area、Serial Area，與右側數字雙向同步。
+4. 完善銀膜 clipping、動態符號／示意結果、面額／票號 renderer 預覽。
+5. 完善驗證頁分項錯誤與導向。
+6. 更新 `tools/package_portable.py`，正式驗證並封裝 `ScratchGame.exe + PackEditor.exe + shared assets`。
+7. 增加 PackEditor → ScratchPack → Importer 的 round-trip regression。
+
+## 開發注意
+
+- 不為 PackEditor 建立另一套 PROJECT_RULES / TODO / VERSION / BUILD / CI workflow。
+- 不複製 ScratchPack schema 或 GameType 規則到 Editor 專用文件。
+- 文件只要是 status / roadmap 就放 TODO / HANDOFF；永久產品原則才進 PROJECT_RULES。
+- Windows CI 仍採集中修改後一次驗證，不拿 Actions 當逐項編譯器。
