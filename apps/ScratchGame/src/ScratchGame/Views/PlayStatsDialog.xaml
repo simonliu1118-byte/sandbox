@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="遊玩紀錄"
-        Width="620" Height="500"
+        Width="660" Height="560"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -14,10 +14,10 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
     <Border CornerRadius="22" BorderBrush="#B87B40" BorderThickness="1.5" Background="#351610">
-        <Grid Margin="30,24,30,24">
+        <Grid Margin="32,26,32,24">
             <Grid.RowDefinitions>
+                <RowDefinition Height="72"/>
                 <RowDefinition Height="76"/>
-                <RowDefinition Height="82"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="58"/>
             </Grid.RowDefinitions>
@@ -27,62 +27,69 @@
                 <TextBlock x:Name="UserNameText" Margin="1,5,0,0" Foreground="#D8B392" FontSize="14"/>
             </StackPanel>
 
-            <Border Grid.Row="1" Background="#4A241B" BorderBrush="#805340" BorderThickness="1" CornerRadius="13" Padding="18,10">
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="目前錢包" Foreground="#C6A185" FontSize="14"/>
+                    <TextBlock Text="可用於購買彩券的餘額" Margin="0,3,0,0" Foreground="#8F715E" FontSize="11"/>
+                </StackPanel>
+                <TextBlock x:Name="WalletText" Grid.Column="1" VerticalAlignment="Center" FontSize="28" FontWeight="Bold" Foreground="#FFD46C"/>
+            </Grid>
+
+            <Border Grid.Row="2" Margin="0,8,0,0" BorderBrush="#6A4739" BorderThickness="0,1,0,1" Padding="4,7">
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="目前錢包" Foreground="#B99376" FontSize="11"/>
-                        <TextBlock Text="可用於購買彩券的餘額" Margin="0,3,0,0" Foreground="#90715E" FontSize="10"/>
-                    </StackPanel>
-                    <TextBlock x:Name="WalletText" Grid.Column="1" VerticalAlignment="Center" FontSize="26" FontWeight="Bold" Foreground="#FFD46C"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                        <RowDefinition Height="42"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="累計刮卡" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="CompletedText" Grid.Column="1" VerticalAlignment="Center" Foreground="#F6DFC0" FontSize="18" FontWeight="SemiBold"/>
+
+                    <TextBlock Grid.Row="1" Text="中獎張數" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="WinCountText" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Foreground="#F6DFC0" FontSize="18" FontWeight="SemiBold"/>
+
+                    <TextBlock Grid.Row="2" Text="勝率" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="WinRateText" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Foreground="#F6DFC0" FontSize="18" FontWeight="SemiBold"/>
+
+                    <TextBlock Grid.Row="3" Text="最大獎金" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="MaxPrizeText" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Foreground="#FFE098" FontSize="18" FontWeight="SemiBold"/>
+
+                    <TextBlock Grid.Row="4" Text="累計投入" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="TotalSpentText" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6D0B8" FontSize="17"/>
+
+                    <TextBlock Grid.Row="5" Text="累計中獎" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="TotalRedeemedText" Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6D0B8" FontSize="17"/>
+
+                    <TextBlock Grid.Row="6" Text="總損益" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="NetText" Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" Foreground="#FFD46C" FontSize="18" FontWeight="SemiBold"/>
+
+                    <TextBlock Grid.Row="7" Text="資金補充" VerticalAlignment="Center" Foreground="#C4A287" FontSize="15"/>
+                    <TextBlock x:Name="GrantText" Grid.Row="7" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6D0B8" FontSize="16"/>
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="2" Margin="0,14,0,0">
-                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="12"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-
-                <Border Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="12" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="累計刮卡" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="CompletedText" Margin="0,3,0,0" Foreground="#F6DFC0" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="中獎張數" Margin="0,10,0,0" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="WinCountText" Margin="0,3,0,0" Foreground="#F6DFC0" FontSize="16" FontWeight="SemiBold"/>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Column="2" Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="12" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="勝率" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="WinRateText" Margin="0,3,0,0" Foreground="#F6DFC0" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="最大獎金" Margin="0,10,0,0" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="MaxPrizeText" Margin="0,3,0,0" Foreground="#FFE098" FontSize="16" FontWeight="SemiBold"/>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Row="2" Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="12" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="累計投入" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="TotalSpentText" Margin="0,3,0,0" Foreground="#DCC6AF" FontSize="16"/>
-                        <TextBlock Text="累計中獎" Margin="0,10,0,0" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="TotalRedeemedText" Margin="0,3,0,0" Foreground="#DCC6AF" FontSize="16"/>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Row="2" Grid.Column="2" Background="#402019" BorderBrush="#6A4739" BorderThickness="1" CornerRadius="12" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="總損益" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="NetText" Margin="0,3,0,0" Foreground="#FFD46C" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="資金補充" Margin="0,10,0,0" Foreground="#A98670" FontSize="10"/>
-                        <TextBlock x:Name="GrantText" Margin="0,3,0,0" Foreground="#DCC6AF" FontSize="13"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <Grid Grid.Row="3" Margin="0,12,0,0">
-                <TextBlock Text="只保存累積統計，不保存逐張彩券歷史。" VerticalAlignment="Center" Foreground="#9B7D69" FontSize="11"/>
-                <Button Content="關閉" Width="108" HorizontalAlignment="Right" Style="{StaticResource DialogButton}" IsDefault="True" Click="Close_OnClick"/>
-            </Grid>
+            <Button Grid.Row="3"
+                    Content="關閉"
+                    Width="108"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Style="{StaticResource DialogButton}"
+                    IsDefault="True"
+                    Click="Close_OnClick"/>
         </Grid>
     </Border>
 </Window>
