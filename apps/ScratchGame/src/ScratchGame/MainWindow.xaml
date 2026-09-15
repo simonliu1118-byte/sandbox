@@ -29,35 +29,22 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border CornerRadius="16" Background="#A3200B0B" BorderBrush="#B77A40" BorderThickness="1" Padding="15,8" Margin="0,0,10,0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="●" Foreground="#F7D77D" FontSize="28" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="目前玩家" FontSize="10" Foreground="#DFAE83"/>
-                                <TextBlock x:Name="UserSummaryText" Text="尚未載入" FontSize="15" FontWeight="SemiBold" Foreground="#FFF1CF"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                    <Button x:Name="WalletGrantButton" Style="{StaticResource HeaderButton}" Click="WalletGrant_OnClick">
+                    <Button x:Name="WalletGrantButton" Style="{StaticResource HeaderGrantButton}" Click="WalletGrant_OnClick">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="$" FontFamily="Segoe UI" FontWeight="Bold" FontSize="16" Margin="0,0,7,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="黃仁勳給我錢" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="$" FontFamily="Segoe UI" FontWeight="Black" FontSize="17" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="乾爹乾媽給我錢" FontSize="15" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource HeaderButton}" Click="UserButtonEnhanced_OnClick">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="使用者" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="使用者" FontSize="15" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource HeaderButton}" Click="SettingsButton_OnClick">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="設定" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="設定" FontSize="15" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -148,7 +135,14 @@
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Background="Transparent"
-                            BorderThickness="0">
+                            BorderThickness="0"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="ResultOverlayScale" ScaleX="1" ScaleY="1"/>
+                                <TranslateTransform x:Name="ResultOverlayTranslate" X="0" Y="0"/>
+                            </TransformGroup>
+                        </Border.RenderTransform>
                         <Grid>
                             <Border Background="#F2381711"
                                     BorderBrush="#F1C05A"
@@ -176,23 +170,15 @@
                                         <Button x:Name="SameAgainButton" Content="再來一張" Style="{StaticResource RevealActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="SameAgain_OnClick"/>
                                         <Button Grid.Column="2" Content="挑其他款" Style="{StaticResource PrimaryActionButton}" MinHeight="44" FontFamily="Microsoft JhengHei UI" FontWeight="Bold" FontSize="16" Padding="14,8" Margin="0" BorderThickness="2" Click="ChooseOtherTicket_OnClick"/>
                                     </Grid>
-                                    <Border Margin="0,11,0,0"
+                                    <Button Style="{StaticResource ResultUtilityButton}"
                                             HorizontalAlignment="Center"
-                                            Padding="3"
-                                            CornerRadius="10"
-                                            Background="#54231611"
-                                            BorderBrush="#A97845"
-                                            BorderThickness="1">
-                                        <Button Content="暫時隱藏"
-                                                Padding="16,6"
-                                                FontFamily="Microsoft JhengHei UI"
-                                                FontSize="12"
-                                                Foreground="#F1D3AD"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Cursor="Hand"
-                                                Click="HideResultOverlay_OnClick"/>
-                                    </Border>
+                                            Margin="0,12,0,0"
+                                            Click="HideResultOverlay_OnClick">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE890;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="暫時隱藏" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -200,20 +186,49 @@
 
                     <Button x:Name="ResultResumeButton"
                             Visibility="Collapsed"
+                            Opacity="1"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Bottom"
                             Margin="0,0,18,18"
-                            Content="顯示中獎結果"
-                            Padding="16,7"
-                            FontFamily="Microsoft JhengHei UI"
-                            FontSize="13"
-                            FontWeight="SemiBold"
-                            Foreground="#FFF0CB"
-                            Background="#E03D1913"
+                            Width="170"
+                            Style="{StaticResource ResultPillButton}"
+                            RenderTransformOrigin="0.5,0.5"
+                            Click="ShowResultOverlay_OnClick">
+                        <Button.RenderTransform>
+                            <ScaleTransform x:Name="ResultResumeScale" ScaleX="1" ScaleY="1"/>
+                        </Button.RenderTransform>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE890;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="顯示中獎結果" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Non-interactive transition shell: gives the visual impression that the modal
+                         flies into the resume pill without scaling real modal text across the Stage. -->
+                    <Border x:Name="ResultTransitionChip"
+                            Visibility="Collapsed"
+                            Opacity="0"
+                            Width="154"
+                            Height="38"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="#E33A1A14"
                             BorderBrush="#D7A456"
                             BorderThickness="1"
-                            Cursor="Hand"
-                            Click="ShowResultOverlay_OnClick"/>
+                            CornerRadius="12"
+                            IsHitTestVisible="False"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="ResultTransitionScale" ScaleX="1" ScaleY="1"/>
+                                <TranslateTransform x:Name="ResultTransitionTranslate" X="0" Y="0"/>
+                            </TransformGroup>
+                        </Border.RenderTransform>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE890;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#FFF0C9" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="中獎結果" FontFamily="Microsoft JhengHei UI" FontSize="12" FontWeight="SemiBold" Foreground="#FFF0C9" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
 
                 <!-- Empty-state card is also outside the Viewbox so text stays crisp. -->
@@ -267,10 +282,67 @@
 
         <Grid Grid.Row="4" Background="#760006" ClipToBounds="True">
             <Image x:Name="FooterBackgroundImage" Stretch="Fill"/>
-            <StackPanel x:Name="FooterActionsPanel" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                <Button x:Name="RevealAllButton" Content="✦  全部刮開" Width="220" Style="{StaticResource RevealActionButton}" Click="RevealAllEnhanced_OnClick"/>
-                <Button x:Name="SwapTicketButton" Content="↻  換一張" Width="220" Style="{StaticResource PrimaryActionButton}" Click="SwapTicket_OnClick"/>
-            </StackPanel>
+            <Grid Margin="24,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="350"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Default Player Card. Future Decoration Shop skins change this presentation only;
+                     player identity and wallet data remain owned by UserSummaryText. -->
+                <Border x:Name="PlayerCardBorder"
+                        Grid.Column="0"
+                        Width="330"
+                        Height="72"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="#C12B1713"
+                        BorderBrush="#D8A34F"
+                        BorderThickness="1.5"
+                        CornerRadius="16"
+                        Padding="12,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="48"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="38" Height="38" CornerRadius="19" Background="#E7B648" BorderBrush="#FFE6A0" BorderThickness="1" VerticalAlignment="Center">
+                            <TextBlock Text="●" FontSize="19" Foreground="#6A2D16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <TextBlock Text="PLAYER CARD" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#C99669"/>
+                            <TextBlock x:Name="UserSummaryText"
+                                       Text="尚未載入"
+                                       Margin="0,3,0,0"
+                                       FontFamily="Microsoft JhengHei UI"
+                                       FontSize="15"
+                                       FontWeight="Bold"
+                                       Foreground="#FFF0CE"
+                                       TextWrapping="NoWrap"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <StackPanel x:Name="FooterActionsPanel"
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                    <Button x:Name="RevealAllButton" Content="✦  全部刮開" Width="220" Style="{StaticResource RevealActionButton}" Click="RevealAllEnhanced_OnClick"/>
+                    <Button x:Name="SwapTicketButton" Content="↻  換一張" Width="220" Style="{StaticResource PrimaryActionButton}" Click="SwapTicket_OnClick"/>
+                </StackPanel>
+
+                <TextBlock Grid.Column="2"
+                           Text="刮出好運・樂在每一刻"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           FontFamily="Microsoft JhengHei UI"
+                           FontSize="12"
+                           Foreground="#CDAA78"/>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
