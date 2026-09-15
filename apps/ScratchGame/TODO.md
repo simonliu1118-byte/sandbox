@@ -46,10 +46,16 @@
 - 未來再設計單張彩券多玩法／Bonus 區架構。
 - 未來如需要新的核心玩法規則，新增 GameType / variant，不修改已發布 GameType 語意。
 - ScratchPack 自訂中獎音效／中獎動畫不列入 V1；日後若需要另行規格化。
+- 評估支援**全畫布銀膜 overlay / mask 模式**：
+  - foil 可是一整張與 Canvas 同尺寸的單純銀色底或重複花紋；Canvas 1 即為 1080×882；
+  - foil 紋理本身不綁定各 Scratch Zone 位置，因此 zone 放在哪裡都不需要重做銀膜；
+  - runtime 最終只在 Scratch Zone 位置透過遮罩 / clipping 顯示，就像一般市售無特定分格花樣的刮刮樂銀膜；
+  - 作為未來可選銀膜模式，不影響目前 ThreeStar-Test 採用的 reusable single-zone foil template 方向。
 
 ## ScratchPack Maker 後續
 
 - Maker 專案檔（例如 `.scratchproj`）目前只保留概念，不列入近期正式開發；等 Maker 第一版實際使用後再決定是否需要。
+- 銀膜樣式以**可重用單格 / template** 為目前正式方向；後續需整理內建樣式、縮放規則，以及不同幾何尺寸下的視覺一致性策略。
 
 ## 刮獎手感與硬幣
 
