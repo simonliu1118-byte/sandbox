@@ -190,9 +190,10 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Margin="0,9,0,0" Foreground="#9F806B" FontSize="11">
-                                <Run Text="資助 "/><Run Text="{Binding GrantCount, StringFormat={}{0:N0}}"/><Run Text=" 次　｜　累計 "/><Run Text="{Binding GrantTotalText}"/>
-                            </TextBlock>
+                            <TextBlock Margin="0,9,0,0"
+                                       Foreground="#9F806B"
+                                       FontSize="11"
+                                       Text="{Binding GrantSummaryText, Mode=OneWay}"/>
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
