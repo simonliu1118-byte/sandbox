@@ -66,7 +66,7 @@
         </Style>
 
         <!-- 145:219 keeps the same ~0.663 width/height ratio as the previous 220:332 card,
-             while six cards fit comfortably across the current ticket-picker viewport. -->
+             while six cards fit across the current picker viewport. -->
         <Style x:Key="TicketCardItem" TargetType="ListBoxItem">
             <Setter Property="Width" Value="145"/>
             <Setter Property="Height" Value="219"/>
@@ -202,7 +202,7 @@
                                     </Viewbox>
 
                                     <TextBlock Grid.Row="2"
-                                               Text="{Binding Ticket.Price, StringFormat=面額 ${0:N0}}"
+                                               Text="{Binding PriceText}"
                                                FontFamily="Microsoft JhengHei UI"
                                                FontSize="13.5"
                                                FontWeight="SemiBold"
@@ -211,28 +211,34 @@
                                                VerticalAlignment="Center"/>
 
                                     <TextBlock Grid.Row="3"
-                                               Text="{Binding BatchText, StringFormat=發行批次 {0}}"
+                                               Text="{Binding BatchText}"
                                                FontFamily="Microsoft JhengHei UI"
                                                FontSize="10"
                                                Foreground="#D4B79E"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"/>
 
-                                    <TextBlock Grid.Row="4"
-                                               Text="{Binding MaxPrizeText}"
-                                               FontFamily="Microsoft JhengHei UI"
-                                               FontSize="10.5"
-                                               FontWeight="SemiBold"
-                                               Foreground="#FFE0A0"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
+                                    <Viewbox Grid.Row="4"
+                                             Margin="1,0"
+                                             Stretch="Uniform"
+                                             StretchDirection="DownOnly"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding MaxPrizeText}"
+                                                   Width="130"
+                                                   FontFamily="Microsoft JhengHei UI"
+                                                   FontSize="10.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#FFE0A0"
+                                                   TextAlignment="Center"/>
+                                    </Viewbox>
 
                                     <StackPanel Grid.Row="5" VerticalAlignment="Center" HorizontalAlignment="Center">
                                         <TextBlock Text="發行中獎率"
                                                    Foreground="#D1AE91"
                                                    FontSize="9"
                                                    HorizontalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Ticket.PublishedWinRate, StringFormat={}{0:P2}}"
+                                        <TextBlock Text="{Binding WinRateText}"
                                                    Foreground="#FFD45E"
                                                    FontSize="17"
                                                    FontWeight="Bold"
