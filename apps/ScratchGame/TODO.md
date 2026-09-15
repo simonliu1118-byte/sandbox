@@ -17,6 +17,8 @@
 - Pack 安裝完成時產生挑券用縮圖 PNG cache；cache 遺失或損壞時可由正式 Pack / runtime definition 重建。
 - ScratchPack V1 本身不接受 `thumbnail.png`；縮圖不是 Pack 權威資料。
 - 完成 ThreeStar-Test 的 Windows 實機匯入、發行、挑票、刮獎、兌獎驗收。
+- 使用者資金模型改為 Wallet；新使用者初始錢包 `$100,000`。
+- 本機版只保存累積遊玩統計，不保存逐張玩家歷史。
 
 ### V0.5.0 — ScratchPack Maker
 
@@ -74,6 +76,8 @@ GameType 的正式欄位與核心判定以 `GAMETYPE_SPEC.md` 為準。升版安
 - Built-in Pack 與 Imported Pack 的 `.scratchpack` 內容格式沒有差別。
 - 正式 Built-in Pack 不由主程式 source 手寫產生；V0.5.0 Maker 完成後，由使用者用 Maker 製作並確認，再提供給發行流程放入 `BuiltInPacks/`。
 - Built-in Pack 啟動自動註冊；Imported Pack 由使用者手動匯入。
+- Imported Pack 可在已有完成遊玩統計後解除安裝；本機累積統計不依賴 Pack 本體或逐張 history。
+- Imported Pack 若仍有 Pending Ticket，解除安裝必須先拒絕，待該張完成兌獎後再移除。
 - 1.0.0 前只處理目前實際需要的安裝與 runtime lifecycle；Pack 更新／替換／跨版本 upgrade policy 留到 V1.0.0 發布後再討論。
 
 ## 挑券縮圖 cache
@@ -86,6 +90,52 @@ GameType 的正式欄位與核心判定以 `GAMETYPE_SPEC.md` 為準。升版安
 - 挑券頁正常只讀 cache；cache 被刪除、損壞或失效時重新產生並寫回。
 - Cache 可全部清除而不影響 Pack、票池、批次或使用者資料。
 - Maker 編輯預覽不使用此 cache；Maker 直接即時疊圖。
+
+## 使用者 Wallet 與遊玩統計
+
+V0.4.0 起，本機版不做逐張玩家歷史。每張彩券完成兌獎時直接更新使用者累積統計；Pack 日後解除安裝不影響已累積的統計。
+
+目前保存：
+
+- `wallet_balance`：目前真正可用於購票的錢包餘額。
+- `completed_ticket_count`：已完成兌獎的累計彩券張數。
+- `win_count`：獎金大於 0 的累計張數。
+- `total_spent`：累計購票投入。
+- `total_redeemed`：累計兌獎金額。
+- `max_prize`：單張最高獎金。
+- `grant_count`：外部資金補充次數。
+- `grant_total_amount`：外部資金補充累計金額。
+
+Derived Data 不另存：
+
+- 勝率 = `win_count / completed_ticket_count`。
+- 總損益 = `total_redeemed - total_spent`；外部資金補充不算中獎或遊玩損益。
+
+資金規則：
+
+- 新使用者初始錢包 `$100,000`。
+- 購票時立即從 Wallet 扣面額並累加 `total_spent`；餘額不足不得建立 Pending Ticket。
+- 兌獎時把獎金加入 Wallet 與 `total_redeemed`，同時更新完成張數、中獎張數與最大獎。
+- 尚未開始刮獎時「換一張」不重複扣款、不重複增加投入。
+- 遊玩統計不提供任意重置功能。
+
+目前測試用資金補充 UI 顯示為 **「黃仁勳給我錢」**，每次增加 `$100,000`。程式內部與 database 維持 generic wallet grant 命名，不把人物名稱寫進資料模型；未來可替換成其他人物／主題而不改 schema。
+
+目前測試階段按鈕固定顯示。後續正式 UI 改為只有 `wallet < 目前可玩彩券的最高面額` 時顯示。
+
+### 「黃仁勳給我錢」後續效果
+
+- 使用者已提供參考照片；正式圖片留一個獨立回合作圖。
+- 圖片只保留中央人物，加入對話框：「乖寶貝把拔給你錢」。
+- 效果大約覆蓋 Stage，總長 **3 秒**；建議前 2 秒完整呈現、最後 1 秒 fade out。
+- 搭配裁切後的 coins drop 音效。
+- 動畫期間避免重複觸發造成多層特效重疊。
+
+## 詳細玩家歷史 / 線上發行追蹤 — 未來可能性
+
+目前單機版**不保存逐張彩券玩家歷史**，不記錄彩券名稱、packageId、GameType、批次、票號或逐張獎金明細，也不做 Pack history snapshot。
+
+只有未來若發展成連線版、主控端需要管理發行／批次／稽核／同步／客訴追查時，再重新設計 server-side / online history。該設計不得反過來讓目前單機 Pack lifecycle 依賴一套沒有實際用途的逐張 history。
 
 ## Decoration Shop / 使用者體驗商店
 
@@ -128,8 +178,9 @@ Decoration Shop 管理 cosmetic / 使用者體驗資源，例如：
 
 ## 刮獎手感、硬幣與中獎效果
 
-- 主程式使用程式繪製／外部 cosmetic 資源的硬幣游標，不依賴 Windows `.cur`。
-- 待機顯示硬幣正面；按住刮獎時切換為以邊緣接觸票面的直立／傾斜狀態。
+- Stage 上存在尚未兌獎的 Pending Ticket 時，游標進入整個 Stage 範圍就顯示硬幣正面；離開 Stage 使用一般 Windows 游標。
+- 實際按住滑鼠刮獎時，硬幣切換為以邊緣接觸票面的直立／傾斜狀態；不要求平常待機游標必須位於 Scratch Zone。
+- 彩券完成兌獎後，即使游標仍停在 Stage，也必須立刻恢復一般 Windows 游標。
 - 後續支援多種硬幣、不同刮痕寬度、刮擦聲、銀膜碎屑與自然不規則刮除動畫。
 - 中獎效果依 Prize Tier 排名分級，不把固定金額寫死成頭獎／二獎。
 - 結果框維持可看到背後中獎盤面的呈現方式。
@@ -140,6 +191,8 @@ Decoration Shop 管理 cosmetic / 使用者體驗資源，例如：
 - 目前中獎音效分小獎與大獎；`< $50,000` 使用小獎音效，`>= $50,000` 使用大獎音效。
 - 手動完整刮完與「全部刮開」／系統自動揭曉可以使用不同提示版本，避免手動刮獎時提前暴雷。
 - 音效只在完成兌獎、顯示結果時播放。
+- 增加未中獎音效：使用者提供的笑聲素材前段，裁成約前兩秒內合適的短笑聲。
+- 「黃仁勳給我錢」使用使用者提供的 coins drop 素材，約從 1 秒附近取適當長度。
 - 後續可再評估頭獎專屬音效與 Decoration Shop 音效收藏。
 
 ## 測試與 Conformance
@@ -148,6 +201,7 @@ Decoration Shop 管理 cosmetic / 使用者體驗資源，例如：
 - Test Pack 必須走與正式 Pack 相同的 ScratchPack schema / GameType pipeline，不建立測試專屬 loader。
 - 正式使用者資料維持在 `%LOCALAPPDATA%\ScratchGame`；更新／替換 EXE 不得刪除資料。
 - 涉及 database schema 變更時先建立 migration backup，再執行 migration。
+- V0.4 測試階段不要求保留舊的逐張遊玩歷史；舊測試資料可由使用者自行清除，新的累積統計從目前版本開始計算。
 - 後續設定頁可增加「開啟資料資料夾」與具二次確認的「重置所有資料」，供測試與維護。
 
 ## 其他後續
