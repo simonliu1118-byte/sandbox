@@ -4,6 +4,13 @@ namespace ScratchGame.Services;
 
 public sealed class SeedDataService(AppDatabase database)
 {
+    private static readonly string[] RetiredLegacyTicketIds =
+    [
+        "builtin-three-line-100",
+        "builtin-star-line-500-v1",
+        "builtin-star-line-500-prize-test"
+    ];
+
     public async Task EnsureSeedDataAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await database.OpenConnectionAsync(cancellationToken);
@@ -23,6 +30,19 @@ public sealed class SeedDataService(AppDatabase database)
             addUser.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
             addUser.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
             await addUser.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        // V0.3 and earlier seeded three development tickets directly into the database.
+        // Existing %LOCALAPPDATA% databases still contain those rows after replacing the EXE.
+        // Retire them non-destructively so pending/history references remain valid while they
+        // disappear from the normal catalog and V0.4 settings UI.
+        foreach (var ticketId in RetiredLegacyTicketIds)
+        {
+            var retire = connection.CreateCommand();
+            retire.Transaction = transaction;
+            retire.CommandText = "UPDATE ticket_definitions SET enabled = 0 WHERE id = $id;";
+            retire.Parameters.AddWithValue("$id", ticketId);
+            await retire.ExecuteNonQueryAsync(cancellationToken);
         }
 
         transaction.Commit();
