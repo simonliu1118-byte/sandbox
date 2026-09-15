@@ -161,6 +161,25 @@ public sealed class CatalogService(AppDatabase database)
             reader.IsDBNull(9) ? null : reader.GetString(9));
     }
 
+    public async Task<int> EnsureInitialBatchAsync(
+        string ticketId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await database.OpenConnectionAsync(cancellationToken);
+        var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(MAX(batch_number), 0)
+            FROM batches
+            WHERE ticket_id = $ticketId;
+            """;
+        command.Parameters.AddWithValue("$ticketId", ticketId);
+        var currentMax = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+        if (currentMax > 0)
+            return currentMax;
+
+        return await StartNextBatchAsync(ticketId, cancellationToken);
+    }
+
     public async Task<int> StartNextBatchAsync(
         string ticketId,
         CancellationToken cancellationToken = default)
