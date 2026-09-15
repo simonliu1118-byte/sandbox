@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="使用者"
-        Width="700" Height="560"
+        Width="760" Height="600"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -121,8 +121,8 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="72"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="66"/>
-                <RowDefinition Height="54"/>
+                <RowDefinition Height="76"/>
+                <RowDefinition Height="62"/>
             </Grid.RowDefinitions>
             <Image x:Name="DialogBackgroundImage" Visibility="Collapsed"/>
 
@@ -182,19 +182,15 @@
             </ListBox>
 
             <Grid Grid.Row="2" Margin="0,3,0,9">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="126"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="142"/></Grid.ColumnDefinitions>
                 <TextBox x:Name="NewUserNameTextBox" Height="42" Style="{StaticResource ThemedTextBox}" ToolTip="輸入新使用者名稱"/>
-                <Button Grid.Column="2" Content="新增使用者" Width="126" Style="{StaticResource DialogButton}" Click="AddUser_OnClick"/>
+                <Button Grid.Column="2" Content="新增使用者" Width="132" Margin="0" Style="{StaticResource DialogButton}" Click="AddUser_OnClick"/>
             </Grid>
 
-            <Grid Grid.Row="3" VerticalAlignment="Bottom">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBlock Text="遊玩紀錄只保存累積統計，不保存逐張彩券歷史。" VerticalAlignment="Center" Foreground="#9B7D69" FontSize="11"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="取消" Width="108" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
-                    <Button Content="切換使用者" Width="132" Style="{StaticResource DialogButton}" IsDefault="True" Click="Select_OnClick"/>
-                </StackPanel>
-            </Grid>
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                <Button Content="取消" Width="108" Margin="0,0,12,0" Style="{StaticResource DialogSecondaryButton}" Click="Cancel_OnClick"/>
+                <Button Content="切換使用者" Width="132" Margin="0" Style="{StaticResource DialogButton}" IsDefault="True" Click="Select_OnClick"/>
+            </StackPanel>
         </Grid>
     </Border>
 </Window>
