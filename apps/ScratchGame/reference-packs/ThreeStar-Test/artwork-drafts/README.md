@@ -10,19 +10,14 @@ This folder archives the visual concepts produced while defining the first Scrat
 - Dynamic data must not be baked into final base art:
   - price is rendered by the app when `priceDisplay=1`;
   - serial is rendered by the app in `serialDisplayArea`.
-- Scratch foil must be an independent asset, not painted permanently into the ticket base image.
-- The current V1 direction adopts the **reusable single-zone foil template** approach.
-  - Do not treat the current 3x3 silver-grid reference as a final production asset.
-  - Normalize foil as a reusable single-zone / template-style asset and let runtime place it per Scratch Zone.
-  - The template should be scalable to different valid Scratch Zone sizes rather than requiring a new foil redraw for every ticket.
-  - When implementing the reusable foil style, prefer an edge-preserving scaling approach (for example a 9-slice-style treatment) so rounded corners, border thickness, and metallic edge highlights remain visually stable.
-- The newly separated brushed-silver foil is intended to become an additional Maker built-in foil style. Together with the existing legacy ThreeStar silver-star foil, Maker should eventually have at least two built-in foil styles.
+- Scratch foil must be an independent runtime layer, not painted permanently into the ticket base image.
+- ScratchPack V1 foil schema is now owned only by `SCRATCHPACK_SPEC.md` through `scratch.foil`; this handoff does not maintain a second foil schema.
+- Current ThreeStar-Test direction uses the public built-in foil code `brushed-silver-three-star`.
 - Reusable foil masters are stored in ChatGPT Library at `/ScratchGame/Asset-Library/Foils/`; this handoff folder should not become the long-term asset library.
-- A future optional direction may evaluate a **full-canvas foil overlay / mask mode**:
-  - for example a plain silver sheet or repeating foil pattern spanning the whole Canvas;
-  - the foil texture itself would not depend on specific zone positions;
-  - Scratch Zones would reveal only the relevant parts through masking / clipping;
-  - this is **not** the current ThreeStar-Test V1 implementation target.
+- Current reusable masters:
+  - `foil-brushed-silver-plain.png`
+  - `foil-brushed-silver-three-star.png`
+- A future optional full-canvas foil-overlay mode is tracked in `TODO.md`; it must extend the same foil system rather than introduce a second mask / foil pipeline.
 - Image generation does not reliably output exact arbitrary pixel dimensions. Final production workflow must therefore generate/edit the art first, then post-process and validate the exact Canvas dimensions.
 
 ## Size status
@@ -35,7 +30,7 @@ ScratchPack V1 currently requires:
 canvas = 1 -> 1080 x 882
 ```
 
-The reference copies in this folder are intentionally downscaled lightweight snapshots for Git handoff only. Do **not** treat their dimensions or Scratch Zone positions as authoritative production geometry.
+The reference copies in this folder are intentionally downscaled lightweight snapshots for Git handoff only. Do **not** treat their dimensions or old Scratch Zone positions as authoritative production geometry.
 
 ## Artwork files to archive
 
@@ -54,12 +49,12 @@ Expected reference files:
   - still not final production geometry.
 - `04-blue-clean-base-draft.webp`
   - blue/starry version of the cleaned base draft;
-  - this was the latest visual direction before handoff;
+  - this was the accepted visual direction before exact-size post-processing;
   - source generation size confirmed as 1388 x 1133.
 - `05-silver-foil-style-a.webp`
-  - newly separated brushed-silver 3x3 foil reference;
-  - preserve as a candidate Maker built-in foil style;
-  - use it as a visual / texture reference, not as the final production foil asset.
+  - earlier separated brushed-silver 3x3 foil reference;
+  - preserve only as a historical visual reference;
+  - reusable master foils now live in `/ScratchGame/Asset-Library/Foils/` instead.
 
 ## Current ThreeStar-Test Pack definition
 
@@ -81,7 +76,7 @@ Current test Pack intent:
 - `ticketsPerBook=8`
 - `allowNearMiss=true`
 - `priceDisplay=1`
-- default/runtime foil is still represented by `art.mask=null` until the final art asset is selected.
+- foil: public built-in `brushed-silver-three-star`
 
 Test pool covers every legal 3x3 positive result plus one losing ticket:
 
@@ -96,7 +91,7 @@ Test pool covers every legal 3x3 positive result plus one losing ticket:
 0 lines -> derived losing ticket
 ```
 
-The blue clean base has now been normalized and visually accepted at **1080 x 882**. The accepted re-measurement is:
+The blue clean base has been normalized and visually accepted at **1080 x 882**. The accepted geometry is:
 
 ```text
 zone size: 191 x 138
@@ -108,7 +103,7 @@ priceDisplayArea: x=852 y=43 width=201 height=82
 serialDisplayArea: x=364 y=774 width=350 height=59
 ```
 
-`ticket.json` still contains the older provisional geometry until the final Pack asset update step; do not treat the old 160x100 values as final.
+`ticket.json` now uses this accepted geometry.
 
 ## GameType 1 decisions already finalized
 
@@ -134,13 +129,11 @@ serialDisplayArea: x=364 y=774 width=350 height=59
 
 ## Next work after handoff
 
-1. Keep the accepted blue clean base as the current formal ThreeStar-Test direction.
+1. Keep the accepted blue clean base as the formal ThreeStar-Test direction.
 2. Preserve the accepted **1080 x 882** production candidate without baking dynamic price, serial, or foil into it.
-3. Use the accepted re-measured standard 3x3 grid / price / serial geometry listed above.
-4. Use reusable single-zone foil templates rather than a fixed 3x3 foil overlay.
-   - Accepted reusable masters are stored in `/ScratchGame/Asset-Library/Foils/`.
-   - Current masters: `foil-brushed-silver-plain.png` and `foil-brushed-silver-three-star.png`.
-5. Update `ticket.json` to the accepted 1080x882 geometry and place the accepted base as final `assets/three-star.png`.
-6. Only after the artwork/geometry asset step is complete, continue with V1 loader/validator work.
+3. Use the accepted geometry now recorded in `ticket.json`.
+4. Use `brushed-silver-three-star` through the common `scratch.foil` mechanism.
+5. Place the accepted base as final `assets/three-star.png` when binary asset commit/upload is performed.
+6. Only after the artwork asset is present, continue with V1 loader/validator work.
 
 During ticket redraw/image rounds, do not mix in source-code, CI, or runtime changes; finish and accept the visual asset first.
