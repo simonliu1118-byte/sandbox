@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ScratchGame.Models;
 
 namespace ScratchGame.Engine;
 
@@ -7,140 +6,178 @@ public static class GamePayloadFactory
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static string Create(ScratchPackTicketDefinition definition, long prizeAmount)
-    {
-        object payload = definition.GameType switch
+    private static readonly IReadOnlyDictionary<long, int> BuiltInStarLine500PayoutToLineCount =
+        new Dictionary<long, int>
         {
-            "1" => CreateGameType1(definition, prizeAmount),
-            _ => throw new NotSupportedException($"目前 runtime 尚未實作 GameType：{definition.GameType}")
+            [0] = 0,
+            [100] = 1,
+            [500] = 2,
+            [1_000] = 3,
+            [2_500] = 4,
+            [5_000] = 5,
+            [10_000] = 6,
+            [100_000] = 8
         };
-        return JsonSerializer.Serialize(payload, JsonOptions);
-    }
 
-    // Legacy entry point retained only so an existing local database does not fail before migration.
-    // New ScratchPack V1 tickets must call the definition-based overload above.
     public static string Create(string ruleId, long prizeAmount, long ticketPrice)
     {
         object payload = ruleId switch
         {
+            // GameType 1: 星星連線。現行內建三星連線使用 3x3 並開啟 Near Miss 星星。
+            "1" => CreateStarLine(
+                prizeAmount,
+                gridSize: 3,
+                allowNearMissStars: true,
+                payoutToLineCount: BuiltInStarLine500PayoutToLineCount),
             "ThreeLine" => CreateLegacyThreeLine(prizeAmount),
             "LuckyNumberMatch" => CreateLuckyNumberMatch(prizeAmount),
             "MatchThree" => CreateMatchThree(prizeAmount),
-            _ => throw new NotSupportedException($"不支援的舊版 Game Rule：{ruleId}")
+            _ => throw new NotSupportedException($"不支援的 Game Rule：{ruleId}")
         };
         return JsonSerializer.Serialize(payload, JsonOptions);
     }
 
-    private static object CreateGameType1(ScratchPackTicketDefinition definition, long prizeAmount)
+    private static object CreateStarLine(
+        long prizeAmount,
+        int gridSize,
+        bool allowNearMissStars,
+        IReadOnlyDictionary<long, int> payoutToLineCount)
     {
-        var n = definition.GridSize;
-        var lineSets = BuildLineSets(n);
-        ulong starMask;
-        var targetLineCount = 0;
+        if (gridSize is < 3 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(gridSize), "GameType 1 只支援 3x3、4x4、5x5。 ");
 
-        if (prizeAmount > 0)
-        {
-            var orderedPrizes = definition.Prizes.OrderBy(p => p.Amount).ToArray();
-            var tierIndex = Array.FindIndex(orderedPrizes, p => p.Amount == prizeAmount);
-            if (tierIndex < 0)
-                throw new InvalidOperationException($"獎金 {prizeAmount} 不存在於目前 ScratchPack Prize Tier。");
+        if (!payoutToLineCount.TryGetValue(prizeAmount, out var targetLineCount))
+            throw new InvalidOperationException($"GameType 1 沒有定義獎金 ${prizeAmount:N0} 對應的連線數。");
 
-            var legalLineCounts = Enumerable.Range(1, 2 * n)
-                .Append(2 * n + 2)
-                .ToArray();
-            targetLineCount = legalLineCounts[tierIndex];
-            starMask = CreateExactLineMask(n, lineSets, targetLineCount);
-        }
-        else
-        {
-            starMask = definition.AllowNearMiss
-                ? CreateNearMissMask(n, lineSets)
-                : 0UL;
-        }
+        var lineMasks = BuildLineMasks(gridSize);
+        var starMask = GenerateExactLineMask(gridSize, lineMasks, targetLineCount, allowNearMissStars);
+        var actualLineCount = CountCompleteLines(starMask, lineMasks);
+        if (actualLineCount != targetLineCount)
+            throw new InvalidOperationException("GameType 1 產生的星星盤面連線數不一致。");
 
-        var cells = Enumerable.Range(0, n * n)
-            .Select(index => (starMask & (1UL << index)) != 0)
+        var cells = Enumerable.Range(0, gridSize * gridSize)
+            .Select(index => IsSet(starMask, index) ? "★" : $"D{index}-{Random.Shared.Next(1_000_000)}")
             .ToArray();
 
         return new
         {
+            // 目前畫面仍沿用既有 ThreeLine renderer；真正玩法識別以 gameType 為準。
+            ruleId = "ThreeLine",
             gameType = "1",
+            gridSize,
             prizeAmount,
-            lineCount = targetLineCount,
+            targetLineCount,
+            actualLineCount,
+            allowNearMissStars,
             cells
         };
     }
 
-    private static IReadOnlyList<ulong> BuildLineSets(int n)
+    private static ulong GenerateExactLineMask(
+        int gridSize,
+        IReadOnlyList<ulong> lineMasks,
+        int targetLineCount,
+        bool allowNearMissStars)
     {
-        var lines = new List<ulong>();
-        for (var row = 0; row < n; row++)
-        {
-            ulong mask = 0;
-            for (var col = 0; col < n; col++)
-                mask |= 1UL << (row * n + col);
-            lines.Add(mask);
-        }
+        if (targetLineCount < 0 || targetLineCount > lineMasks.Count)
+            throw new InvalidOperationException("GameType 1 的目標連線數超出合法範圍。");
 
-        for (var col = 0; col < n; col++)
+        // 3x3 / 4x4 很小，直接枚舉所有星星組合可得到最自然的 Near Miss 盤面。
+        if (allowNearMissStars && gridSize <= 4)
         {
-            ulong mask = 0;
-            for (var row = 0; row < n; row++)
-                mask |= 1UL << (row * n + col);
-            lines.Add(mask);
-        }
-
-        ulong diagonalA = 0;
-        ulong diagonalB = 0;
-        for (var i = 0; i < n; i++)
-        {
-            diagonalA |= 1UL << (i * n + i);
-            diagonalB |= 1UL << (i * n + (n - 1 - i));
-        }
-        lines.Add(diagonalA);
-        lines.Add(diagonalB);
-        return lines;
-    }
-
-    private static ulong CreateExactLineMask(int n, IReadOnlyList<ulong> lines, int targetLineCount)
-    {
-        var candidates = new List<ulong>();
-        var subsetCount = 1 << lines.Count;
-        for (var subset = 1; subset < subsetCount; subset++)
-        {
-            ulong cells = 0;
-            for (var i = 0; i < lines.Count; i++)
+            var cellCount = gridSize * gridSize;
+            var limit = 1UL << cellCount;
+            var candidates = new List<ulong>();
+            for (ulong mask = 0; mask < limit; mask++)
             {
-                if ((subset & (1 << i)) != 0)
-                    cells |= lines[i];
+                if (CountCompleteLines(mask, lineMasks) == targetLineCount)
+                    candidates.Add(mask);
             }
 
-            if (CountCompletedLines(cells, lines) == targetLineCount)
-                candidates.Add(cells);
+            if (candidates.Count == 0)
+                throw new InvalidOperationException($"GameType 1 無法產生 {gridSize}x{gridSize} 的 {targetLineCount} 線盤面。");
+
+            return candidates[Random.Shared.Next(candidates.Count)];
         }
 
-        if (candidates.Count == 0)
-            throw new InvalidOperationException($"GameType 1 無法產生 {n}x{n} 的 {targetLineCount} 線盤面。");
-        return candidates[Random.Shared.Next(candidates.Count)];
-    }
+        // 一般模式只從完整中獎線的聯集建立盤面；這也是舊包缺少 Near Miss 參數時的穩定預設行為。
+        var baseCandidates = new HashSet<ulong>();
+        var subsetCount = 1 << lineMasks.Count;
+        for (var subset = 0; subset < subsetCount; subset++)
+        {
+            ulong mask = 0;
+            for (var lineIndex = 0; lineIndex < lineMasks.Count; lineIndex++)
+            {
+                if ((subset & (1 << lineIndex)) != 0)
+                    mask |= lineMasks[lineIndex];
+            }
 
-    private static ulong CreateNearMissMask(int n, IReadOnlyList<ulong> lines)
-    {
-        var targetLine = lines[Random.Shared.Next(lines.Count)];
-        var lineCells = Enumerable.Range(0, n * n)
-            .Where(index => (targetLine & (1UL << index)) != 0)
+            if (CountCompleteLines(mask, lineMasks) == targetLineCount)
+                baseCandidates.Add(mask);
+        }
+
+        if (baseCandidates.Count == 0)
+            throw new InvalidOperationException($"GameType 1 無法產生 {gridSize}x{gridSize} 的 {targetLineCount} 線盤面。");
+
+        var selected = baseCandidates.ElementAt(Random.Shared.Next(baseCandidates.Count));
+        if (!allowNearMissStars)
+            return selected;
+
+        // 5x5 不做 2^25 全枚舉；改以隨機加星、但每一步都驗證不增加實際中獎線數。
+        var indexes = Enumerable.Range(0, gridSize * gridSize)
             .OrderBy(_ => Random.Shared.Next())
-            .Take(Math.Max(0, n - 1))
             .ToArray();
+        foreach (var index in indexes)
+        {
+            if (IsSet(selected, index) || Random.Shared.NextDouble() > 0.6)
+                continue;
 
-        ulong result = 0;
-        foreach (var index in lineCells)
-            result |= 1UL << index;
-        return CountCompletedLines(result, lines) == 0 ? result : 0UL;
+            var candidate = selected | (1UL << index);
+            if (CountCompleteLines(candidate, lineMasks) == targetLineCount)
+                selected = candidate;
+        }
+
+        return selected;
     }
 
-    private static int CountCompletedLines(ulong cells, IReadOnlyList<ulong> lines)
-        => lines.Count(line => (cells & line) == line);
+    private static IReadOnlyList<ulong> BuildLineMasks(int gridSize)
+    {
+        var result = new List<ulong>(gridSize * 2 + 2);
+
+        for (var row = 0; row < gridSize; row++)
+        {
+            ulong mask = 0;
+            for (var column = 0; column < gridSize; column++)
+                mask |= 1UL << (row * gridSize + column);
+            result.Add(mask);
+        }
+
+        for (var column = 0; column < gridSize; column++)
+        {
+            ulong mask = 0;
+            for (var row = 0; row < gridSize; row++)
+                mask |= 1UL << (row * gridSize + column);
+            result.Add(mask);
+        }
+
+        ulong mainDiagonal = 0;
+        ulong otherDiagonal = 0;
+        for (var index = 0; index < gridSize; index++)
+        {
+            mainDiagonal |= 1UL << (index * gridSize + index);
+            otherDiagonal |= 1UL << (index * gridSize + (gridSize - 1 - index));
+        }
+        result.Add(mainDiagonal);
+        result.Add(otherDiagonal);
+
+        return result;
+    }
+
+    private static int CountCompleteLines(ulong starMask, IReadOnlyList<ulong> lineMasks)
+        => lineMasks.Count(lineMask => (starMask & lineMask) == lineMask);
+
+    private static bool IsSet(ulong mask, int index)
+        => (mask & (1UL << index)) != 0;
 
     private static object CreateLegacyThreeLine(long prizeAmount)
     {
@@ -160,7 +197,13 @@ public static class GamePayloadFactory
                 cells[index] = "★";
         }
 
-        return new { ruleId = "ThreeLine", prizeAmount, cells, winningLine };
+        return new
+        {
+            ruleId = "ThreeLine",
+            prizeAmount,
+            cells,
+            winningLine
+        };
     }
 
     private static object CreateLuckyNumberMatch(long prizeAmount)
@@ -168,20 +211,39 @@ public static class GamePayloadFactory
         var pool = Enumerable.Range(1, 30).OrderBy(_ => Random.Shared.Next()).ToList();
         var winning = pool.Take(3).ToArray();
         var play = pool.Skip(3).Take(12).ToArray();
+
         if (prizeAmount > 0)
             play[Random.Shared.Next(play.Length)] = winning[Random.Shared.Next(winning.Length)];
-        return new { ruleId = "LuckyNumberMatch", prizeAmount, winningNumbers = winning, playNumbers = play };
+
+        return new
+        {
+            ruleId = "LuckyNumberMatch",
+            prizeAmount,
+            winningNumbers = winning,
+            playNumbers = play
+        };
     }
 
     private static object CreateMatchThree(long prizeAmount)
     {
-        var cells = Enumerable.Range(1, 9).Select(i => $"S{i}").ToArray();
+        var cells = Enumerable.Range(1, 9)
+            .Select(i => $"S{i}")
+            .ToArray();
+
         if (prizeAmount > 0)
         {
-            var positions = Enumerable.Range(0, 9).OrderBy(_ => Random.Shared.Next()).Take(3);
+            var positions = Enumerable.Range(0, 9)
+                .OrderBy(_ => Random.Shared.Next())
+                .Take(3);
             foreach (var position in positions)
                 cells[position] = "WIN";
         }
-        return new { ruleId = "MatchThree", prizeAmount, cells };
+
+        return new
+        {
+            ruleId = "MatchThree",
+            prizeAmount,
+            cells
+        };
     }
 }

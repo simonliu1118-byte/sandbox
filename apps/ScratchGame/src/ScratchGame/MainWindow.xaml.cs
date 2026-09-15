@@ -16,10 +16,22 @@ namespace ScratchGame;
 
 public partial class MainWindow : Window
 {
-    private const double DefaultWindowWidth = 1220;
-    private const double DefaultWindowHeight = 860;
+    private const double DefaultWindowWidth = 1280;
+    private const double DefaultWindowHeight = 960;
     private const int WmSysCommand = 0x0112;
     private const int ScSize = 0xF000;
+
+    // canvas=1 = 1080x882. These positions are measured from the actual ticket artwork.
+    // Symbol, scratch mask and hit-testing all share this single geometry source.
+    private static readonly (double X, double Y)[] ThreeLinePositions =
+    {
+        (281, 225), (466, 225), (652, 225),
+        (281, 354), (466, 354), (652, 354),
+        (281, 484), (466, 484), (652, 484)
+    };
+
+    private const double ThreeLineCellWidth = 163;
+    private const double ThreeLineCellHeight = 101;
 
     private readonly AppDatabase _database = new();
     private readonly CatalogService _catalog;
@@ -27,7 +39,6 @@ public partial class MainWindow : Window
     private readonly TicketSwapService _ticketSwap;
     private readonly SeedDataService _seed;
     private readonly BackupService _backup;
-    private readonly ScratchPackRuntimeService _scratchPackRuntime;
     private readonly List<ScratchSurface> _scratchRegions = new();
     private readonly HashSet<ScratchSurface> _completedScratchRegions = new();
 
@@ -47,7 +58,6 @@ public partial class MainWindow : Window
         _ticketSwap = new TicketSwapService(_database);
         _seed = new SeedDataService(_database);
         _backup = new BackupService(_database);
-        _scratchPackRuntime = new ScratchPackRuntimeService(_database);
 
         UiAssetLoader.TrySetImage(TopBarBackgroundImage, UiAssetLoader.UiPath("topbar_bg.png"));
         UiAssetLoader.TrySetImage(StageBackgroundImage, UiAssetLoader.UiPath("stage_bg.png"));
@@ -82,6 +92,7 @@ public partial class MainWindow : Window
         Height = DefaultWindowHeight;
     }
 
+    // Retained only as a low-level fallback entry point. Main XAML uses Window_OnLoadedEnhanced.
     private async void Window_OnLoaded(object sender, RoutedEventArgs e)
     {
         try
@@ -99,7 +110,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "啟動失敗", MessageBoxButton.OK, MessageBoxImage.Error);
+            GameModal.Error(this, "啟動失敗", ex.Message);
             StatusText.Text = "初始化失敗";
         }
     }
@@ -124,12 +135,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        var tickets = await _catalog.GetAvailableTicketsAsync();
-        _currentDefinition = tickets.FirstOrDefault(t => t.Id == _currentPending.TicketId);
+        // Pending ticket must still be resolvable even if this issuance used the final remaining ticket
+        // or the ticket was disabled after issuance.
+        _currentDefinition = await _catalog.GetTicketByIdAsync(_currentPending.TicketId);
         if (_currentDefinition is null)
         {
             TicketMetaText.Text = "未完成彩券";
-            StatusText.Text = "找到 Pending Ticket，但彩券定義目前不可用。";
+            StatusText.Text = "找到未完成彩券，但彩券定義目前不可用。";
             return;
         }
 
@@ -150,6 +162,12 @@ public partial class MainWindow : Window
         if (_currentUser is null || _currentDefinition is null || _currentPending is not null)
             return;
 
+        if (!await _catalog.HasRemainingTicketsAsync(_currentDefinition.Id))
+        {
+            SetSameAgainSoldOut();
+            return;
+        }
+
         await CreateTicketAsync(_currentDefinition);
     }
 
@@ -160,7 +178,7 @@ public partial class MainWindow : Window
 
         if (_currentPending is not null)
         {
-            MessageBox.Show(this, "目前仍有一張尚未完成的彩券。請先刮完或在尚未刮獎時使用「換一張」。", "尚有未完成彩券", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "尚有未完成彩券", "目前仍有一張尚未完成的彩券。請先刮完，或在尚未開始刮獎時使用「換一張」。");
             return;
         }
 
@@ -169,7 +187,7 @@ public partial class MainWindow : Window
             var tickets = await _catalog.GetAvailableTicketsAsync();
             if (tickets.Count == 0)
             {
-                MessageBox.Show(this, "目前沒有可用的彩券批次。", "挑選彩券", MessageBoxButton.OK, MessageBoxImage.Information);
+                GameModal.Info(this, "挑選彩券", "目前沒有仍有庫存的啟用彩券批次。");
                 return;
             }
 
@@ -181,7 +199,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "無法建立彩券", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "無法建立彩券", ex.Message);
         }
     }
 
@@ -192,12 +210,11 @@ public partial class MainWindow : Window
 
         try
         {
-            var pack = _scratchPackRuntime.Load(definition);
             _currentDefinition = definition;
             _currentPending = await _prizePool.CreatePendingAsync(
                 _currentUser.Id,
                 definition.Id,
-                amount => GamePayloadFactory.Create(pack.Definition, amount));
+                amount => GamePayloadFactory.Create(definition.RuleId, amount, definition.Price));
 
             RenderPendingTicket(_currentPending, definition);
             await RefreshCurrentUserSummaryAsync();
@@ -205,7 +222,9 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "無法建立彩券", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!await _catalog.HasRemainingTicketsAsync(definition.Id))
+                SetSameAgainSoldOut();
+            GameModal.Warning(this, "無法建立彩券", ex.Message);
         }
     }
 
@@ -232,16 +251,18 @@ public partial class MainWindow : Window
 
         if (_hasScratched)
         {
-            MessageBox.Show(this, "這張已經開始刮獎，不能再換票。", "換一張", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "換一張", "這張已經開始刮獎，不能再換票。");
             return;
         }
 
         try
         {
-            var pack = _scratchPackRuntime.Load(_currentDefinition);
             var replacement = await _ticketSwap.SwapPendingAsync(
                 _currentPending.Id,
-                amount => GamePayloadFactory.Create(pack.Definition, amount));
+                amount => GamePayloadFactory.Create(
+                    _currentDefinition.RuleId,
+                    amount,
+                    _currentDefinition.Price));
 
             _currentPending = replacement;
             RenderPendingTicket(replacement, _currentDefinition);
@@ -249,7 +270,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "無法換票", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "無法換票", ex.Message);
         }
     }
 
@@ -257,6 +278,11 @@ public partial class MainWindow : Window
     {
         if (_currentPending is null || _scratchRegions.Count == 0)
             return;
+
+        _settlementOrigin = SettlementOrigin.ManualScratch;
+        var point = e.GetPosition(TicketOverlayCanvas);
+        SetCoinScratchState(true);
+        UpdateCoinCursor(point);
 
         if (!_hasScratched)
         {
@@ -266,7 +292,7 @@ public partial class MainWindow : Window
         }
 
         _isBoardScratching = true;
-        _lastBoardPoint = e.GetPosition(TicketOverlayCanvas);
+        _lastBoardPoint = point;
         Mouse.Capture(TicketOverlayCanvas, CaptureMode.Element);
         ScratchBoardSegment(_lastBoardPoint, _lastBoardPoint);
         e.Handled = true;
@@ -274,10 +300,19 @@ public partial class MainWindow : Window
 
     private void TicketOverlayCanvas_OnPreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isBoardScratching || e.LeftButton != MouseButtonState.Pressed)
+        if (_currentPending is null || ResultOverlay.Visibility == Visibility.Visible)
             return;
 
         var point = e.GetPosition(TicketOverlayCanvas);
+        // The visible coin and the actual scratch point intentionally use the exact same MouseMove event.
+        UpdateCoinCursor(point);
+
+        if (!_isBoardScratching || e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        if (!_coinIsScratching)
+            SetCoinScratchState(true);
+
         ScratchBoardSegment(_lastBoardPoint, point);
         _lastBoardPoint = point;
         e.Handled = true;
@@ -294,6 +329,9 @@ public partial class MainWindow : Window
         Mouse.Capture(null);
         foreach (var region in _scratchRegions)
             region.CheckCompletion();
+
+        SetCoinScratchState(false);
+        UpdateCoinCursor(point);
         e.Handled = true;
     }
 
@@ -308,7 +346,7 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // 本地已立即鎖住換票；資料庫標記失敗不應中斷刮獎手感。
+            // Local UI immediately locks swap; persistence failure must not interrupt scratch feel.
         }
     }
 
@@ -376,7 +414,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "兌獎失敗", MessageBoxButton.OK, MessageBoxImage.Error);
+            GameModal.Error(this, "兌獎失敗", ex.Message);
             StatusText.Text = "兌獎尚未完成；請勿關閉程式並重試。";
         }
         finally
@@ -399,7 +437,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "使用者", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "使用者", ex.Message);
         }
     }
 
@@ -410,163 +448,87 @@ public partial class MainWindow : Window
         ClearTicketOverlay();
         _hasScratched = !string.IsNullOrWhiteSpace(pending.ScratchStateJson);
 
-        try
-        {
-            var pack = _scratchPackRuntime.Load(definition);
-            LoadTicketArtwork(pack.TicketImagePath);
+        using var document = JsonDocument.Parse(pending.PayloadJson);
+        var root = document.RootElement;
+        var ruleId = root.GetProperty("ruleId").GetString();
 
-            using var document = JsonDocument.Parse(pending.PayloadJson);
-            var root = document.RootElement;
-            var gameType = root.GetProperty("gameType").GetString();
-            switch (gameType)
-            {
-                case "1":
-                    RenderGameType1(root, pending, definition, pack);
-                    break;
-                default:
-                    throw new NotSupportedException($"目前尚未實作 GameType {gameType} 的 renderer。");
-            }
-        }
-        catch (Exception ex)
+        switch (ruleId)
         {
-            TicketBackgroundImage.Visibility = Visibility.Collapsed;
-            TicketPlaceholderPanel.Visibility = Visibility.Visible;
-            TicketPlaceholderText.Text = $"彩券載入失敗\n{ex.Message}";
+            case "ThreeLine":
+                LoadTicketArtwork("ThreeStar", definition.Price == 100 ? "ticket-100.png" : "ticket.png");
+                RenderThreeLine(root);
+                break;
+            default:
+                TicketBackgroundImage.Visibility = Visibility.Collapsed;
+                TicketPlaceholderPanel.Visibility = Visibility.Visible;
+                TicketPlaceholderText.Text = "此玩法的新版票面仍在製作中";
+                break;
         }
 
         UpdateTicketActionState();
     }
 
-    private void RenderGameType1(
-        JsonElement root,
-        PendingTicket pending,
-        TicketDefinition runtimeDefinition,
-        ResolvedScratchPackTicket pack)
+    private void RenderThreeLine(JsonElement root)
     {
         var cells = root.GetProperty("cells").EnumerateArray()
-            .Select(element => element.GetBoolean())
+            .Select(element => element.GetString() ?? string.Empty)
             .ToArray();
-        var zones = pack.Definition.Zones;
+        var maskPath = GetTicketAssetPath("ThreeStar", "silver-star.png");
 
-        for (var i = 0; i < Math.Min(zones.Count, cells.Length); i++)
+        for (var i = 0; i < Math.Min(9, cells.Length); i++)
         {
-            var zone = zones[i];
-            var isStar = cells[i];
+            var position = ThreeLinePositions[i];
             var symbol = new TextBlock
             {
-                Width = zone.Width,
-                Height = zone.Height,
-                Text = isStar ? "★" : GetDisplaySymbol(i),
+                Width = ThreeLineCellWidth,
+                Height = ThreeLineCellHeight,
+                Text = GetDisplaySymbol(cells[i], i),
                 TextAlignment = TextAlignment.Center,
                 FontFamily = new FontFamily("Microsoft JhengHei UI"),
-                FontSize = isStar ? zone.Height * 0.43 : zone.Height * 0.34,
+                FontSize = cells[i] == "★" ? 52 : 44,
                 FontWeight = FontWeights.Bold,
-                Foreground = isStar
+                Foreground = cells[i] == "★"
                     ? new SolidColorBrush(Color.FromRgb(175, 28, 34))
                     : new SolidColorBrush(Color.FromRgb(98, 58, 27)),
-                Padding = new Thickness(0, zone.Height * 0.22, 0, 0),
+                Padding = new Thickness(0, 18, 0, 0),
                 IsHitTestVisible = false
             };
-            Canvas.SetLeft(symbol, zone.X);
-            Canvas.SetTop(symbol, zone.Y);
+            Canvas.SetLeft(symbol, position.X);
+            Canvas.SetTop(symbol, position.Y);
             TicketOverlayCanvas.Children.Add(symbol);
 
             var scratch = new ScratchSurface
             {
-                Width = zone.Width,
-                Height = zone.Height,
-                BrushRadius = Math.Clamp(Math.Min(zone.Width, zone.Height) * 0.16, 12, 34),
+                Width = ThreeLineCellWidth,
+                Height = ThreeLineCellHeight,
+                BrushRadius = 20,
                 CompletionThreshold = 0.78,
-                MaskImagePath = pack.FoilImagePath,
-                ZoneShape = zone.Shape,
-                CornerRadius = zone.CornerRadius ?? 0
+                MaskImagePath = maskPath
             };
             scratch.Completed += ScratchRegion_OnCompleted;
-            Canvas.SetLeft(scratch, zone.X);
-            Canvas.SetTop(scratch, zone.Y);
+            Canvas.SetLeft(scratch, position.X);
+            Canvas.SetTop(scratch, position.Y);
             TicketOverlayCanvas.Children.Add(scratch);
             _scratchRegions.Add(scratch);
             scratch.ResetMask();
         }
-
-        if (pack.Definition.PriceDisplay && pack.Definition.PriceDisplayArea is not null)
-            RenderPriceBadge(runtimeDefinition.Price, pack.Definition.PriceDisplayArea);
-        RenderSerial(pending, pack.Definition.SerialDisplayArea);
     }
 
-    private void RenderPriceBadge(long price, ScratchPackRect area)
+    private static string GetDisplaySymbol(string raw, int index)
     {
-        var border = new Border
-        {
-            Width = area.Width,
-            Height = area.Height,
-            CornerRadius = new CornerRadius(Math.Min(area.Width, area.Height) * 0.18),
-            Background = new SolidColorBrush(Color.FromArgb(230, 255, 248, 222)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(196, 145, 50)),
-            BorderThickness = new Thickness(3),
-            IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Text = $"${price:N0}",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontFamily = new FontFamily("Microsoft JhengHei UI"),
-                FontSize = Math.Min(area.Height * 0.5, 38),
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(161, 32, 34))
-            }
-        };
-        Canvas.SetLeft(border, area.X);
-        Canvas.SetTop(border, area.Y);
-        TicketOverlayCanvas.Children.Add(border);
-    }
+        if (raw == "★")
+            return "★";
 
-    private void RenderSerial(PendingTicket pending, ScratchPackRect area)
-    {
-        var serial = new TextBlock
-        {
-            Width = area.Width,
-            Height = area.Height,
-            Text = CreateDisplaySerial(pending),
-            TextAlignment = TextAlignment.Center,
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = Math.Min(area.Height * 0.45, 24),
-            FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(83, 32, 25)),
-            Padding = new Thickness(0, area.Height * 0.22, 0, 0),
-            IsHitTestVisible = false
-        };
-        Canvas.SetLeft(serial, area.X);
-        Canvas.SetTop(serial, area.Y);
-        TicketOverlayCanvas.Children.Add(serial);
-    }
-
-    private static string CreateDisplaySerial(PendingTicket pending)
-    {
-        static int ToThreeDigits(string id)
-        {
-            unchecked
-            {
-                var hash = 17;
-                foreach (var ch in id)
-                    hash = hash * 31 + ch;
-                return Math.Abs(hash % 1000);
-            }
-        }
-
-        // Runtime-owned visual serial. Exact persistent style/book/sequence allocation
-        // will replace these deterministic placeholders before formal V1 release.
-        return $"{ToThreeDigits(pending.TicketId):000}-{ToThreeDigits(pending.BatchId):000}-{ToThreeDigits(pending.Id):000}";
-    }
-
-    private static string GetDisplaySymbol(int index)
-    {
         var symbols = new[] { "●", "◆", "▲", "■", "♥", "✦", "⬟", "✚" };
-        return symbols[index % symbols.Length];
+        var hash = index * 17;
+        foreach (var ch in raw)
+            hash = unchecked(hash * 31 + ch);
+        return symbols[(hash & 0x7FFFFFFF) % symbols.Length];
     }
 
-    private void LoadTicketArtwork(string path)
+    private void LoadTicketArtwork(params string[] parts)
     {
+        var path = GetTicketAssetPath(parts);
         if (!File.Exists(path))
         {
             TicketBackgroundImage.Visibility = Visibility.Collapsed;
@@ -587,10 +549,19 @@ public partial class MainWindow : Window
         TicketPlaceholderPanel.Visibility = Visibility.Collapsed;
     }
 
+    private static string GetTicketAssetPath(params string[] parts)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Tickets");
+        foreach (var part in parts)
+            path = Path.Combine(path, part);
+        return path;
+    }
+
     private void ShowSettlementResult(long prize)
     {
         FooterActionsPanel.Visibility = Visibility.Collapsed;
         ResultOverlay.Visibility = Visibility.Visible;
+        SameAgainButton.Content = "再來一張";
         SameAgainButton.IsEnabled = _currentDefinition is not null;
 
         if (prize > 0)
@@ -603,6 +574,41 @@ public partial class MainWindow : Window
             ResultHeadline.Text = "本張未中獎";
             ResultAmountText.Text = "再試一張吧";
         }
+
+        _ = RefreshSameAgainAvailabilityAsync();
+    }
+
+    private async Task RefreshSameAgainAvailabilityAsync()
+    {
+        if (_currentDefinition is null)
+        {
+            SetSameAgainSoldOut();
+            return;
+        }
+
+        try
+        {
+            if (await _catalog.HasRemainingTicketsAsync(_currentDefinition.Id))
+            {
+                SameAgainButton.Content = "再來一張";
+                SameAgainButton.IsEnabled = true;
+            }
+            else
+            {
+                SetSameAgainSoldOut();
+            }
+        }
+        catch
+        {
+            SameAgainButton.IsEnabled = false;
+        }
+    }
+
+    private void SetSameAgainSoldOut()
+    {
+        SameAgainButton.Content = "本批次已售完";
+        SameAgainButton.IsEnabled = false;
+        SameAgainButton.ToolTip = null;
     }
 
     private void UpdateTicketActionState()
@@ -610,12 +616,14 @@ public partial class MainWindow : Window
         FooterActionsPanel.Visibility = _currentPending is null ? Visibility.Collapsed : Visibility.Visible;
         RevealAllButton.IsEnabled = _currentPending is not null;
         SwapTicketButton.IsEnabled = _currentPending is not null && !_hasScratched;
-        SwapTicketButton.ToolTip = _hasScratched ? "已開始刮獎，不能換票" : "換成同款彩券的新序號";
+        SwapTicketButton.ToolTip = null;
     }
 
     private void ClearTicketOverlay()
     {
         _isBoardScratching = false;
+        SetCoinScratchState(false);
+        CoinCursorVisual.Visibility = Visibility.Collapsed;
         if (Mouse.Captured == TicketOverlayCanvas)
             Mouse.Capture(null);
 

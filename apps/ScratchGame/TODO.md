@@ -1,62 +1,76 @@
 # ScratchGame TODO / Future Plan
 
-本檔只記錄未來規劃、實作工作與未決事項，不是永久規則或格式規格來源。
+本檔只記錄未來規劃與待辦，不是永久規則來源；永久規則仍以 `PROJECT_RULES.md` 為準。
 
-權威規格：
+## 已定方向：ScratchPack / Rule Engine
 
-- ScratchPack schema：`SCRATCHPACK_SPEC.md`
-- GameType 規則：`GAMETYPE_SPEC.md`
-- 永久專案規則：`PROJECT_RULES.md`
+- ScratchPack 為資料與美術資源包，不攜帶 DLL、EXE、script 或任意程式碼。
+- ScratchPack 玩法由主程式公開的 `gameType` 選擇；已發布 gameType 的核心判定規則不改變，未來變體新增新的 gameType，例如 `1-2`。
+- ScratchPack 保留頂層 `formatVersion`，僅代表 ScratchPack 檔案格式版本，不代表玩法版本。
+- `canvas` 使用官方固定尺寸代碼，不允許任意尺寸；Developer Guide 提供尺寸代碼表。**`canvas=1` 已定義為 1080×882 的基本橫式刮刮樂版型**；其他尺寸日後新增代碼，既有代碼語意永不改變。
+- 刮膜形狀初期只支援方形／長方形、圓角矩形、圓形、橢圓等簡單幾何；日後再評估星形、愛心、卡通輪廓或其他形狀。
+- 彩券包可提供自訂銀膜；未提供時使用主程式內建預設銀膜。
+- `priceDisplay=0`：底圖自行包含完整面額；`priceDisplay=1`：主程式在該 Canvas 的標準位置繪製完整面額徽章（外框、底色、金額）。
+- 發行資料包含 `issueSize` 與 `ticketsPerBook`；`issueSize` 必須可被 `ticketsPerBook` 整除，`bookCount` 由主程式自動計算。
+- 彩券號碼採「款式編號-本號-本內序號」，初期至少三位補零，例如 `001-023-057`；任一段超過三位時自然增加位數，不截斷、不循環。同款彩券發行新批次時，本號接續上一批區間，避免票號重複。
+- ScratchPack 主要內容預計包含：彩券主圖、可選縮圖、可選銀膜、玩法代碼、畫布代碼、刮區數量／座標／形狀／大小、玩法允許參數、發行量、每本張數與獎項表。
+- 未來才設計「一張彩券包含多種玩法」；目前規格不預先限制 Game Area 數量，也不先寫尚未定案的多玩法格式。
 
-不得在 TODO 重複 schema、Prize Tier 定義或 GameType 核心規則。
+## 內建彩券 ScratchPack 化
 
-## ScratchPack V1 實作順序
+- 未來把正式彩券從主程式 source 中去程式碼化：例如「三星連線」正式彩券應改成由 `.scratchpack` 匯入／安裝，主程式只保留通用玩法引擎、ScratchPack 載入器與共用 UI。
+- 開發／獎項測試彩券可以保留為開發用途，不要求與正式彩券相同的安裝流程。
+- 刪除已安裝彩券包時，該款彩券的專屬定義與資源應一併移除，不應在主程式 source 或 runtime 中留下該款彩券的硬編碼資料。
+- 已發行批次、歷史紀錄、使用者既有遊玩資料與「刪除彩券包」之間的保留／封存規則，等真正實作此功能時再設計，不在目前版本先綁死。
 
-1. 先完成獨立的「三星連線測試 Pack」：`manifest.json`、`ticket.json` 與必要資源；使用小型測試票池覆蓋 0 線與所有合法正獎線數。
-2. 以三星連線測試 Pack 做第一個 V1 conformance / reference walkthrough，確認實際 Pack 能完整符合 `SCRATCHPACK_SPEC.md` + `GAMETYPE_SPEC.md`，不另加平行欄位。
-3. 完成正式 Built-in Base Pack「三星連線」500 元／10,000 張版本；正式 Pack 與測試 Pack 使用獨立 `packageId` 與獨立票池。
-4. 實作 V1 loader / validator，讓 Built-in / Imported / 開發測試 Pack 共用同一套載入與驗證 pipeline。
-5. 將目前三星連線專屬硬編碼資料移除，改由 Built-in Base Pack 提供。
-6. 完成 GameType 1 runtime / renderer / finite-pool end-to-end 驗證。
-7. 依 `GAMETYPE_SPEC.md` 完成 GameType 2～6 engine / renderer / validation。
-8. 實作外部 `.scratchpack` 原子匯入、packageId 管理、錯誤回復與安裝來源狀態。
-9. 製作 ScratchPack Maker 第一版：GameType-aware 精靈、票面預覽、zone 位置配置、Prize Pool、derived statistics、預覽測試與一鍵封裝。
-10. 每個 GameType 至少以一張實際 ScratchPack 做建立、驗證、匯入／註冊、遊玩、有限票池、兌獎與統計測試。
-11. 完成六種基礎玩法交叉測試後，進入 ScratchGame V1.0.0 發行準備。
+## GameType 1：星星連線
+
+- `gameType="1"`。
+- `gridSize=3`：3×3，完整三星成一線。
+- `gridSize=4`：4×4，完整四星成一線。
+- `gridSize=5`：5×5，完整五星成一線。
+- 只計完整橫列、完整直列、兩條完整大對角線；短斜線或局部連線不屬於 GameType 1。
+- Prize Tier 本身只保存金額與張數；GameType 1 的玩法設定負責把獎金對應到連線數。
+- 可新增不改變核心勝負判定的 optional 玩法參數；舊 ScratchPack 缺少新參數時必須使用「保持舊行為」的預設值，確保向下相容。
+- 已定 optional 參數：`allowNearMissStars`，預設 `false`。啟用時，生成器可在不增加實際中獎線數的前提下加入額外零散星星／差一顆成線的星星，提高期待感。
+- 若未來要改變中獎判定，例如 Wild 星、短線也算、局部連線等，不可修改 GameType 1，應新增新的 gameType。
+
+## 未來玩法
+
+- 記錄「線路獎金型」玩法構想：每條指定線本身帶獎金，完成該線取得對應獎金；後續擴增玩法時再正式設計。
+- 後續再規劃幸運號碼、三個相同、指定符號獎金、特殊符號／倍率等通用 Rule Engine。
 
 ## ScratchPack Developer Guide
 
-待建立對外 Developer Guide，引用正式 SPEC，不自行發明第二套規則。至少包含：
+未來建立正式 Developer Guide，至少包含：
 
-- `formatVersion` 與 `gameType` 對照。
-- Canvas code 對照表。
-- Scratch zone / Shape 對照。
-- 內建／Pack 自帶銀膜的選擇方式與素材製作建議；schema 直接引用 `SCRATCHPACK_SPEC.md`。
-- `priceDisplay` 與票號安全區說明。
-- 發行量、每本張數、Prize Pool 驗證方式。
-- 圖片格式與資源命名建議。
+- ScratchPack `formatVersion` 說明。
+- `gameType` 對照表與每種玩法可用參數／預設值；介面顯示人類可讀玩法名稱，不直接顯示內部代碼。
+- `canvas` 尺寸代碼表；`canvas=1 = 1080×882`。
+- 刮區座標系與 Shape 代碼表。
+- 預設／自訂銀膜規格。
+- `priceDisplay` 規則與各 Canvas 的標準面額安全區。
+- `issueSize` / `ticketsPerBook` 與整除驗證規則。
+- 圖片格式與資源命名規則。
+- 發行量、獎項表與匯入驗證規則。
 - 完整可重製範例。
-- 評估提供 `scratchpack.schema.json` 供工具與 AI 做結構驗證。
+- 後續評估提供 `scratchpack.schema.json` 供程式與其他 AI 驗證。
 
-## ScratchPack / Pack lifecycle 未完成工作
+## ScratchPack 製作器 EXE
 
-- 設計外部 Pack 解除安裝後，已發行批次、歷史紀錄與使用者既有遊玩資料的保留／封存規則。
-- 擴增更多固定 Canvas code。
-- 擴增更多官方刮膜幾何形狀。
-- 未來再設計單張彩券多玩法／Bonus 區架構。
-- 未來如需要新的核心玩法規則，新增 GameType / variant，不修改已發布 GameType 語意。
-- ScratchPack 自訂中獎音效／中獎動畫不列入 V1；日後若需要另行規格化。
-- 評估支援**全畫布銀膜 overlay / mask 模式**：
-  - foil 可是一整張與 Canvas 同尺寸的單純銀色底或重複花紋；Canvas 1 即為 1080×882；
-  - foil 紋理本身不綁定各 Scratch Zone 位置，因此 zone 放在哪裡都不需要重做銀膜；
-  - runtime 最終只在 Scratch Zone 位置透過既有 `scratch.zones` geometry 做 clipping，就像一般市售無特定分格花樣的刮刮樂銀膜；
-  - 若實作，必須**擴充既有 `scratch.foil` 模型與同一 foil renderer / ScratchSurface pipeline**，不得另建第二套 `mask`、`overlay`、逐 zone 座標或另一套刮除邏輯。
+未來製作獨立 Windows x64 可攜式開發工具，讓一般使用者不靠 AI 也能製作 `.scratchpack`：
 
-## ScratchPack Maker 後續
-
-- Maker 專案檔（例如 `.scratchproj`）目前只保留概念，不列入近期正式開發；等 Maker 第一版實際使用後再決定是否需要。
-- Maker 的銀膜 UI 只操作 `SCRATCHPACK_SPEC.md` 定義的同一個 `scratch.foil`：可選 ScratchGame 公用內建素材，或選擇 Pack 自帶 PNG；不建立另一套自訂銀膜功能。
-- 後續以 runtime 視覺測試確認 reusable single-zone foil template 的安全縮放範圍與必要的 edge-preserving rendering；這屬 renderer / Maker 行為，不另外污染 Pack 的 zone geometry。
+- 匯入／預覽彩券圖片。
+- 選擇官方 Canvas 尺寸。
+- 選擇主程式支援的 gameType。
+- 依玩法顯示合法參數與選項。
+- 視覺化新增、移動、調整刮區位置／大小／形狀。
+- 選擇使用預設銀膜或匯入自訂銀膜。
+- 選擇底圖自帶面額或使用主程式標準面額徽章。
+- 輸入面額、總發行張數、每本張數與獎項／張數。
+- 即時檢查 `issueSize % ticketsPerBook == 0`、獎項數量、玩法參數及版面是否合法。
+- 預覽並一鍵封裝成 `.scratchpack`。
+- 工具只能產生主程式支援的規格，不允許注入任意程式碼。
 
 ## 刮獎手感與硬幣
 
@@ -70,27 +84,37 @@
 - 主程式先提供預設的中獎效果分級；一般獎、二獎、頭獎的視覺強度不同，且以 Prize Tier 排名判定，不把特定金額寫死為頭獎。
 - 頭獎效果可包含金色閃光、擴散光圈、星光／金幣粒子與延遲淡入結果框；二獎使用較克制的版本。
 - 結果框維持半透明，讓玩家仍能看到背後已刮開的中獎盤面。
-- 未來規劃「中獎效果商店」；效果只屬外觀收藏，不得改變中獎率、Prize Tier、獎金或票池。
+- 未來規劃「中獎效果商店」：玩家可購買、收藏並裝備不同的一般／二獎／頭獎慶祝效果。
+- 中獎效果只屬於外觀收藏，不得改變中獎率、Prize Tier、獎金或票池。
 - 中獎效果商店與硬幣商店共用未來的獨立收藏／消費資金模型，不回寫彩券損益統計。
 
 ## 外觀主題與商店
 
-- 主畫面外觀分成 **介面框架（Frame Theme）** 與 **舞台主題（Stage Theme）**。
-- Frame Theme 的 Header / Footer 成套，不跨不同框架混搭。
+- 主畫面外觀分成兩種獨立收藏類型：
+  - **介面框架（Frame Theme）**：Header + Footer 成套。
+  - **舞台主題（Stage Theme）**：中央 Stage 背景。
+- Frame Theme 的 Header / Footer 不允許跨不同框架混搭；裝備時以一組為單位。
 - Stage Theme 可獨立於 Frame Theme 購買、收藏與裝備。
-- 預設 Frame Theme：**新春紅金**；預設 Stage Theme：**招財好運**。
-- Theme 美術從 EXE 外部資源讀取。
-- 未來可在外觀商店增加 Frame / Stage 類別，並與硬幣／中獎效果共用收藏、購買、裝備基礎架構。
+- 目前預設 Frame Theme 名稱：**新春紅金**。
+- 目前預設 Stage Theme 名稱：**招財好運**。
+- Theme 美術一律從 EXE 外部資源讀取，不把可替換 Theme 強制嵌入主程式。
+- 未來可在「外觀商店」中增加「介面框架」與「舞台主題」分類，並與硬幣／中獎效果共用收藏、購買、裝備基礎架構。
 - 外觀 Theme 只屬 cosmetic，不得改變彩券票池、中獎率、Prize Tier、獎金或損益統計。
 
 ## 音效
 
 - 中獎音效分小獎與大獎；目前 `< $50,000` 使用小獎音效，`>= $50,000` 使用大獎音效。
-- 手動把所有刮區刮完時播放「無提示逼聲」版本；全部刮開或系統自動揭曉時播放保留提示逼聲的版本。
+- 手動把所有刮區刮完時播放「無提示逼聲」版本；按「全部刮開」或系統因關閉／切換使用者／異常恢復而自動揭曉時播放保留提示逼聲的版本。
 - 音效只在完成兌獎、顯示結果時播放，避免提前暴雷。
-- 未來可再評估頭獎專屬音效。
+- 未來可再評估頭獎專屬音效與 ScratchPack 自訂音效。
 
 ## 資料與測試工具
 
 - 正式使用者資料維持在 `%LOCALAPPDATA%\ScratchGame`，更新／替換 EXE 不會刪除資料。
 - 未來設定頁可增加「開啟資料資料夾」與具二次確認的「重置所有資料」，方便測試與維護。
+
+## 其他後續
+
+- 擴增更多固定 Canvas 尺寸代碼。
+- 擴增更多官方刮膜幾何形狀。
+- 未來再正式設計單張彩券多玩法／Bonus 區架構。

@@ -15,7 +15,8 @@ public sealed record TicketDefinition(
     double PublishedWinRate,
     bool Enabled,
     bool Locked,
-    string? SourcePackageId = null);
+    string? SourcePackageId = null,
+    int ActiveBatchNumber = 0);
 
 public sealed record UserProfile(
     string Id,
