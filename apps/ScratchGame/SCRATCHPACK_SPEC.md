@@ -11,7 +11,7 @@ Implementation status: **規格已定稿；ScratchGame V0.4.0 正在完成 V1 lo
 
 ScratchPack 只提供資料、美術與 GameType 允許的公開參數，不包含可執行玩法程式碼。
 
-主程式負責驗證、載入與運行 Pack，並提供 GameType engine、Renderer、盤面生成、刮膜互動、票號、程式面額、批次、有限票池、Pending Ticket、兌獎、中獎效果、音效、硬幣、使用者與損益資料。
+主程式負責驗證、載入與運行 Pack，並提供 GameType engine、Renderer、盤面生成、刮膜互動、票號、程式面額、批次、有限票池、Pending Ticket、兌獎、中獎效果、音效、硬幣、使用者、錢包與累積遊玩統計。
 
 ScratchPack 負責彩券名稱、作者、面額、Canvas code、GameType 與公開參數、票面資源引用、GameType 額外資源、刮區 geometry、銀膜資源引用、`issueSize`、`ticketsPerBook` 與最終 Prize Pool / Prize Tier。
 
@@ -111,7 +111,7 @@ V1 **不定義、也不接受 `thumbnail.png`**。挑券縮圖屬主程式可重
 - `scratch.zones`：刮區 geometry / clipping / hit-test 的唯一來源；任何票面或銀膜資產都不得另帶第二套刮區座標或互動範圍。
 - `scratch.foil`：銀膜材質資源的唯一引用入口；不得另建 `art.mask`、`foilFile`、逐 zone foil 或其他平行欄位。
 - `prizes`：最終 Prize Pool / Prize Tier 唯一權威來源；不得另建 `prizes.json`、圖片 metadata、`artworkFile` 或其他平行欄位。
-- runtime database：本機款式編號、Pack 安裝來源、批次、日期、Remaining、Pending、歷史等 runtime state。
+- runtime database：本機款式編號、Pack 安裝來源、批次、日期、Remaining、Pending、使用者錢包與累積遊玩統計等 runtime state。
 
 ScratchPack 不保存中獎率、未中獎率、最高獎金、EV、RTP、總本數、未中獎張數等 Derived Data。
 
@@ -390,14 +390,15 @@ Built-in Pack：
 
 - 隨 ScratchGame 發行內容提供，不要求使用者手動匯入；主程式初始化時自動確認並註冊。
 - 不提供解除安裝；缺少或損壞視為程式發行內容不完整。
-- 可**隱藏 / 解除隱藏**。隱藏後不出現在正常設定主列表或挑券列表，但不刪除 Pack、批次、票池或歷史資料。
+- 可**隱藏 / 解除隱藏**。隱藏後不出現在正常設定主列表或挑券列表，但不刪除 Pack、批次、票池或其他 runtime state。
 
 Imported Pack：
 
 - 由使用者手動匯入；匯入完成後自動建立第 1 批並可直接遊玩。
 - 可**隱藏 / 解除隱藏**；語意與 Built-in 相同，只影響正常 UI 可見性與新票選擇，不刪除資料。
-- 可要求**解除安裝**；解除安裝的語意是移除該 Imported Pack 的安裝資料、Pack 檔案副本與可重建 cache。
-- 為避免破壞既有 Pending / 歷史資料引用，runtime 可以在仍有未完成票或既有遊玩紀錄時拒絕解除安裝並要求改用「隱藏」。這是資料安全限制，不是新的 Pack schema。
+- 可要求**解除安裝**；解除安裝的語意是移除該 Imported Pack 的安裝資料、Pack 檔案副本、批次／票池資料與可重建 cache。
+- 唯一需要阻止解除安裝的目前 runtime 狀態是仍有屬於該 Pack 的 **Pending Ticket**；必須先完成該張彩券再解除安裝。
+- 已完成遊玩的使用者資料只保存累積統計，不依賴 Pack 本體，也不要求逐張 history / Pack snapshot；因此完成遊玩紀錄不阻止解除安裝，解除安裝也不回滾既有累積統計。
 
 外部 Pack 匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用目前 GameType 可用的 Built-in ticket ref 與全域 Built-in foil ref，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
 
