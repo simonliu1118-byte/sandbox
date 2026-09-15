@@ -13,7 +13,7 @@ ScratchPack 只提供資料、美術與 GameType 允許的公開參數，不包�
 
 主程式負責驗證、載入與運行 Pack，並提供 GameType engine、Renderer、盤面生成、刮膜互動、票號、程式面額、批次、有限票池、Pending Ticket、兌獎、中獎效果、音效、硬幣、使用者與損益資料。
 
-ScratchPack 負責彩券名稱、作者、面額、Canvas code、GameType 與公開參數、必要票面 PNG、GameType 額外資源、刮區 geometry、`issueSize`、`ticketsPerBook` 與最終 Prize Pool / Prize Tier。
+ScratchPack 負責彩券名稱、作者、面額、Canvas code、GameType 與公開參數、必要票面 PNG、GameType 額外資源、刮區 geometry、銀膜來源選擇、`issueSize`、`ticketsPerBook` 與最終 Prize Pool / Prize Tier。
 
 PNG / WAV 對主程式是 opaque render asset。Importer 可檢查路徑、安全性、格式、尺寸與能否解碼，但不得靠 OCR、像素分析或檔名推導彩券名稱、面額、中獎率、最高獎金、Prize Tier、GameType、刮區、批次、日期或票號。
 
@@ -39,7 +39,7 @@ assets/
 
 票面檔名不固定；主程式只依 `ticket.json.art.ticket` 載入。Maker 應使用可辨識名稱，例如 `assets/three-star.png`。
 
-可選 `assets/mask.png`。GameType 若允許額外符號素材，可在 `assets/` 增加 PNG，並由該 GameType 的合法欄位引用。
+若 `scratch.foil.source="package"`，包內必須另外包含 `scratch.foil.ref` 指向的 PNG，例如 `assets/foil.png`。GameType 若允許額外符號素材，也可在 `assets/` 增加 PNG，並由該 GameType 的合法欄位引用。
 
 V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式將 `art.ticket` 指向的正式票面 PNG 等比例產生。
 
@@ -80,11 +80,16 @@ V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式將 `a
   "issueSize": 10000,
   "ticketsPerBook": 100,
   "art": {
-    "ticket": "assets/three-star.png",
-    "mask": null
+    "ticket": "assets/three-star.png"
   },
   "serialDisplayArea": { "x": 64, "y": 742, "width": 205, "height": 36 },
-  "scratch": { "zones": [] },
+  "scratch": {
+    "foil": {
+      "source": "builtin",
+      "ref": "brushed-silver-plain"
+    },
+    "zones": []
+  },
   "game": {},
   "prizes": []
 }
@@ -94,7 +99,9 @@ V1 **不定義、也不接受 `thumbnail.png`**；挑券縮圖由主程式將 `a
 
 - `manifest.json`：封裝層。
 - `ticket.json`：彩券定義唯一權威資料。
-- `art.*`：只保存包內資源相對路徑。
+- `art.ticket`：靜態票面 PNG 的唯一來源。
+- `scratch.zones`：刮區 geometry / clipping 的唯一來源；銀膜資產不得另帶第二套刮區座標或互動範圍。
+- `scratch.foil`：銀膜材質來源的唯一設定；不得另建 `art.mask`、`foilFile`、逐 zone foil 或其他平行欄位。
 - `prizes`：最終 Prize Pool / Prize Tier 唯一權威來源；不得另建 `prizes.json`、圖片 metadata、`artworkFile` 或其他平行欄位。
 - runtime database：本機款式編號、Pack 安裝來源、批次、日期、Remaining、Pending、歷史等 runtime state。
 
@@ -140,7 +147,7 @@ canvas = 1 → 1080 × 882
 
 票號格式：`款式編號-本號-本內序號`。各段至少三位補零，超過三位自然增加，不截斷、不循環、不換行。
 
-## 7. Scratch Zone
+## 7. Scratch Zone 與銀膜
 
 V1 shape：
 
@@ -174,7 +181,51 @@ ellipse
 
 V1 不提供通用 `contentBox`。Scratch zone 只負責位置、尺寸與形狀；同類元件內部排版由各 GameType Renderer 固定。
 
-`art.mask = null` 或缺省時使用主程式預設銀膜；指定包內 PNG 時使用自訂銀膜材質。
+### 7.1 `scratch.foil`
+
+V1 每張票必須明確指定一個 `scratch.foil`。Maker 介面可以預選預設樣式，但輸出的 ScratchPack **不得靠缺省值或 `null` 暗示預設銀膜**。
+
+使用 ScratchGame 公用內建銀膜：
+
+```json
+"foil": {
+  "source": "builtin",
+  "ref": "brushed-silver-plain"
+}
+```
+
+使用 Pack 自帶銀膜：
+
+```json
+"foil": {
+  "source": "package",
+  "ref": "assets/my-foil.png"
+}
+```
+
+規則：
+
+- `source` 在 V1 只允許：`builtin`、`package`。
+- `ref` 永遠只有一個欄位：
+  - `source="builtin"` 時，`ref` 是 ScratchGame 公開且穩定的內建銀膜代碼。
+  - `source="package"` 時，`ref` 是目前 ScratchPack 內的安全相對 PNG 路徑。
+- V1 第一批公用內建銀膜代碼：
+
+```text
+brushed-silver-plain       一般拉絲銀膜
+brushed-silver-three-star  三星圖樣拉絲銀膜
+```
+
+- 公用內建銀膜屬 ScratchGame 共用資源，不需複製進每個 `.scratchpack`；Imported Pack 與 Built-in Pack 都可直接使用相同代碼。
+- 內建代碼一旦正式發布，不得改作另一種完全不同的銀膜；要提供新視覺時新增新代碼，不覆寫既有代碼語意。
+- 若 Pack 使用某個較新版本才提供的內建代碼，`minimumAppVersion` 必須至少指向首次支援該代碼的 ScratchGame 版本。
+- `source="package"` 讓 Pack 可以攜帶自己的銀膜 PNG；此 PNG 不要求等於 Canvas 尺寸，因 V1 將其視為可重用的 **single-zone foil template**。
+- 不論 `builtin` 或 `package`，都進入同一套 foil renderer / ScratchSurface / 刮除 pipeline；不得因來源不同建立第二套互動或判定邏輯。
+- 同一張票 V1 只指定一種 foil；所有 Scratch Zone 共用同一 `scratch.foil`。不提供逐 zone foil override。
+- `scratch.zones` 是唯一的 geometry / clipping / hit-test 來源。foil code 或 foil PNG 只提供材質，不得定義 zone 的 x/y/width/height、shape、順序或玩法 mapping。
+- runtime 依每個 `scratch.zones` geometry 將 foil template 套入並以 zone shape clipping；自訂 PNG 的 alpha 可參與視覺，但不得被視為新的互動 geometry。
+- V1 不接受舊草案的 `art.mask`。也不以固定檔名 `mask.png` 建立第二套語意；自訂銀膜只由 `scratch.foil.source="package"` + `ref` 引用。
+- 未來若實作「全 Canvas 銀膜再由 Scratch Zone 遮罩切出」模式，必須擴充同一個 `scratch.foil` 模型與同一 renderer pipeline，不得另建平行的 mask / overlay schema。該模式目前只列 TODO，不屬 V1。
 
 ## 8. 發行量、本數與 Prize Pool
 
@@ -232,15 +283,17 @@ GAMETYPE_SPEC.md
 - 不存在未定義資源，例如 `thumbnail.png`。
 - `manifest.json` 不重複保存 ticket 業務資料。
 - Prize Tier 只由 `ticket.json.prizes` 定義。
-- `art.*` 只含合法包內相對路徑。
-- Canvas code 支援；`art.ticket` 存在、可解碼且尺寸完全符合 Canvas。
+- `art.ticket` 是合法包內相對路徑；Canvas code 支援，且 `art.ticket` 存在、可解碼、尺寸完全符合 Canvas。
+- `scratch.foil` 必須存在且格式合法；不得接受 `art.mask` 或其他平行 foil / mask 欄位。
+- `scratch.foil.source="builtin"` 時，`ref` 必須是目前 App 支援的公開 foil code；不支援時直接驗證失敗，不可靜默改用其他銀膜。
+- `scratch.foil.source="package"` 時，`ref` 必須是合法包內相對 PNG 路徑，檔案必須存在且可解碼；不要求與 Canvas 同尺寸。
 - 所有座標合法；`priceDisplay=1` 時 `priceDisplayArea` 合法；`serialDisplayArea` 合法。
 - zone ID、shape，以及 GameType-specific 的 zone 數量、geometry、順序／mapping 合法。
 - `issueSize % ticketsPerBook == 0`、`Σ prizes.count <= issueSize`。
 - GameType、玩法參數與 Renderer 限制符合 `GAMETYPE_SPEC.md`。
 - 所有被引用 PNG 可正常解碼。
 
-Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」為止；不 OCR、不解析圖片文字、不從圖片推導任何遊戲資料。
+Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」為止；不 OCR、不解析圖片文字、不從圖片推導任何遊戲資料。foil PNG 也不得反向成為 Scratch Zone geometry 或玩法資料來源。
 
 任何驗證失敗都不得留下半套已安裝資料；外部 Pack 匯入必須為原子操作。
 
@@ -267,6 +320,7 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」
 - 正式版面額為 500、`issueSize=10000`。
 - 正式美術使用可辨識檔名，例如 `assets/three-star.png`。
 - 基本款票面不放中獎率與「最高可中 N 元」宣傳字樣。
+- 可直接以 `scratch.foil.source="builtin"` 使用 ScratchGame 公用銀膜代碼，不需把共用銀膜複製進 Pack。
 - 正式 Built-in Base Pack 不另維護主程式硬編碼的平行 ticket definition。
 
 開發階段可以另外維護一個獨立的「三星連線測試 Pack」作為 V1 conformance / loader / renderer / Prize Tier 測試 fixture：
@@ -280,5 +334,6 @@ Importer 對 PNG 的驗證到「路徑、檔案、格式、尺寸、可解碼」
 
 - `formatVersion` 只代表 ScratchPack schema / 封裝版本，不代表 GameType 版本。
 - 已發布欄位的語意不得在相同 formatVersion 下偷偷改變；不相容 schema 變更必須升級 `formatVersion`。
+- 已發布的 built-in foil code 也視為公開相容性契約；新增視覺使用新 code，不把既有 code 重新指向不同語意的銀膜。
 - GameType 相容性只由 `GAMETYPE_SPEC.md` 管理。
 - `PROJECT_RULES.md` 不複製 schema；`TODO.md` 不複製 schema 或 GameType 核心規則。
