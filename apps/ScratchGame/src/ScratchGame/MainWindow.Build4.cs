@@ -80,6 +80,10 @@ public partial class MainWindow
         if (ResultOverlay.Visibility != Visibility.Visible)
             return;
 
+        // The entrance animation keeps an animation clock on Opacity with HoldEnd.
+        // Remove that clock first; otherwise changing the base Opacity value does not
+        // actually hide the modal on some result paths.
+        ResultOverlay.BeginAnimation(OpacityProperty, null);
         ResultOverlay.Opacity = 0;
         ResultOverlay.IsHitTestVisible = false;
         ResultResumeButton.Visibility = Visibility.Visible;
