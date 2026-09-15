@@ -70,7 +70,7 @@
                         <DropShadowEffect BlurRadius="22" ShadowDepth="5" Opacity="0.42"/>
                     </Border.Effect>
                     <Viewbox Stretch="Uniform" StretchDirection="Both">
-                        <Grid Width="1080" Height="657" x:Name="TicketStage">
+                        <Grid Width="1080" Height="882" x:Name="TicketStage">
                             <Border x:Name="TicketPlaceholderPanel" Background="#A62D1711" CornerRadius="26" Padding="34">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="430">
                                     <TextBlock Text="✦" FontSize="82" Foreground="#E7AF46" HorizontalAlignment="Center"/>
@@ -95,7 +95,7 @@
 
                             <Image x:Name="TicketBackgroundImage" Stretch="Fill" Visibility="Collapsed"/>
                             <Canvas x:Name="TicketOverlayCanvas"
-                                    Width="1080" Height="657"
+                                    Width="1080" Height="882"
                                     Background="Transparent"
                                     IsHitTestVisible="{Binding ElementName=TicketBackgroundImage, Path=IsVisible}"
                                     PreviewMouseLeftButtonDown="TicketOverlayCanvas_OnPreviewMouseLeftButtonDown"
