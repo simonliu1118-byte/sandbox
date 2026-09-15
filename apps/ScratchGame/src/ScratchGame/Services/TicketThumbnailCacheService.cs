@@ -93,6 +93,24 @@ public sealed class TicketThumbnailCacheService
             safeId + ".png");
     }
 
+    public void DeleteForPackage(string packageId)
+    {
+        var root = Path.Combine(_database.DataDirectory, "cache", "thumbnails");
+        if (!Directory.Exists(root))
+            return;
+
+        var fileName = packageId.Trim().ToLowerInvariant() + ".png";
+        foreach (var versionDirectory in Directory.EnumerateDirectories(root, "v*", SearchOption.TopDirectoryOnly))
+        {
+            var path = Path.Combine(versionDirectory, fileName);
+            if (!File.Exists(path))
+                continue;
+            try { File.Delete(path); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     private static bool IsUsableCache(string path)
     {
         if (!File.Exists(path))
