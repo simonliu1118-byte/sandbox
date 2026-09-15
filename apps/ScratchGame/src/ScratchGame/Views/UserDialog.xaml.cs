@@ -187,13 +187,24 @@ public partial class UserDialog : Window
         public long GrantCount
         {
             get => _grantCount;
-            private set { _grantCount = value; OnPropertyChanged(); }
+            private set
+            {
+                _grantCount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(GrantSummaryText));
+            }
         }
 
         public long GrantTotalAmount
         {
             get => _grantTotalAmount;
-            private set { _grantTotalAmount = value; OnPropertyChanged(); OnPropertyChanged(nameof(GrantTotalText)); }
+            private set
+            {
+                _grantTotalAmount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(GrantTotalText));
+                OnPropertyChanged(nameof(GrantSummaryText));
+            }
         }
 
         public long Net => TotalRedeemed - TotalSpent;
@@ -203,6 +214,7 @@ public partial class UserDialog : Window
         public string NetText => Net >= 0 ? $"+${Net:N0}" : $"-${Math.Abs(Net):N0}";
         public string MaxPrizeText => $"${MaxPrize:N0}";
         public string GrantTotalText => $"${GrantTotalAmount:N0}";
+        public string GrantSummaryText => $"資助 {GrantCount:N0} 次　｜　累計 {GrantTotalText}";
         public string WinRateText => CompletedTicketCount > 0
             ? ((double)WinCount / CompletedTicketCount).ToString("P2")
             : "0.00%";
