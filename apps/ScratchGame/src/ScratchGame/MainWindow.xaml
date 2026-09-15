@@ -131,7 +131,7 @@
 
                         <Border x:Name="ResultOverlay"
                                 Visibility="Collapsed"
-                                IsVisibleChanged="ResultOverlay_OnVisibilityChanged"
+                                IsVisibleChanged="ResultOverlay_OnVisibilityChangedExtended"
                                 Width="520"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -214,6 +214,20 @@
                     <TextBlock x:Name="TicketMetaText" HorizontalAlignment="Left" VerticalAlignment="Center" Foreground="#FFF0C8" FontSize="12"/>
                     <TextBlock x:Name="StatusText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFF0C8" FontSize="12"/>
                 </Grid>
+            </Grid>
+
+            <!-- Program-owned wallet-grant effect layer. The PNG stays external and replaceable. -->
+            <Grid x:Name="WalletGrantOverlay"
+                  Visibility="Collapsed"
+                  Opacity="0"
+                  IsHitTestVisible="False"
+                  Panel.ZIndex="50"
+                  ClipToBounds="True">
+                <Border Background="#66000000"/>
+                <Image x:Name="WalletGrantOverlayImage"
+                       Stretch="Uniform"
+                       Margin="28,10"
+                       RenderTransformOrigin="0.5,0.5"/>
             </Grid>
         </Grid>
 
