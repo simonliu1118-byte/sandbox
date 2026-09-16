@@ -17,7 +17,7 @@ ScratchPack 只選玩法與填公開參數，不得自行寫規則。
 
 新增可選參數必須向下相容；舊包缺少新欄位時，使用不改變舊行為的預設值。
 
-同類動態元件的尺寸與內部 Renderer 必須一致；Maker 以模板方式控制整組元件，不允許逐格做出不同字級、比例或內部排列。
+同類動態元件的尺寸與內部 Renderer 必須一致；PackEditor 以模板方式控制整組元件，不允許逐格做出不同字級、比例或內部排列。
 
 ---
 
@@ -62,7 +62,7 @@ row = index / N
 column = index % N
 ```
 
-Maker / Importer 必須同時驗證視覺 geometry 確實形成標準網格：
+PackEditor / Importer 必須同時驗證視覺 geometry 確實形成標準網格：
 
 - 所有盤面格的 `width`、`height`、`shape` 必須一致。
 - 若 shape 為 `roundedRectangle`，所有格的 `cornerRadius` 必須一致。
@@ -128,7 +128,7 @@ GameType 1 的 Prize Pool 仍使用共通 `ticket.json.prizes`，不得加入 `l
 - 將 `prizes` 依 `amount` 由小到大排序後，依序對應合法線數由少到多。
 - 獎金必須隨線數嚴格增加，因此各 Tier 的 `amount` 必須唯一且嚴格遞增。
 - 某個合法線數即使該 Pack 不發行，也必須保留對應 Prize Tier 並設定 `count = 0`；不得省略，否則線數與獎金的映射會改變。
-- `prizes` 在 JSON 中的實體排列順序不承擔映射語意；Engine / Maker / Importer 一律依 `amount` 排序後建立線數映射。
+- `prizes` 在 JSON 中的實體排列順序不承擔映射語意；Engine / PackEditor / Importer 一律依 `amount` 排序後建立線數映射。
 - 0 線代表未中獎，不建立 `amount = 0` Prize Tier；未中獎張數仍由 `issueSize - Σ prizes.count` 推導。
 
 3×3 範例：
@@ -185,7 +185,7 @@ numberMin
 numberMax
 ```
 
-Maker 必須依實際 Prize Tier、可用命中數、是否存在未中獎票等條件直接驗證數字範圍是否足以產生合法盤面，不以過度簡化的固定公式代替實際驗證。
+PackEditor 必須依實際 Prize Tier、可用命中數、是否存在未中獎票等條件直接驗證數字範圍是否足以產生合法盤面，不以過度簡化的固定公式代替實際驗證。
 
 ### 格內金額
 
@@ -199,7 +199,7 @@ prizeAmountUsage = repeatable | uniquePerTicket
 
 `displayPrizeAmounts` 是盤面可用金額，不是最終 Prize Pool。
 
-主程式先取得本張最終 Prize Tier，再尋找符合 `payoutSource`、命中數上限及 `prizeAmountUsage` 的合法組合；若無法精確組成，Maker 必須在封裝前報錯。
+主程式先取得本張最終 Prize Tier，再尋找符合 `payoutSource`、命中數上限及 `prizeAmountUsage` 的合法組合；若無法精確組成，PackEditor 必須在封裝前報錯。
 
 ### 固定 Renderer
 
@@ -212,7 +212,7 @@ prizeAmountUsage = repeatable | uniquePerTicket
 
 無獎金的一側只顯示固定大小的大號數字。
 
-同一張票所有 Type 2 格子的尺寸、數字字級、金額字級、比例、間距與位置全部一致，不允許個別格縮放。最長金額若無法放入固定模板，Maker 報錯。
+同一張票所有 Type 2 格子的尺寸、數字字級、金額字級、比例、間距與位置全部一致，不允許個別格縮放。最長金額若無法放入固定模板，PackEditor 報錯。
 
 ---
 
@@ -227,7 +227,7 @@ gameType = "3"
 同一個金額恰好出現三次，即得該金額；不是三倍金額。
 
 - `matchCount` 固定為 3，不作 ScratchPack 設定。
-- `zoneCount` 由開發者在 Maker 支援範圍內自由設定。
+- `zoneCount` 由開發者在 PackEditor 支援範圍內自由設定。
 - 本張若中 `$500`，引擎必須恰好生成三個 `$500`。
 - 其他任何金額最多出現兩次。
 - 未中獎票所有金額都最多出現兩次。
@@ -243,11 +243,11 @@ useCustomDecoyAmounts = false   預設
 
 開啟 true 時，開發者可額外提供 `decoyAmounts`，作為非中獎位置的補充顯示金額。`decoyAmounts` 不建立新的 Prize Tier，也不能改變本張真正中獎金額恰好出現三次的規則。
 
-Maker 必須確認目前可用金額種類足以填滿 `zoneCount` 而不意外形成第二組三個相同。
+PackEditor 必須確認目前可用金額種類足以填滿 `zoneCount` 而不意外形成第二組三個相同。
 
 ### Renderer
 
-每格只顯示金額；同一張票所有格尺寸與金額字級固定，不因金額長短個別縮放。Maker 事前檢查最長金額是否可完整顯示。
+每格只顯示金額；同一張票所有格尺寸與金額字級固定，不因金額長短個別縮放。PackEditor 事前檢查最長金額是否可完整顯示。
 
 ---
 
@@ -271,7 +271,7 @@ Type 4 有兩種固定模式，但共用同一個 GameType，因底層都是「�
 5 個 ★ → $1,000
 ```
 
-開發者設定最低中獎數；Maker 建立連續的數量 tier。數量越多，獎金必須嚴格增加。
+開發者設定最低中獎數；PackEditor 建立連續的數量 tier。數量越多，獎金必須嚴格增加。
 
 對抽中的 tier，引擎必須生成恰好對應數量的 target symbol；不能多一個，否則會落入下一個 tier。
 
@@ -298,12 +298,12 @@ allowMultipleWins = false | true
 - false：一張票最多只有一種有獎符號成立。
 - true：可同時成立多種有獎符號，獎金全部累加。
 
-Mode B 的最終 Prize Pool **由 Maker 自動推導**：
+Mode B 的最終 Prize Pool **由 PackEditor 自動推導**：
 
 - false：依可成立的單一符號獎金推導。
 - true：依所有合法符號組合、zoneCount 與 `matchCount` 推導可生成總獎金。
 
-Maker 顯示可生成總獎金，開發者只填各金額發行張數；不自行新增任意最終獎金。
+PackEditor 顯示可生成總獎金，開發者只填各金額發行張數；不自行新增任意最終獎金。
 
 ### 干擾符號
 
@@ -354,7 +354,7 @@ gameType = "5"
 
 ### drawCount
 
-開發者設定「你的符號／號碼」刮區數量 `drawCount`。Maker 依可用唯一內容與 decoy 設定驗證是否足以生成合法盤面。
+開發者設定「你的符號／號碼」刮區數量 `drawCount`。PackEditor 依可用唯一內容與 decoy 設定驗證是否足以生成合法盤面。
 
 ### 干擾項
 
@@ -373,7 +373,7 @@ true：允許混入棋盤不存在的項目。
 
 Type 5 的最終獎金不由開發者任意輸入。
 
-Maker 依：
+PackEditor 依：
 
 - gridSize。
 - drawCount。
@@ -446,7 +446,7 @@ vertical     上下
 
 ### 共用區塊模板
 
-開發者可以在 Maker 調整一次比較區模板尺寸；所有區塊必須共用相同尺寸、相同內部比例與相同 Renderer。
+開發者可以在 PackEditor 調整一次比較區模板尺寸；所有區塊必須共用相同尺寸、相同內部比例與相同 Renderer。
 
 新增區塊時只複製模板並移動整個區塊位置，不能讓不同區塊的 lucky/your 數字格大小不同。
 
@@ -482,7 +482,7 @@ prizeAmountUsage = repeatable | uniquePerTicket
 
 主程式先取得本張最終 Prize Tier，再決定哪些區塊中獎及各區顯示多少金額，使中獎區金額總和精確等於本張 Prize Tier。
 
-Maker 必須事前驗證所有正式 Prize Tier 都能在 `blockCount`、可用金額及重複規則下精確生成。
+PackEditor 必須事前驗證所有正式 Prize Tier 都能在 `blockCount`、可用金額及重複規則下精確生成。
 
 ### 自訂每區固定獎金
 
@@ -492,6 +492,6 @@ useCustomBlockPrizes = true
 
 開發者直接設定每一區固定獎金。該區的金額不會因不同票而改變。
 
-此模式不再使用 `displayPrizeAmounts` / `prizeAmountUsage`；Maker 以 subset-sum / 動態規劃快速計算所有可生成總獎金，開發者只填各金額發行張數，不自行新增任意最終獎金。
+此模式不再使用 `displayPrizeAmounts` / `prizeAmountUsage`；PackEditor 以 subset-sum / 動態規劃快速計算所有可生成總獎金，開發者只填各金額發行張數，不自行新增任意最終獎金。
 
 ---
