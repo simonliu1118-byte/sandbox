@@ -21,6 +21,7 @@ ScratchPack schema / ResourceRef / Built-in registry 的唯一權威為 `SCRATCH
 - 文字與圖示不得因 DropShadowEffect 或父層 rasterization 變糊；陰影與文字本體應分層處理。
 - 正常使用流程的 Info / Warning / Error / Confirm 使用 ScratchGame 自畫 Dialog / Modal；只有程式連自家 UI 都無法初始化的致命 fallback 才允許 Windows MessageBox。
 - Header 負責程式層級功能；Footer 負責玩家狀態、遊戲操作與唯一的 `StatusText` 呈現。Stage 不另外建立第二套一般狀態列。
+- **除非使用者當次明確要求，Header / Stage / Footer 的寬度、高度、Grid Row/Column 區域尺寸與整體邊界皆視為固定版面契約，不得自行增減、拉伸或壓縮。** 修正裁切、對齊、Modal、按鈕、文字或其他 UI 問題時，必須優先在該區域內調整子控制項、Margin / Padding、Alignment、Clip、Z-order 或 layout；不得以改變 Header / Stage / Footer 尺寸作為繞過問題的手段。這三區尺寸直接關聯外部美術資源與版面比例，未經明確要求不可破壞。
 
 ## 3. Canvas 與版型座標
 
