@@ -1,92 +1,72 @@
 # ScratchPack V1 交接索引
 
-更新日期：2026/09/16
+更新日期：2026/09/17
 
-本檔只做目前狀態與交接入口，不重複 schema、Prize Tier、Built-in registry 或 GameType 核心規則。
+本檔只做 ScratchPack / PackEditor 目前狀態索引，不重複 schema 或 GameType 核心規則。
 
 ## 權威文件
 
-- ScratchPack 封裝 / schema / ResourceRef / Built-in registry：`apps/ScratchGame/SCRATCHPACK_SPEC.md`
-- GameType 契約：`apps/ScratchGame/GAMETYPE_SPEC.md`
-- 永久產品原則：`apps/ScratchGame/PROJECT_RULES.md`
-- Roadmap / TODO：`apps/ScratchGame/TODO.md`
+- ScratchPack schema / ResourceRef / Built-in registry：`SCRATCHPACK_SPEC.md`
+- GameType 契約：`GAMETYPE_SPEC.md`
+- 永久專案規則：`PROJECT_RULES.md`
+- Roadmap：`TODO.md`
+- 整體工作交接：`WORK_HANDOFF.md`
+- Portable：`RUNTIME_PACKAGE.md`
 
 ## 目前版本線
 
 ```text
-V0.5.0
+V0.5.3 / BUILD 0
 branch: scratchgame/feature-scratchpack-v1-runtime
-PR: #7
+HEAD: 6612f88d7542d5b7558baca9cf8cc6894071dc87
+Windows CI: Run #179 PASS
 ```
 
-V0.5.0 已進入 **PackEditor** 階段；PackEditor 是 ScratchGame 的附屬 EXE，共用同一份 VERSION / BUILD，不另設產品版號。
-
-## ScratchPack V1 runtime 現況
+## ScratchPack V1 runtime
 
 - V1 使用 `manifest.json + ticket.json`。
-- `ScratchPackV1Loader` 是 schema 解析／驗證單一 owner；Importer、runtime 與 PackEditor 輸出驗證共用。
-- Built-in / Imported Pack 使用相同 schema、ResourceRef、GameType 契約與 runtime pipeline。
-- BuiltIn / Imported 只屬 runtime installation source，不是 Pack 欄位。
-- Built-in ticket ResourceRef 依 GameType namespace；foil 使用全域 namespace。
-- GameType 1 runtime 由 Pack game / zones / prizes / ResourceRef 驅動。
+- `ScratchPackV1Loader` 是 schema parse / validation 單一 owner。
+- Importer、runtime、PackEditor round-trip 共用正式 loader / validator。
+- Built-in / Imported Pack 格式相同；差別只在 installation source。
+- `manifest.packageId` 是永久唯一身分；0.x 不做 Pack update / replace。
+- Built-in ticket ResourceRef 依 GameType namespace；foil 使用共用 namespace。
+- GameType 1 由 Pack game / zones / prizes / ResourceRef 驅動。
 - `scratch.zones` 是 symbol / foil / ScratchSurface geometry 的共同來源。
-- 程式面額／票號使用 `priceDisplayArea` / `serialDisplayArea`。
-- runtime thumbnail cache 在 Pack 安裝後產生，可遺失重建，不屬 ScratchPack schema。
+- price / serial 使用 `priceDisplayArea` / `serialDisplayArea`。
+- thumbnail 是 runtime cache，可重建，不屬 ScratchPack schema。
 
-## packageId 與 create-only lifecycle
+## PackEditor lifecycle
 
-`manifest.packageId` 是 Pack 的永久唯一身分。
+PackEditor 是 ScratchGame 附屬 EXE，與 ScratchGame 共用 VERSION / BUILD。
 
-目前單機版規則：
+固定規則：
 
-- Importer 發現相同 packageId 已安裝時直接拒絕，不把它當 Pack update。
-- Built-in Pack 若 packageId 不變但內容 hash 改變，直接拒絕並要求新 packageId。
-- **PackEditor 只建立新 Pack，不開啟、不修改、不覆寫、不另存既有 `.scratchpack`。**
-- 每次「新增 Pack」自動產生新的 UUID v4 packageId；一般使用者不手動指定 packageId。
-- 若要不同內容，建立新的 Pack / packageId；0.x 不做 Pack update / replace framework。
+- create-only。
+- 不開啟 / 修改 / 覆寫 / 另存既有 `.scratchpack`。
+- 新 draft 使用新的 UUID v4 packageId。
+- 不建立 `.scratchproject`。
+- 輸出前建立真實 `.scratchpack`，再以 `ScratchPackV1Loader` round-trip 驗證。
 
-這個設計避免不同電腦或不同檔案以同 packageId 表示不同內容，也避免匯入端需要處理 Pack 版本升級與 replacement semantics。
+目前四步驟 UI：
 
-## Built-in Pack
+`① 基本資料與票面素材 → ② 遊戲區域 → ③ 獎金池 → ④ 驗證與輸出`
 
-Built-in Pack 與 Imported Pack 的 `.scratchpack` 內容沒有差別。
-
-正式製作流程：
-
-```text
-PackEditor 新增 Pack
-→ 產出新的 packageId
-→ 輸出 .scratchpack
-→ 使用者確認／測試
-→ 最終檔原樣放入 BuiltInPacks/
-→ ScratchGame 啟動由正式 loader / validator / installer 註冊
-```
-
-主程式不手寫第二套 Built-in ticket definition，也不在 Pack schema 增加 BuiltIn 欄位。
-
-## PackEditor V0.5.0
-
-位置：`apps/ScratchGame/src/PackEditor/`
-
-目前已完成 GameType 1 第一個可測流程：
-
-- 新增 Pack + UUID v4 packageId。
-- 名稱／作者／面額／Canvas／GameType。
-- Built-in ticket / foil 或自訂 PNG。
-- Canvas 1 自訂票面精確 1080×882 驗證。
-- 3×3 / 4×4 / 5×5 grid geometry，自動產生 row-major zones。
-- Price Area / Serial Area。
-- Prize Pool amount / count；合法線數由 GameType 1 規則衍生。
-- 中獎率、平均獎金（期望值）、獎金回饋率等 derived preview。
-- 輸出前以正式 `ScratchPackV1Loader` round-trip 驗證。
-
-PackEditor 不保存 editor-only schema，也不建立 `.scratchproject`。
+PackEditor 正式收尾已依使用者決定延後：**先完成 portable、automation、基本 GameType；基本 GameType 全部完善後再回來完成 PackEditor 正式 UI / preview / validation UX。**
 
 ## ThreeStar-Test
 
-ThreeStar-Test 是 reference / test Pack，不是正式 Built-in Pack。它與正式 Pack 使用同一 schema / loader / GameType pipeline。
+`TestPacks/ThreeStar-Test.scratchpack` 是目前 reference / test Pack，不是正式 Built-in Pack，但使用正式 ScratchPack schema / loader / GameType pipeline。
 
-已接受的 Canvas 1 / GameType 1 幾何：
+目前使用者明確要求：
+
+- 開發 / 測試 portable **必須包含 TestPacks**。
+- TestPack 應納入 size / SHA-256 integrity verification。
+- 一直保留到 V1.0.0 正式驗收完成。
+- 到 V1.0.0 release gate 再主動提醒使用者，確認後才移除；不得提前移除。
+
+V0.5.3 Build 0 packager 尚未符合這一點，目前仍錯誤禁止 TestPacks；下一步 V0.5.3 Build 1 修正。
+
+ThreeStar-Test 已接受的 Canvas 1 / GameType 1 geometry：
 
 ```text
 zone size: 191 × 138
@@ -98,31 +78,13 @@ priceDisplayArea: x=852 y=43 width=201 height=82
 serialDisplayArea: x=364 y=774 width=350 height=59
 ```
 
-## Thumbnail cache
+## Portable / automation 關係
 
-ScratchPack V1 不保存 `thumbnail.png`。
+V0.5.3 Build 0 已建立正式 packager 骨架：兩個 EXE、runtime asset manifest、size / SHA verification、post-ZIP verification。
 
-主程式流程：
+下一步順序：
 
-```text
-Pack 安裝成功
-→ 由正式 Pack/runtime definition 產生 360×294 thumbnail cache
-→ 挑券頁直接讀 cache
-→ cache 遺失／損壞時重建
-```
-
-PackEditor 的中央預覽直接依 draft 即時疊圖，不使用 runtime thumbnail cache。
-
-## Windows 驗證狀態
-
-- V0.5.0 CI Run #161：ScratchGame build / publish / smoke test **PASS**。
-- V0.5.0 CI Run #161：PackEditor build / publish / smoke test **PASS**。
-- CI artifact 同時產出 `ScratchGame.exe` 與 `PackEditor.exe`。
-
-## 下一步
-
-1. 實機驗 PackEditor：新增 → 編輯 → round-trip 驗證 → 輸出 → ScratchGame 匯入。
-2. 移除 PackEditor 骨架中 disabled 的「開啟／儲存」按鈕，避免誤導成可修改舊 Pack。
-3. 做 preview drag / resize、銀膜 clipping、動態符號示意與驗證頁細化。
-4. 更新 portable packager，正式把 `PackEditor.exe` 納入 shared-resource package。
-5. 建立 PackEditor → Pack → Importer regression。
+1. Build 1 納入 / 驗證 TestPacks。
+2. 建立完整 automated regression：Pack load → Import → finite pool → buy → pending → scratch → redeem → Wallet / stats。
+3. 基本 GameType 逐一完成。
+4. 最後再回 PackEditor 正式收尾。
