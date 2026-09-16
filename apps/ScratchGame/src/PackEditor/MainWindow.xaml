@@ -2,188 +2,185 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PackEditor"
-        Width="1500" Height="940"
-        MinWidth="1280" MinHeight="820"
+        Width="1200" Height="760"
+        MinWidth="1040" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="#1C100D"
+        Loaded="WindowV051_OnLoaded"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="64"/>
-            <RowDefinition Height="74"/>
+            <RowDefinition Height="54"/>
+            <RowDefinition Height="58"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#321713" BorderBrush="#8B5E35" BorderThickness="0,0,0,1">
-            <Grid Margin="22,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="PackEditor" FontFamily="Segoe UI" FontSize="25" FontWeight="Bold" Foreground="#FFD981" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="新增 Pack" Style="{StaticResource ToolbarButton}" Click="NewPack_OnClick"/>
-                    <Button x:Name="ExportPackButton" Content="輸出 .scratchpack" Style="{StaticResource ToolbarPrimaryButton}" IsEnabled="False" Click="ExportPack_OnClick"/>
-                </StackPanel>
+            <Grid Margin="20,0">
+                <TextBlock Text="PackEditor" FontFamily="Segoe UI" FontSize="22" FontWeight="Bold" Foreground="#FFD981" VerticalAlignment="Center"/>
+                <Button x:Name="ExportPackButton" Visibility="Collapsed"/>
             </Grid>
         </Border>
 
         <Border Grid.Row="1" Background="#281410" BorderBrush="#654232" BorderThickness="0,0,0,1">
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="BasicNavButton" Content="①  基本資料" Style="{StaticResource NavButton}" Click="BasicNav_OnClick"/>
-                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
-                    <Button x:Name="AssetsNavButton" Content="②  票面素材" Style="{StaticResource NavButton}" Click="AssetsNav_OnClick"/>
-                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
-                    <Button x:Name="GameAreaNavButton" Content="③  遊戲區域" Style="{StaticResource NavButton}" Click="GameAreaNav_OnClick"/>
-                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
-                    <Button x:Name="PrizeNavButton" Content="④  獎金池" Style="{StaticResource NavButton}" Click="PrizeNav_OnClick"/>
-                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
-                    <Button x:Name="ValidationNavButton" Content="⑤  驗證與輸出" Style="{StaticResource NavButton}" Click="ValidationNav_OnClick"/>
-                </StackPanel>
-            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button x:Name="BasicNavButton" Width="230" Content="①  基本資料與票面素材" Style="{StaticResource NavButton}" IsHitTestVisible="False" Focusable="False"/>
+                <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                <Button x:Name="GameAreaNavButton" Width="170" Content="②  遊戲區域" Style="{StaticResource NavButton}" IsHitTestVisible="False" Focusable="False"/>
+                <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                <Button x:Name="PrizeNavButton" Width="155" Content="③  獎金池" Style="{StaticResource NavButton}" IsHitTestVisible="False" Focusable="False"/>
+                <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                <Button x:Name="ValidationNavButton" Width="170" Content="④  驗證與輸出" Style="{StaticResource NavButton}" IsHitTestVisible="False" Focusable="False"/>
+                <Button x:Name="AssetsNavButton" Visibility="Collapsed"/>
+            </StackPanel>
         </Border>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="430"/>
+                <ColumnDefinition Width="360"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="#24120F" BorderBrush="#654232" BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <Grid Margin="24,22,24,26">
+                    <Grid Margin="18,16,18,18">
                         <StackPanel x:Name="BasicPanel">
-                            <TextBlock Text="基本資料" Style="{StaticResource SectionHeader}"/>
+                            <TextBlock Text="基本資料與票面素材" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="彩券名稱" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="PackNameTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
+                            <TextBox x:Name="PackNameTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051BasicField_OnChanged"/>
                             <TextBlock Text="作者" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="AuthorTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
+                            <TextBox x:Name="AuthorTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051BasicField_OnChanged"/>
                             <TextBlock Text="遊戲類型" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="GameTypeComboBox" Height="38" SelectionChanged="GameTypeComboBox_OnSelectionChanged">
+                            <ComboBox x:Name="GameTypeComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051GameType_OnChanged">
                                 <ComboBoxItem Content="星星連線" Tag="1"/>
                             </ComboBox>
                             <TextBlock Text="面額" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="PriceTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
+                            <TextBox x:Name="PriceTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051BasicField_OnChanged"/>
                             <TextBlock Text="彩券尺寸" Style="{StaticResource FieldLabel}"/>
-                            <TextBox Text="1080 × 882 px" Style="{StaticResource FieldTextBox}" IsReadOnly="True" IsTabStop="False"/>
-                            <Grid Visibility="Collapsed">
-                                <TextBox x:Name="PackageIdTextBox"/>
-                                <TextBox x:Name="MinimumVersionTextBox"/>
-                            </Grid>
-                        </StackPanel>
+                            <ComboBox x:Name="CanvasComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051Canvas_OnChanged">
+                                <ComboBoxItem Content="1080 × 882 px" Tag="1"/>
+                            </ComboBox>
+                            <Grid Visibility="Collapsed"><TextBox x:Name="PackageIdTextBox"/><TextBox x:Name="MinimumVersionTextBox"/></Grid>
 
-                        <StackPanel x:Name="AssetsPanel" Visibility="Collapsed">
-                            <TextBlock Text="票面素材" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="票面來源" Style="{StaticResource FieldLabel}"/>
+                            <Border Margin="0,16,0,12" BorderBrush="#654232" BorderThickness="0,1,0,0"/>
+                            <TextBlock Text="票面" Style="{StaticResource SubsectionHeader}"/>
                             <StackPanel Orientation="Horizontal">
-                                <RadioButton x:Name="TicketBuiltInRadio" Content="內建票面" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="TicketSource_OnChanged"/>
-                                <RadioButton x:Name="TicketPackageRadio" Content="自訂 PNG" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="TicketSource_OnChanged"/>
+                                <RadioButton x:Name="TicketBuiltInRadio" Content="內建票面" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="V051TicketSource_OnChanged"/>
+                                <RadioButton x:Name="TicketPackageRadio" Content="上傳檔案" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="V051TicketSource_OnChanged"/>
                             </StackPanel>
                             <StackPanel x:Name="TicketBuiltInPanel">
-                                <TextBlock Text="票面樣式" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                <ComboBox x:Name="TicketBuiltInComboBox" Height="38" SelectionChanged="TicketBuiltInComboBox_OnSelectionChanged"/>
+                                <TextBlock Text="票面樣式" Style="{StaticResource FieldLabel}" Margin="0,5,0,4"/>
+                                <ComboBox x:Name="TicketBuiltInComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051TicketResource_OnChanged"/>
                                 <TextBlock x:Name="TicketBuiltInHintText" Visibility="Collapsed"/>
                             </StackPanel>
                             <StackPanel x:Name="TicketPackagePanel" Visibility="Collapsed">
-                                <TextBlock Text="自訂票面 PNG" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                <Button Content="選擇 PNG…" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ChooseTicketPng_OnClick"/>
-                                <TextBlock x:Name="TicketPackagePathText" Text="尚未選擇" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="13"/>
-                                <TextBlock x:Name="TicketPackageInfoText" Margin="0,4,0,0" Foreground="#A88972" FontSize="12"/>
+                                <TextBlock Text="上傳檔案" Style="{StaticResource FieldLabel}" Margin="0,5,0,2"/>
+                                <TextBlock Text="接受格式：PNG" Foreground="#A88972" FontSize="11.5" Margin="0,0,0,6"/>
+                                <Button Content="選擇圖片" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="V051ChooseTicketPng_OnClick"/>
+                                <TextBlock x:Name="TicketPackagePathText" Text="尚未選擇" Margin="0,7,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="12"/>
+                                <TextBlock x:Name="TicketPackageInfoText" Margin="0,2,0,0" Foreground="#A88972" FontSize="11"/>
                             </StackPanel>
-                            <Border Margin="0,22,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,18,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="銀膜" FontFamily="Microsoft JhengHei UI" FontSize="17" FontWeight="SemiBold" Foreground="#F0D2A1"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
-                                        <RadioButton x:Name="FoilBuiltInRadio" Content="內建銀膜" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="FoilSource_OnChanged"/>
-                                        <RadioButton x:Name="FoilPackageRadio" Content="自訂 PNG" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="FoilSource_OnChanged"/>
-                                    </StackPanel>
-                                    <StackPanel x:Name="FoilBuiltInPanel">
-                                        <TextBlock Text="銀膜樣式" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                        <ComboBox x:Name="FoilBuiltInComboBox" Height="38" SelectionChanged="FoilBuiltInComboBox_OnSelectionChanged"/>
-                                        <TextBlock x:Name="FoilBuiltInHintText" Visibility="Collapsed"/>
-                                    </StackPanel>
-                                    <StackPanel x:Name="FoilPackagePanel" Visibility="Collapsed">
-                                        <TextBlock Text="自訂銀膜 PNG" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                        <Button Content="選擇 PNG…" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ChooseFoilPng_OnClick"/>
-                                        <TextBlock x:Name="FoilPackagePathText" Text="尚未選擇" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="13"/>
-                                        <TextBlock x:Name="FoilPackageInfoText" Margin="0,4,0,0" Foreground="#A88972" FontSize="12"/>
-                                    </StackPanel>
-                                    <Border Margin="0,14,0,0" Height="128" Background="#140B09" BorderBrush="#654232" BorderThickness="1" CornerRadius="9">
-                                        <Grid Margin="8">
-                                            <Image x:Name="FoilPreviewImage" Stretch="Uniform" Visibility="Collapsed"/>
-                                            <TextBlock x:Name="FoilPreviewPlaceholder" Text="銀膜預覽" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#806A5A" FontSize="14"/>
-                                        </Grid>
-                                    </Border>
-                                </StackPanel>
+
+                            <Border Margin="0,14,0,12" BorderBrush="#654232" BorderThickness="0,1,0,0"/>
+                            <TextBlock Text="銀膜" Style="{StaticResource SubsectionHeader}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="FoilBuiltInRadio" Content="內建銀膜" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="V051FoilSource_OnChanged"/>
+                                <RadioButton x:Name="FoilPackageRadio" Content="上傳檔案" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="V051FoilSource_OnChanged"/>
+                            </StackPanel>
+                            <StackPanel x:Name="FoilBuiltInPanel">
+                                <TextBlock Text="銀膜樣式" Style="{StaticResource FieldLabel}" Margin="0,5,0,4"/>
+                                <ComboBox x:Name="FoilBuiltInComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051FoilResource_OnChanged"/>
+                                <TextBlock x:Name="FoilBuiltInHintText" Visibility="Collapsed"/>
+                            </StackPanel>
+                            <StackPanel x:Name="FoilPackagePanel" Visibility="Collapsed">
+                                <TextBlock Text="上傳檔案" Style="{StaticResource FieldLabel}" Margin="0,5,0,2"/>
+                                <TextBlock Text="接受格式：PNG" Foreground="#A88972" FontSize="11.5" Margin="0,0,0,6"/>
+                                <Button Content="選擇圖片" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="V051ChooseFoilPng_OnClick"/>
+                                <TextBlock x:Name="FoilPackagePathText" Text="尚未選擇" Margin="0,7,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="12"/>
+                                <TextBlock x:Name="FoilPackageInfoText" Margin="0,2,0,0" Foreground="#A88972" FontSize="11"/>
+                            </StackPanel>
+                            <Border Margin="0,9,0,0" Height="92" Background="#140B09" BorderBrush="#654232" BorderThickness="1" CornerRadius="8">
+                                <Grid Margin="6"><Image x:Name="FoilPreviewImage" Stretch="Uniform" Visibility="Collapsed"/><TextBlock x:Name="FoilPreviewPlaceholder" Text="銀膜預覽" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#806A5A" FontSize="12"/></Grid>
                             </Border>
+
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button Content="上一步" Style="{StaticResource StepButton}" IsEnabled="False" HorizontalAlignment="Left"/>
+                                <Button Grid.Column="1" Content="下一步" Style="{StaticResource StepPrimaryButton}" Click="V051Next_OnClick" Tag="1"/>
+                            </Grid>
                         </StackPanel>
+
+                        <StackPanel x:Name="AssetsPanel" Visibility="Collapsed"/>
 
                         <StackPanel x:Name="GameAreaPanel" Visibility="Collapsed">
                             <TextBlock Text="遊戲區域" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="網格尺寸" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="GridSizeComboBox" Height="38" SelectionChanged="GridSizeComboBox_OnSelectionChanged">
-                                <ComboBoxItem Content="3 × 3" Tag="3"/>
-                                <ComboBoxItem Content="4 × 4" Tag="4"/>
-                                <ComboBoxItem Content="5 × 5" Tag="5"/>
+                            <ComboBox x:Name="GridSizeComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051GridSize_OnChanged">
+                                <ComboBoxItem Content="3 × 3" Tag="3"/><ComboBoxItem Content="4 × 4" Tag="4"/><ComboBoxItem Content="5 × 5" Tag="5"/>
                             </ComboBox>
-                            <CheckBox x:Name="AllowNearMissCheckBox" Content="允許近似中獎盤面" Margin="0,12,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
+                            <CheckBox x:Name="AllowNearMissCheckBox" Content="允許近似中獎盤面" Margin="0,9,0,0" Foreground="#E4CCAD" Checked="V051LayoutOption_OnChanged" Unchecked="V051LayoutOption_OnChanged"/>
                             <TextBlock Text="刮獎區形狀" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="ZoneShapeComboBox" Height="38" SelectionChanged="ZoneShapeComboBox_OnSelectionChanged">
-                                <ComboBoxItem Content="圓角矩形" Tag="roundedRectangle"/>
-                                <ComboBoxItem Content="矩形" Tag="rectangle"/>
-                                <ComboBoxItem Content="正圓" Tag="circle"/>
-                                <ComboBoxItem Content="橢圓" Tag="ellipse"/>
+                            <ComboBox x:Name="ZoneShapeComboBox" Style="{StaticResource FieldComboBox}" SelectionChanged="V051LayoutCombo_OnChanged">
+                                <ComboBoxItem Content="圓角矩形" Tag="roundedRectangle"/><ComboBoxItem Content="矩形" Tag="rectangle"/><ComboBoxItem Content="正圓" Tag="circle"/><ComboBoxItem Content="橢圓" Tag="ellipse"/>
                             </ComboBox>
                             <TextBlock Text="網格位置與尺寸" Style="{StaticResource FieldLabel}"/>
                             <UniformGrid Columns="3" Rows="2">
-                                <StackPanel Margin="0,0,6,9"><TextBlock Text="起點 X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="3,0,3,9"><TextBlock Text="起點 Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="6,0,0,9"><TextBlock Text="格寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="0,0,6,0"><TextBlock Text="格高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="3,0,3,0"><TextBlock Text="水平間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="HorizontalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="6,0,0,0"><TextBlock Text="垂直間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="VerticalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,5,7"><TextBlock Text="起點 X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="2,0,2,7"><TextBlock Text="起點 Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="5,0,0,7"><TextBlock Text="格寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,5,0"><TextBlock Text="格高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="2,0"><TextBlock Text="水平間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="HorizontalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="5,0,0,0"><TextBlock Text="垂直間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="VerticalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
                             <TextBlock Text="圓角" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="CornerRadiusTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/>
-                            <CheckBox x:Name="PriceDisplayCheckBox" Content="由程式繪製面額" Margin="0,20,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
-                            <TextBlock Text="面額位置" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="CornerRadiusTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/>
+                            <CheckBox x:Name="PriceDisplayCheckBox" Content="由程式繪製面額" Margin="0,12,0,0" Foreground="#E4CCAD" Checked="V051LayoutOption_OnChanged" Unchecked="V051LayoutOption_OnChanged"/>
+                            <TextBlock Text="面額位置（可在預覽直接拖曳／縮放）" Style="{StaticResource FieldLabel}"/>
                             <UniformGrid Columns="4">
-                                <StackPanel Margin="0,0,4,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,3,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
-                            <TextBlock Text="票號位置" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Text="票號位置（可在預覽直接拖曳／縮放）" Style="{StaticResource FieldLabel}"/>
                             <UniformGrid Columns="4">
-                                <StackPanel Margin="0,0,4,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
-                                <StackPanel Margin="4,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,3,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button Content="上一步" Style="{StaticResource StepButton}" Click="V051Previous_OnClick" Tag="2"/>
+                                <Button Grid.Column="2" Content="下一步" Style="{StaticResource StepPrimaryButton}" Click="V051Next_OnClick" Tag="2"/>
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel x:Name="PrizePanel" Visibility="Collapsed">
                             <TextBlock Text="獎金池" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="發行張數 / 每本張數" Style="{StaticResource FieldLabel}"/>
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBox x:Name="IssueSizeTextBox" Style="{StaticResource FieldTextBox}" TextChanged="PrizeHeader_OnChanged"/>
-                                <TextBox x:Name="TicketsPerBookTextBox" Grid.Column="2" Style="{StaticResource FieldTextBox}" TextChanged="PrizeHeader_OnChanged"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBox x:Name="IssueSizeTextBox" Style="{StaticResource FieldTextBox}" TextChanged="V051PrizeHeader_OnChanged"/>
+                                <TextBox x:Name="TicketsPerBookTextBox" Grid.Column="2" Style="{StaticResource FieldTextBox}" TextChanged="V051PrizeHeader_OnChanged"/>
                             </Grid>
-                            <DataGrid x:Name="PrizeDataGrid" Margin="0,16,0,0" Height="286" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" RowHeaderWidth="0" Background="#FFF8ED" Foreground="#2E1C16" CellEditEnding="PrizeDataGrid_OnCellEditEnding">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="線數" Width="70" IsReadOnly="True" Binding="{Binding LineCount}"/>
-                                    <DataGridTextColumn Header="獎金" Width="*" Binding="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <DataGridTextColumn Header="張數" Width="*" Binding="{Binding Count, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <Border Margin="0,18,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,15,0,0">
+                            <Border Margin="0,12,0,0" BorderBrush="#76503C" BorderThickness="1" CornerRadius="8" Background="#FFF8ED">
+                                <DataGrid x:Name="PrizeDataGrid" Height="248" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" RowHeaderWidth="0" RowHeight="30" ColumnHeaderHeight="32" Background="#FFF8ED" Foreground="#2E1C16" BorderThickness="0" FontFamily="Microsoft JhengHei UI" FontSize="13" CellEditEnding="V051PrizeDataGrid_OnCellEditEnding">
+                                    <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="#E7D3B4"/><Setter Property="Foreground" Value="#4A2B20"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="BorderBrush" Value="#C5A77E"/></Style></DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.CellStyle><Style TargetType="DataGridCell"><Setter Property="Padding" Value="6,3"/><Setter Property="BorderBrush" Value="#E0CDB1"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style></DataGrid.CellStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="線數" Width="68" IsReadOnly="True" Binding="{Binding LineCount}"/>
+                                        <DataGridTextColumn Header="獎金" Width="*" Binding="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DataGridTextColumn Header="張數" Width="*" Binding="{Binding Count, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                            <Border Margin="0,12,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,10,0,0">
                                 <Grid>
+                                    <Grid.Resources><Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Microsoft JhengHei UI"/><Setter Property="FontSize" Value="12.5"/></Style></Grid.Resources>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="25"/><RowDefinition Height="25"/><RowDefinition Height="25"/><RowDefinition Height="25"/><RowDefinition Height="25"/><RowDefinition Height="25"/><RowDefinition Height="25"/></Grid.RowDefinitions>
                                     <TextBlock Text="中獎張數" Foreground="#B99376"/><TextBlock x:Name="WinningCountText" Grid.Column="1" Foreground="#F5DEC0"/>
                                     <TextBlock Grid.Row="1" Text="未中獎張數" Foreground="#B99376"/><TextBlock x:Name="LosingCountText" Grid.Row="1" Grid.Column="1" Foreground="#F5DEC0"/>
                                     <TextBlock Grid.Row="2" Text="中獎率" Foreground="#B99376"/><TextBlock x:Name="WinRateSummaryText" Grid.Row="2" Grid.Column="1" Foreground="#F5DEC0"/>
@@ -193,47 +190,53 @@
                                     <TextBlock Grid.Row="6" Text="獎金回饋率" Foreground="#B99376"/><TextBlock x:Name="RewardRateText" Grid.Row="6" Grid.Column="1" Foreground="#FFD46C" FontWeight="SemiBold"/>
                                 </Grid>
                             </Border>
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button Content="上一步" Style="{StaticResource StepButton}" Click="V051Previous_OnClick" Tag="3"/>
+                                <Button Grid.Column="2" Content="下一步" Style="{StaticResource StepPrimaryButton}" Click="V051Next_OnClick" Tag="3"/>
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel x:Name="ValidationPanel" Visibility="Collapsed">
                             <TextBlock Text="驗證與輸出" Style="{StaticResource SectionHeader}"/>
-                            <Button Content="執行完整驗證" Margin="0,18,0,0" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ValidateDraft_OnClick"/>
-                            <Border Margin="0,16,0,0" Padding="16" Background="#1A0E0B" BorderBrush="#654232" BorderThickness="1" CornerRadius="10">
-                                <TextBlock x:Name="ValidationResultText" Text="尚未執行完整驗證。" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="14" LineHeight="22" Foreground="#E0C2A2"/>
+                            <TextBlock Text="進入本步驟時會自動執行完整 ScratchPack 驗證。" TextWrapping="Wrap" Foreground="#B99376" FontSize="12.5" Margin="0,6,0,0"/>
+                            <Button Content="重新驗證" Margin="0,12,0,0" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="V051ValidateDraft_OnClick"/>
+                            <Border Margin="0,12,0,0" Padding="13" Background="#1A0E0B" BorderBrush="#654232" BorderThickness="1" CornerRadius="9">
+                                <TextBlock x:Name="ValidationResultText" Text="尚未執行完整驗證。" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="12.5" LineHeight="20" Foreground="#E0C2A2"/>
                             </Border>
-                            <Button Content="輸出 .scratchpack…" Margin="0,20,0,0" Style="{StaticResource ToolbarPrimaryButton}" HorizontalAlignment="Left" Click="ExportPack_OnClick"/>
+                            <Grid Margin="0,18,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Button Content="上一步" Style="{StaticResource StepButton}" Click="V051Previous_OnClick" Tag="4"/>
+                                <Button x:Name="CompleteExportButton" Grid.Column="2" Content="完成並輸出" Style="{StaticResource StepPrimaryButton}" IsEnabled="False" Click="V051CompleteAndExport_OnClick"/>
+                            </Grid>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
             </Border>
 
-            <Grid Grid.Column="1" Margin="28,22,28,26">
+            <Grid Grid.Column="1" Margin="16,14,16,16">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <Grid Margin="4,0,4,12">
-                    <TextBlock Text="即時預覽" FontFamily="Microsoft JhengHei UI" FontSize="21" FontWeight="Bold" Foreground="#FFE2A0"/>
-                    <TextBlock Text="1080 × 882 px" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontFamily="Segoe UI" FontSize="13" Foreground="#B18D72"/>
-                </Grid>
-                <Border Grid.Row="1" Background="#140B09" BorderBrush="#6A4838" BorderThickness="1" CornerRadius="12" Padding="20">
+                <TextBlock Margin="4,0,4,9" Text="即時預覽" FontFamily="Microsoft JhengHei UI" FontSize="18" FontWeight="Bold" Foreground="#FFE2A0"/>
+                <Border Grid.Row="1" Background="#140B09" BorderBrush="#6A4838" BorderThickness="1" CornerRadius="10" Padding="12">
                     <Viewbox Stretch="Uniform">
                         <Grid Width="1080" Height="882" Background="#F3E8D5">
                             <Image x:Name="TicketPreviewImage" Stretch="Fill" Visibility="Collapsed"/>
                             <StackPanel x:Name="PreviewPlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock x:Name="PreviewPlaceholderText" Text="請先新增 Pack" Width="720" TextAlignment="Center" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="34" FontWeight="Bold" Foreground="#5A3527" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="PreviewPlaceholderText" Text="設定彩券內容後顯示" Width="720" TextAlignment="Center" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="32" FontWeight="Bold" Foreground="#5A3527"/>
                             </StackPanel>
-                            <Canvas x:Name="EditorOverlayCanvas" Width="1080" Height="882" IsHitTestVisible="False" ClipToBounds="True"/>
+                            <Canvas x:Name="EditorOverlayCanvas" Width="1080" Height="882" ClipToBounds="True" Background="Transparent" MouseMove="V051EditorOverlayCanvas_OnMouseMove" MouseLeftButtonUp="V051EditorOverlayCanvas_OnMouseLeftButtonUp"/>
                             <Border BorderBrush="#A77B49" BorderThickness="4" IsHitTestVisible="False"/>
                             <TextBlock x:Name="PreviewResourceText" Visibility="Collapsed"/>
                         </Grid>
                     </Viewbox>
                 </Border>
-                <Grid Grid.Row="2" Margin="4,12,4,0">
+                <Grid Grid.Row="2" Margin="4,9,4,0">
                     <StackPanel Orientation="Horizontal">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,18,0"><Border Width="12" Height="12" Background="#DA37AA" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="刮獎區" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,18,0"><Border Width="12" Height="12" Background="#2AC6E2" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="面額" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
-                        <StackPanel Orientation="Horizontal"><Border Width="12" Height="12" Background="#4DC474" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="票號" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,16,0"><Border Width="10" Height="10" Background="#DA37AA" CornerRadius="2" VerticalAlignment="Center"/><TextBlock Text="刮獎區" Margin="5,0,0,0" Foreground="#BFA18A" FontSize="12" VerticalAlignment="Center"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,16,0"><Border Width="10" Height="10" Background="#2AC6E2" CornerRadius="2" VerticalAlignment="Center"/><TextBlock Text="面額" Margin="5,0,0,0" Foreground="#BFA18A" FontSize="12" VerticalAlignment="Center"/></StackPanel>
+                        <StackPanel Orientation="Horizontal"><Border Width="10" Height="10" Background="#4DC474" CornerRadius="2" VerticalAlignment="Center"/><TextBlock Text="票號" Margin="5,0,0,0" Foreground="#BFA18A" FontSize="12" VerticalAlignment="Center"/></StackPanel>
                     </StackPanel>
-                    <TextBlock x:Name="PreviewHintText" Visibility="Collapsed"/>
-                    <TextBlock x:Name="CurrentResourceSummaryText" Visibility="Collapsed"/>
+                    <TextBlock x:Name="PreviewHintText" Visibility="Collapsed"/><TextBlock x:Name="CurrentResourceSummaryText" Visibility="Collapsed"/>
                 </Grid>
             </Grid>
         </Grid>
