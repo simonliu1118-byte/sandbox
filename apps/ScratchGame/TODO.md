@@ -18,21 +18,26 @@
 - 本機版只保存累積遊玩統計，不保存逐張玩家歷史。
 - Footer Player Card / StatusText、Header toolbar、結果 modal 等主 UI 已進入新架構。
 
-### V0.5.0 — PackEditor
+### V0.5.1 — PackEditor / UI 重整
 
 正式名稱：**PackEditor**。它是 ScratchGame 的附屬 Windows x64 EXE，source 位於 `apps/ScratchGame/src/PackEditor/`，與 ScratchGame 共用同一份 VERSION / BUILD，不建立第二個產品專案或平行版號。
 
-目前已完成第一個可測 GameType 1 流程：
+目前已完成第一個可測 GameType 1 流程與 V0.5.1 UI 重整：
 
 - 「新增 Pack」自動產生 UUID v4 `packageId`。
-- 基本資料：名稱、作者、GameType、面額、Canvas、minimum app version。
+- 基本資料：名稱、作者、遊戲類型、面額、彩券尺寸；packageId / minimum app version 不作為一般輸入欄位。
+- GameType 1 在 UI 顯示為 **「星星連線」**；Canvas 1 在 UI 只顯示 **`1080 × 882 px`**。
 - Built-in ticket / foil 與 Pack 自帶 PNG 選擇。
 - Canvas 1 自訂票面必須精確 1080×882，不做 silent resize / crop。
 - GameType 1 的 3×3 / 4×4 / 5×5 Scratch Zone 由整組 grid 參數自動產生 row-major geometry。
 - price display area / serial area 數字編輯與中央 geometry 預覽。
 - Prize Pool 可編輯 amount / count；合法線數由 GameType 規則衍生，不寫入 schema。
-- 即時計算中獎張數、未中獎張數、中獎率、總銷售、總獎金、平均獎金（期望值）、獎金回饋率。
+- 即時計算中獎張數、未中獎張數、中獎率、總銷售、總獎金、平均獎金（期望值）、**獎金回饋率**。
 - 輸出前建立真實 `.scratchpack`，再使用正式 `ScratchPackV1Loader` 做 round-trip validation。
+- PackEditor Header 下方已有橫向五步驟流程：基本資料 → 票面素材 → 遊戲區域 → 獎金池 → 驗證與輸出。
+- 主工作區已改成 **左側輸入、右側即時預覽**。
+- 已移除沒有用途的「開啟／儲存既有 Pack」UI。
+- ScratchGame 的「選擇玩家 / 設定選單 / 彩券小舖」三個主要 Dialog 已於 V0.5.1 重新整理標題、位置與操作按鈕。
 
 PackEditor 的固定方向：
 
@@ -42,14 +47,24 @@ PackEditor 的固定方向：
 - Built-in Pack 沒有特殊模式；PackEditor 永遠輸出一般 `.scratchpack`，正式 Built-in Pack 只是在發行時原樣放入 `BuiltInPacks/`。
 - PackEditor 與 Importer / runtime 共用同一份 ScratchPack model / loader / validator，不建立第二套規則。
 
-V0.5.0 後續待做：
+#### V0.5.1 目前最高優先 blocker：PackEditor ICON source 失真
 
-- 移除目前骨架中沒有用途的「開啟／儲存」既有 Pack UI，避免誤導成可修改舊 Pack。
-- 完善 GameType 1 預覽：正式銀膜 clipping、動態符號／示意結果、面額／票號 renderer 對齊。
-- 中央預覽支援直接拖曳整組 Scratch Grid、Price Area、Serial Area；右側精確數字同步更新。
-- 驗證頁列出 manifest / canvas / resource / GameType geometry / Prize Pool 等分項結果，錯誤可導向對應編輯區。
-- PackEditor 與 ScratchGame 共用 portable 資源；更新 `tools/package_portable.py`，正式把 `PackEditor.exe` 納入 V0.5.0 portable 驗證與封裝。目前 CI 已可 publish / smoke-test 兩個 EXE。
-- 建立 PackEditor → `.scratchpack` → ScratchGame Importer 的自動 round-trip regression。
+- 目前 `apps/ScratchGame/src/PackEditor/Assets/PackEditor-icon-source.png` 雖可正常解碼、尺寸為 256×256，且 CI 能成功產生多尺寸 ICO / 嵌入 EXE，但**圖片像素內容本身已錯誤**。
+- 使用者實機看到：ICON 上半部還有彩券 / 工具圖樣，下半部整片是咖啡色實心色塊。
+- 這不是 ICO 尺寸、ApplicationIcon、Windows cache 或小尺寸 layer 問題；是 source binary / image upload integrity 問題。
+- Run #164 曾因 binary 壞到無法解碼而 FAIL；Run #165 改為可解碼後 PASS，但實機證明 source 畫面內容仍錯。
+- 下次必須先找回 / 重新產生正確 source，人工確認完整畫面，記錄 SHA-256，再用 binary-safe Git upload，上傳後回讀並比對 SHA-256，最後才允許 ICO generation / CI。
+- 後續要把 **ICON source integrity + binary-safe upload + repo 回讀 SHA 比對 + Windows embedding** 整理成 repository 共通規則，不能只做 ScratchGame 特例。
+
+V0.5.1 後續待做（依優先順序）：
+
+1. **修正 PackEditor ICON source / 上傳流程，完成實機 ICON 驗收。**
+2. 完成 V0.5.1 主程式三個 Dialog 與 PackEditor 新版 UI 的實機驗收。
+3. 完善 GameType 1 預覽：正式銀膜 clipping、動態符號／示意結果、面額／票號 renderer 對齊。
+4. 中央預覽支援直接拖曳整組 Scratch Grid、Price Area、Serial Area；左側精確數字同步更新。
+5. 驗證頁列出 manifest / canvas / resource / GameType geometry / Prize Pool 等分項結果，錯誤可導向對應編輯區。
+6. PackEditor 與 ScratchGame 共用 portable 資源；更新 `tools/package_portable.py`，正式把 `PackEditor.exe` 納入 portable 驗證與封裝。目前 CI 已可 publish / smoke-test 兩個 EXE。
+7. 建立 PackEditor → `.scratchpack` → ScratchGame Importer 的自動 round-trip regression。
 
 ### V0.6.x ～ V0.9.x — 完整化階段
 
