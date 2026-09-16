@@ -30,7 +30,6 @@ public sealed class ScratchSurface : Grid
     public double CornerRadius { get; set; }
     public bool IsCompleted => _completionReported;
 
-    // Compatibility passthroughs for callers that previously treated ScratchSurface as an Image.
     public Stretch Stretch
     {
         get => _maskImage.Stretch;
@@ -88,7 +87,6 @@ public sealed class ScratchSurface : Grid
     {
         if (_completionReported || _activePixels <= 0)
             return;
-
         if ((double)_erasedPixels / _activePixels >= CompletionThreshold)
             ReportCompletionOnce();
     }
@@ -134,7 +132,6 @@ public sealed class ScratchSurface : Grid
     {
         if (string.IsNullOrWhiteSpace(MaskImagePath) || !File.Exists(MaskImagePath))
             return null;
-
         try
         {
             var source = new BitmapImage();
@@ -151,7 +148,6 @@ public sealed class ScratchSurface : Grid
             var rendered = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
             rendered.Render(visual);
             var converted = new FormatConvertedBitmap(rendered, PixelFormats.Bgra32, null, 0);
-
             var pixels = new byte[width * height * 4];
             converted.CopyPixels(pixels, width * 4, 0);
             return pixels;
@@ -167,16 +163,14 @@ public sealed class ScratchSurface : Grid
         var stride = width * 4;
         var pixels = new byte[stride * height];
         for (var y = 0; y < height; y++)
+        for (var x = 0; x < width; x++)
         {
-            for (var x = 0; x < width; x++)
-            {
-                var offset = y * stride + x * 4;
-                var variation = (byte)((x * 13 + y * 7) % 18);
-                pixels[offset + 0] = (byte)(165 + variation);
-                pixels[offset + 1] = (byte)(165 + variation);
-                pixels[offset + 2] = (byte)(165 + variation);
-                pixels[offset + 3] = 255;
-            }
+            var offset = y * stride + x * 4;
+            var variation = (byte)((x * 13 + y * 7) % 18);
+            pixels[offset + 0] = (byte)(165 + variation);
+            pixels[offset + 1] = (byte)(165 + variation);
+            pixels[offset + 2] = (byte)(165 + variation);
+            pixels[offset + 3] = 255;
         }
         return pixels;
     }
@@ -184,26 +178,22 @@ public sealed class ScratchSurface : Grid
     private void ApplyZoneShapeMask(byte[] pixels, int width, int height)
     {
         for (var y = 0; y < height; y++)
+        for (var x = 0; x < width; x++)
         {
-            for (var x = 0; x < width; x++)
-            {
-                if (IsInsideZoneShape(x + 0.5, y + 0.5, width, height))
-                    continue;
-                pixels[y * width * 4 + x * 4 + 3] = 0;
-            }
+            if (IsInsideZoneShape(x + 0.5, y + 0.5, width, height))
+                continue;
+            pixels[y * width * 4 + x * 4 + 3] = 0;
         }
     }
 
     private bool IsInsideZoneShape(double x, double y, double width, double height)
-    {
-        return ZoneShape switch
+        => ZoneShape switch
         {
             "circle" => IsInsideEllipse(x, y, width, height),
             "ellipse" => IsInsideEllipse(x, y, width, height),
             "roundedRectangle" => IsInsideRoundedRectangle(x, y, width, height, CornerRadius),
             _ => true
         };
-    }
 
     private static bool IsInsideEllipse(double x, double y, double width, double height)
     {
@@ -221,12 +211,10 @@ public sealed class ScratchSurface : Grid
         var radius = Math.Clamp(cornerRadius, 0, Math.Min(width, height) / 2.0);
         if (radius <= 0)
             return true;
-
         if (x >= radius && x <= width - radius)
             return true;
         if (y >= radius && y <= height - radius)
             return true;
-
         var cx = x < radius ? radius : width - radius;
         var cy = y < radius ? radius : height - radius;
         var dx = x - cx;
@@ -238,10 +226,8 @@ public sealed class ScratchSurface : Grid
     {
         long count = 0;
         for (var i = 3; i < pixels.Length; i += 4)
-        {
             if (pixels[i] != 0)
                 count++;
-        }
         return count;
     }
 
@@ -260,42 +246,39 @@ public sealed class ScratchSurface : Grid
         var changed = false;
 
         for (var y = minY; y <= maxY; y++)
+        for (var x = minX; x <= maxX; x++)
         {
-            for (var x = minX; x <= maxX; x++)
+            var ox = x - centerX;
+            var oy = y - centerY;
+            var hash = unchecked((x * 73856093) ^ (y * 19349663));
+            var jitter = (hash & 7) - 3;
+            var localRadius = Math.Max(1, radius + jitter);
+            var distanceSquared = ox * ox + oy * oy;
+            if (distanceSquared > localRadius * localRadius)
+                continue;
+
+            var alphaIndex = y * _stride + x * 4 + 3;
+            var currentAlpha = _pixels[alphaIndex];
+            if (currentAlpha == 0)
+                continue;
+
+            var edgeRadius = Math.Max(1, localRadius - 3);
+            var edgeBand = distanceSquared > edgeRadius * edgeRadius;
+            if (edgeBand && (hash & 3) == 0)
             {
-                var ox = x - centerX;
-                var oy = y - centerY;
-                var hash = unchecked((x * 73856093) ^ (y * 19349663));
-                var jitter = (hash & 7) - 3;
-                var localRadius = Math.Max(1, radius + jitter);
-                var distanceSquared = ox * ox + oy * oy;
-                if (distanceSquared > localRadius * localRadius)
-                    continue;
-
-                var alphaIndex = y * _stride + x * 4 + 3;
-                var currentAlpha = _pixels[alphaIndex];
-                if (currentAlpha == 0)
-                    continue;
-
-                var edgeRadius = Math.Max(1, localRadius - 3);
-                var edgeBand = distanceSquared > edgeRadius * edgeRadius;
-                if (edgeBand && (hash & 3) == 0)
+                var softened = (byte)Math.Min((int)currentAlpha, 88);
+                if (softened != currentAlpha)
                 {
-                    var softened = (byte)Math.Min(currentAlpha, 88);
-                    if (softened != currentAlpha)
-                    {
-                        _pixels[alphaIndex] = softened;
-                        changed = true;
-                    }
-                    continue;
+                    _pixels[alphaIndex] = softened;
+                    changed = true;
                 }
-
-                _pixels[alphaIndex] = 0;
-                _erasedPixels++;
-                changed = true;
+                continue;
             }
-        }
 
+            _pixels[alphaIndex] = 0;
+            _erasedPixels++;
+            changed = true;
+        }
         return changed;
     }
 
@@ -375,7 +358,6 @@ public sealed class ScratchSurface : Grid
     {
         if (_bitmap is null || _pixels is null)
             return;
-
         _bitmap.WritePixels(new Int32Rect(0, 0, _pixelWidth, _pixelHeight), _pixels, _stride, 0);
     }
 
