@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceBaseline": "ScratchGame V0.5.2 Build 1 packaging baseline",
+  "sourceBaseline": "ScratchGame V0.5.3 Build 1 packaging baseline",
   "required": [
     {
       "path": "Themes/Default/Frame/header_bg.png",
@@ -95,5 +95,12 @@
       "sha256": "30bdbcc7a0fcc3bfff46ec72f65481f916dc7f5a6509766cafa43f459226e747"
     }
   ],
-  "builtInPacks": []
+  "builtInPacks": [],
+  "testPacks": [
+    {
+      "path": "TestPacks/ThreeStar-Test.scratchpack",
+      "size": 800,
+      "sha256": "2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a"
+    }
+  ]
 }

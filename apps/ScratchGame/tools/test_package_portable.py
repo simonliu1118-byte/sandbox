@@ -8,6 +8,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+import build_reference_testpack
 import package_portable
 
 
@@ -24,15 +25,20 @@ class PackagePortableTests(unittest.TestCase):
         ]
         self.optional = ["Tickets/ThreeStar/ticket.png"]
         self.built_in = ["BuiltInPacks/Official.scratchpack"]
+        self.test_packs = ["TestPacks/ThreeStar-Test.scratchpack"]
 
-        for relative in [*self.required, *self.optional, *self.built_in]:
+        for relative in [
+            *self.required,
+            *self.optional,
+            *self.built_in,
+            *self.test_packs,
+        ]:
             path = self.assets / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes((relative + "\n").encode("utf-8") * 3)
 
-        test_pack = self.assets / "TestPacks" / "NeverShip.scratchpack"
-        test_pack.parent.mkdir(parents=True)
-        test_pack.write_bytes(b"test-only")
+        undeclared = self.assets / "TestPacks" / "Undeclared.scratchpack"
+        undeclared.write_bytes(b"must-not-be-inherited")
 
         self.asset_manifest = self.root / "runtime-assets.json"
         self.asset_manifest.write_text(
@@ -43,6 +49,7 @@ class PackagePortableTests(unittest.TestCase):
                     "required": [self._record(path) for path in self.required],
                     "optionalLegacy": [self._record(path) for path in self.optional],
                     "builtInPacks": [self._record(path) for path in self.built_in],
+                    "testPacks": [self._record(path) for path in self.test_packs],
                 },
                 indent=2,
             ),
@@ -87,7 +94,7 @@ class PackagePortableTests(unittest.TestCase):
             "--version",
             "0.5.3",
             "--build",
-            "0",
+            "1",
         ]
         if assets_zip is not None:
             argv.extend(["--assets-zip", str(assets_zip)])
@@ -95,7 +102,7 @@ class PackagePortableTests(unittest.TestCase):
             argv.extend(["--assets", str(assets or self.assets)])
         return package_portable.parse_args(argv)
 
-    def test_directory_source_builds_exact_whitelist(self) -> None:
+    def test_directory_source_builds_exact_whitelist_with_test_pack(self) -> None:
         output = self.root / "directory-source.zip"
         count, _ = package_portable.build_package(
             self._args(output=output, assets=self.assets)
@@ -110,18 +117,30 @@ class PackagePortableTests(unittest.TestCase):
                 "ScratchGame/BuiltInPacks/Official.scratchpack",
                 names,
             )
+            self.assertIn(
+                "ScratchGame/TestPacks/ThreeStar-Test.scratchpack",
+                names,
+            )
             self.assertNotIn(
-                "ScratchGame/TestPacks/NeverShip.scratchpack",
+                "ScratchGame/TestPacks/Undeclared.scratchpack",
                 names,
             )
             manifest = archive.read(
                 "ScratchGame/PACKAGE_CONTENTS.txt"
             ).decode("utf-8")
             self.assertIn("VERSION: 0.5.3", manifest)
-            self.assertIn("BUILD: 0", manifest)
+            self.assertIn("BUILD: 1", manifest)
             self.assertIn("unit-test-baseline", manifest)
+            self.assertIn("TestPacks/ThreeStar-Test.scratchpack", manifest)
 
-        expected = 2 + len(self.required) + len(self.optional) + len(self.built_in) + 1
+        expected = (
+            2
+            + len(self.required)
+            + len(self.optional)
+            + len(self.built_in)
+            + len(self.test_packs)
+            + 1
+        )
         self.assertEqual(expected, count)
 
     def test_portable_zip_can_be_asset_source_without_inheriting_old_exes(self) -> None:
@@ -154,6 +173,10 @@ class PackagePortableTests(unittest.TestCase):
                 self.pack_editor.read_bytes(),
                 archive.read("ScratchGame/PackEditor.exe"),
             )
+            self.assertEqual(
+                (self.assets / self.test_packs[0]).read_bytes(),
+                archive.read("ScratchGame/TestPacks/ThreeStar-Test.scratchpack"),
+            )
             self.assertNotEqual(
                 old_scratchgame.read_bytes(),
                 archive.read("ScratchGame/ScratchGame.exe"),
@@ -182,6 +205,44 @@ class PackagePortableTests(unittest.TestCase):
                 self._args(output=output, assets=self.assets)
             )
         self.assertFalse(output.exists())
+
+    def test_missing_test_pack_is_rejected(self) -> None:
+        (self.assets / self.test_packs[0]).unlink()
+        output = self.root / "missing-test-pack.zip"
+
+        with self.assertRaisesRegex(ValueError, "Missing runtime asset: TestPacks/ThreeStar-Test"):
+            package_portable.build_package(
+                self._args(output=output, assets=self.assets)
+            )
+        self.assertFalse(output.exists())
+
+    def test_test_pack_hash_mismatch_is_rejected(self) -> None:
+        target = self.assets / self.test_packs[0]
+        data = bytearray(target.read_bytes())
+        data[0] ^= 0x01
+        target.write_bytes(data)
+        output = self.root / "bad-test-pack.zip"
+
+        with self.assertRaisesRegex(ValueError, "SHA-256 mismatch: TestPacks/ThreeStar-Test"):
+            package_portable.build_package(
+                self._args(output=output, assets=self.assets)
+            )
+        self.assertFalse(output.exists())
+
+    def test_canonical_three_star_test_pack_matches_runtime_manifest(self) -> None:
+        output = self.root / "ThreeStar-Test.scratchpack"
+        source = Path(__file__).resolve().parents[1] / "reference-packs" / "ThreeStar-Test"
+        size, digest = build_reference_testpack.build(source, output)
+        manifest = package_portable.load_asset_manifest(
+            package_portable.DEFAULT_ASSET_MANIFEST
+        )
+        record = next(
+            item
+            for item in manifest.test_packs
+            if item.path == "TestPacks/ThreeStar-Test.scratchpack"
+        )
+        self.assertEqual(record.size, size)
+        self.assertEqual(record.sha256, digest)
 
 
 if __name__ == "__main__":

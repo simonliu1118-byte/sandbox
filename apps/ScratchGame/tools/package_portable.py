@@ -4,7 +4,7 @@
 Runtime artwork/audio intentionally live outside the repository. The packager
 accepts either an unpacked runtime-asset directory or a previously approved
 portable/asset ZIP. It selects only files declared by runtime-assets.json, so
-old executables, TestPacks and unrelated files are never inherited.
+old executables and unrelated undeclared files are never inherited.
 """
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ class AssetManifest:
     required: tuple[AssetRecord, ...]
     optional_legacy: tuple[AssetRecord, ...]
     built_in_packs: tuple[AssetRecord, ...]
+    test_packs: tuple[AssetRecord, ...]
 
 
 @dataclass(frozen=True)
@@ -108,11 +109,18 @@ def load_asset_manifest(path: Path) -> AssetManifest:
         parse_record(item, "builtInPacks")
         for item in raw.get("builtInPacks", [])
     )
+    test_packs = tuple(
+        parse_record(item, "testPacks")
+        for item in raw.get("testPacks", [])
+    )
 
     if not required:
         raise ValueError("runtime-assets.json must declare at least one required asset.")
 
-    all_paths = [record.path for record in (*required, *optional, *built_in)]
+    all_paths = [
+        record.path
+        for record in (*required, *optional, *built_in, *test_packs)
+    ]
     if len(all_paths) != len(set(all_paths)):
         raise ValueError("runtime-assets.json contains duplicate paths.")
 
@@ -125,11 +133,21 @@ def load_asset_manifest(path: Path) -> AssetManifest:
                 f"Built-in pack must live under BuiltInPacks/*.scratchpack: {record.path}"
             )
 
+    for record in test_packs:
+        if (
+            not record.path.startswith("TestPacks/")
+            or not record.path.lower().endswith(".scratchpack")
+        ):
+            raise ValueError(
+                f"Test pack must live under TestPacks/*.scratchpack: {record.path}"
+            )
+
     return AssetManifest(
         source_baseline=baseline.strip(),
         required=required,
         optional_legacy=optional,
         built_in_packs=built_in,
+        test_packs=test_packs,
     )
 
 
@@ -201,6 +219,7 @@ def extract_asset_zip(
             if prefix + record.path in file_names
         )
         selected.extend(manifest.built_in_packs)
+        selected.extend(manifest.test_packs)
 
         for record in selected:
             source_name = prefix + record.path
@@ -236,6 +255,9 @@ def validate_asset_directory(root: Path, manifest: AssetManifest) -> AssetSource
     for record in manifest.built_in_packs:
         validate_file(root / PurePosixPath(record.path), record)
 
+    for record in manifest.test_packs:
+        validate_file(root / PurePosixPath(record.path), record)
+
     return AssetSource(root=root, description=f"DIR:{root.name}")
 
 
@@ -250,6 +272,7 @@ def collect_asset_records(
             records.append(record)
 
     records.extend(manifest.built_in_packs)
+    records.extend(manifest.test_packs)
     return tuple(records)
 
 
@@ -328,8 +351,7 @@ def verify_output(
         forbidden = [
             name
             for name in names
-            if "/TestPacks/" in name
-            or name.endswith("/TEST_STEPS.txt")
+            if name.endswith("/TEST_STEPS.txt")
             or name.endswith("/NOT_A_PORTABLE_PACKAGE.txt")
         ]
         if forbidden:
