@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "sourceBaseline": "ScratchGame V0.5.2 Build 1 packaging baseline",
+  "required": [
+    {
+      "path": "Themes/Default/Frame/header_bg.png",
+      "size": 121736,
+      "sha256": "36aef2ce38bb62f63da6708d4780b3d8b8d0af96b29014e5de410ea480dddb50"
+    },
+    {
+      "path": "Themes/Default/Frame/footer_bg.png",
+      "size": 113584,
+      "sha256": "6faa392149d67bc256f41cab208b0e9c9bbb31105d29f1577b34e0311655985b"
+    },
+    {
+      "path": "Themes/Default/Stage/stage_bg.png",
+      "size": 513144,
+      "sha256": "a2451d8f2fa4a429e880a83440cebb06035e72e30156355ebcce9bc94618db98"
+    },
+    {
+      "path": "BuiltInAssets/Tickets/gameType1/01-red.png",
+      "size": 1366608,
+      "sha256": "e2a5abe755769c54372bac00ba53cfdcd01e77714faad1917fe20e824b07c13e"
+    },
+    {
+      "path": "BuiltInAssets/Tickets/gameType1/01-blue.png",
+      "size": 1356926,
+      "sha256": "f6df1835b55e6d26a103d83a096704da47f4839b4cb119648daf2d06062eaffa"
+    },
+    {
+      "path": "BuiltInAssets/Tickets/gameType1/02.png",
+      "size": 1478154,
+      "sha256": "181294350de32a101b39b874d54075d0aaab910e77c2cb1d645f3a857830b145"
+    },
+    {
+      "path": "BuiltInAssets/Foils/brushed-silver-plain.png",
+      "size": 37189,
+      "sha256": "9bd307526c58a546465d4558795aa5e78ec10110d4a9fdad9b28f85074f64cde"
+    },
+    {
+      "path": "BuiltInAssets/Foils/brushed-silver-three-star.png",
+      "size": 43204,
+      "sha256": "ca6b5a60d5275d64a38fb3a67d13bd2f260c7488020ca2b13eb0e41d40a982c5"
+    },
+    {
+      "path": "UI/grant-overlay-01.png",
+      "size": 1898506,
+      "sha256": "6db0898f71b385b193f9a825c76e5db5f4c2d3ac344040bab2ee87d4bf272805"
+    },
+    {
+      "path": "Audio/small-win-manual.wav",
+      "size": 262932,
+      "sha256": "d609b0f1b6285d81f761e09c84650c2f556a1d9aeb3349568aef8b63dff20c8b"
+    },
+    {
+      "path": "Audio/small-win-auto.wav",
+      "size": 425220,
+      "sha256": "2e14016a7d6ce19a0646efc9aedd89c1ca9d8c7c1ae122f44eb820cfc36b7494"
+    },
+    {
+      "path": "Audio/big-win-manual.wav",
+      "size": 583980,
+      "sha256": "52bf1b0eda62cfab85b50b9879ba587f0605531bc574f013a1f0727568d959bd"
+    },
+    {
+      "path": "Audio/big-win-auto.wav",
+      "size": 591036,
+      "sha256": "f7e77cfe26f735552c8b494d001560d71c4da7ff2dea13751bc29afbf87e7387"
+    },
+    {
+      "path": "Audio/wallet-grant.wav",
+      "size": 308778,
+      "sha256": "0f2743eff36d097afdbd30f7662c9c2666c487c88165ba74a71f4b9204a66e1b"
+    },
+    {
+      "path": "Audio/lose.wav",
+      "size": 317660,
+      "sha256": "78a2c26f747c456bc5a75d32b11a2877e3638b0c694b9fd56e28e0d83d575639"
+    }
+  ],
+  "optionalLegacy": [
+    {
+      "path": "Tickets/ThreeStar/ticket.png",
+      "size": 223287,
+      "sha256": "3bb7fe7337c246f69595af57bc8c6f1880530a03341f984ec8d8e534181c7a7e"
+    },
+    {
+      "path": "Tickets/ThreeStar/ticket-100.png",
+      "size": 223205,
+      "sha256": "c404dbac06f9dd18532388f58434482a28f25fc5105eed6a1db0dd92a9d6c73b"
+    },
+    {
+      "path": "Tickets/ThreeStar/silver-star.png",
+      "size": 6288,
+      "sha256": "30bdbcc7a0fcc3bfff46ec72f65481f916dc7f5a6509766cafa43f459226e747"
+    }
+  ],
+  "builtInPacks": []
+}

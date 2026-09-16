@@ -1,8 +1,8 @@
 # ScratchGame portable runtime package
 
-ScratchGame 的 Theme、彩券美術、音效與 Built-in assets 採 **EXE 外部資源**。V0.5.0 起，`PackEditor.exe` 是 ScratchGame 的附屬程式，正式 portable 方向是與 `ScratchGame.exe` 放在同一資料夾，共用同一組外部資源。
+ScratchGame 的 Theme、彩券美術、音效與 Built-in assets 採 **EXE 外部資源**。`ScratchGame.exe` 與 `PackEditor.exe` 必須位於同一個 portable 根目錄並共用同一組外部資源。
 
-## V0.5.0 目標結構
+## 正式 portable 結構
 
 ```text
 ScratchGame/
@@ -15,54 +15,106 @@ ScratchGame/
 ├─ BuiltInPacks/        # 有正式 Built-in Pack 時才存在
 ├─ UI/
 ├─ Audio/
+├─ Tickets/             # pre-V0.4 legacy，相容檔存在時才攜帶
 └─ PACKAGE_CONTENTS.txt
 ```
 
-必要 runtime assets 目前至少包含：
+`TestPacks/`、`TEST_STEPS.txt`、舊版 EXE 或其他測試檔 **不得**因為拿舊完整包當 asset source 而被帶入正式 portable。
+
+## Runtime assets 的保存方式
+
+外部美術／音效 **不作為 repository binary source**。Repository 只保存：
+
+- `tools/package_portable.py`：正式打包工具。
+- `runtime-assets.json`：目前可打包 runtime assets 的精確 byte size / SHA-256 基準。
+
+正式打包時可使用兩種 asset source：
 
 ```text
-Themes/Default/Frame/header_bg.png
-Themes/Default/Frame/footer_bg.png
-Themes/Default/Stage/stage_bg.png
-BuiltInAssets/Tickets/gameType1/01-red.png
-BuiltInAssets/Tickets/gameType1/01-blue.png
-BuiltInAssets/Tickets/gameType1/02.png
-BuiltInAssets/Foils/brushed-silver-plain.png
-BuiltInAssets/Foils/brushed-silver-three-star.png
-UI/grant-overlay-01.png
-Audio/small-win-manual.wav
-Audio/small-win-auto.wav
-Audio/big-win-manual.wav
-Audio/big-win-auto.wav
-Audio/wallet-grant.wav
-Audio/lose.wav
+--assets <runtime asset 資料夾>
 ```
 
-## EXE 與資源責任
+或：
 
-- `ScratchGame.exe` 與 `PackEditor.exe` 共用同一 ScratchGame VERSION / BUILD。
-- PackEditor 不另設自己的 portable 根目錄或第二套 BuiltInAssets。
-- Header / Footer / Stage Theme 不嵌死在 EXE。
-- Built-in ticket / foil 由 `BuiltInAssets/` 提供；`.scratchpack` 可引用它們，但不需複製進每個 Pack。
-- 正式 Built-in Pack 若存在，原樣放在 `BuiltInPacks/`。
-- 缺少必要 runtime asset 時，正式 portable package 應直接失敗，不交付半套 ZIP。
-- runtime 找不到必要資源或音效播放失敗時，應寫 `%LOCALAPPDATA%\ScratchGame\logs\runtime-assets.log`。
+```text
+--assets-zip <上一個已驗收完整 portable ZIP / 專用 asset bundle ZIP>
+```
 
-## CI / packaging 現況
+`--assets-zip` 不是「拿舊包直接改 EXE」；packager 只會重新抽取 `runtime-assets.json` 宣告的白名單資源。來源 ZIP 裡的舊 `ScratchGame.exe`、舊 `PackEditor.exe`、`TestPacks/`、`TEST_STEPS.txt` 等都不會繼承。
 
-V0.5.0 Windows CI 已同時 build / publish / smoke-test：
+## Integrity Gate
+
+`runtime-assets.json` 對 required / optional legacy / Built-in Pack 記錄：
+
+- relative path
+- byte size
+- SHA-256
+
+正式 package 建立前，packager 必須逐檔核對 size + SHA-256。任一 required resource：
+
+- 缺檔
+- 空檔
+- size 不符
+- SHA-256 不符
+
+都必須直接中止，不建立可交付 ZIP。
+
+Optional legacy asset 若來源中不存在可以略過；若存在，仍必須通過 manifest 的 size + SHA-256。
+
+## Package verification
+
+`tools/package_portable.py` 現在同時要求：
 
 ```text
 ScratchGame.exe
 PackEditor.exe
 ```
 
-Run #161 已 PASS。
+輸出 ZIP 後會重新開啟 ZIP 並驗證：
 
-目前 `tools/package_portable.py` 仍是 V0.4 時期的單一 `ScratchGame.exe` packager；它已能驗證目前正式資源，但**尚未把 `PackEditor.exe` 納入參數、檢查與輸出**。這是 V0.5.0 待修工作，在正式 V0.5.0 portable 流程定稿前必須更新。
+1. 兩個 EXE 都存在於同一個 `ScratchGame/` 根目錄。
+2. Required runtime assets 全部存在。
+3. Packaged EXE / asset bytes 與輸入來源 SHA-256 一致。
+4. `PACKAGE_CONTENTS.txt` 完整。
+5. 沒有未宣告的額外檔案。
+6. 不含 `TestPacks/`、`TEST_STEPS.txt` 或 build-only marker。
 
-在 packager 更新前，測試包若人工組裝，仍必須確認兩個 EXE 位於同一資料夾且共享完整 runtime assets；不得把 CI 的 executable-only artifact 誤認成完整 portable package。
+因此「ZIP 成功寫出」本身不代表成功；只有 post-package verification 通過才回傳成功。
+
+## PACKAGE_CONTENTS.txt
+
+正式輸出會記錄：
+
+- VERSION / BUILD（呼叫端有提供時）
+- runtime asset baseline
+- asset source 類型
+- `runtime-assets.json` SHA-256
+- 實際封裝檔案清單
+
+方便後續追查某一份 portable 到底使用哪一組資源。
+
+## 必要 runtime assets
+
+目前 required asset 清單及其精確 hash 以 `runtime-assets.json` 為準。類型至少包含：
+
+- Default Header / Footer / Stage Theme
+- GameType 1 Built-in ticket art
+- Built-in foil art
+- grant overlay
+- small / big win audio
+- wallet grant audio
+- lose audio
+
+正式 Built-in Pack 若加入發行，應新增至 `runtime-assets.json` 的 `builtInPacks`，不能只把任意 `.scratchpack` 丟進來源資料夾就自動進正式包。
+
+## CI 邊界
+
+目前 Windows CI 負責 build / publish / icon / startup smoke test，產出的 executable artifact **不是完整 portable package**，因外部 runtime binary assets 不保存在 repository。
+
+V0.5.3 的正式 portable 必須使用 CI 產出的兩個新 EXE，再經 `package_portable.py` 與 `runtime-assets.json` 組裝／驗證。
+
+下一階段的自動驗證工作再決定 runtime asset bundle 的長期儲存位置，以及是否讓 CI 可以直接取得 approved asset bundle 並產生最終 portable artifact；在那之前不得把 executable-only artifact 當成完整交付包。
 
 ## Legacy assets
 
-`Tickets/ThreeStar/*` 屬 pre-V0.4 local database 的 legacy 相容資源；若 package tool 找得到可選擇性攜帶，但它們不再是 V0.4+ ScratchPack ticket-definition pipeline 的權威資料。
+`Tickets/ThreeStar/*` 屬 pre-V0.4 local database 相容資源。若 asset source 內存在，packager 會依 `runtime-assets.json` 驗證後攜帶；它們不再是 ScratchPack ticket-definition pipeline 的權威資料。
