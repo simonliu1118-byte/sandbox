@@ -1,7 +1,7 @@
 # ScratchPack Format Specification
 
 Specification version: **1.0**  
-Implementation status: **規格已定稿；ScratchGame V0.4.0 正在完成 V1 loader / importer / runtime 實機驗收；Maker 規劃於 V0.5.0。**
+Implementation status: **規格已定稿；ScratchPack V1 runtime 已實作；V0.5.0 PackEditor 正在實作，ScratchPack formatVersion 仍為 1.0。**
 
 本文件是 ScratchPack V1 **封裝、資料格式、共通 ResourceRef 與 built-in asset registry 的唯一正式規格**。GameType 的勝負判定、公開參數、盤面生成、Prize Tier 對應、Renderer 與 GameType-specific 驗證只由 `GAMETYPE_SPEC.md` 定義。
 
@@ -153,7 +153,7 @@ V1 的共用 PNG 資源引用統一使用同一個結構：
 
 ### 5.2 Built-in Asset Registry
 
-**本節是 ScratchPack 可公開引用的 Built-in 資源唯一權威清單。** ChatGPT Library、README、Maker UI 或 runtime 檔名都不得建立另一份具有 schema 權威性的 registry。
+**本節是 ScratchPack 可公開引用的 Built-in 資源唯一權威清單。** ChatGPT Library、README、PackEditor UI 或 runtime 檔名都不得建立另一份具有 schema 權威性的 registry。
 
 #### Built-in ticket assets
 
@@ -204,7 +204,7 @@ canvas = 1 → 1080 × 882
 
 既有 Canvas code 的尺寸語意永遠不得改變；其他尺寸只能新增新 code。
 
-`art.ticket.source="package"` 時，其 PNG 必須與 Canvas 尺寸完全一致；Maker / Importer 不得偷偷縮放、裁切或重新取樣後放行。
+`art.ticket.source="package"` 時，其 PNG 必須與 Canvas 尺寸完全一致；PackEditor / Importer 不得偷偷縮放、裁切或重新取樣後放行。
 
 `art.ticket.source="builtin"` 時，必須先以 `gameType + ref` 在 ticket registry 解析；該資源還必須支援目前 `canvas`。任一條件不符直接驗證失敗。
 
@@ -270,7 +270,7 @@ V1 不提供通用 `contentBox`。Scratch zone 只負責位置、尺寸與形狀
 
 ### 7.1 `scratch.foil`
 
-V1 每張票必須明確指定一個 `scratch.foil` ResourceRef。Maker 介面可以預選預設樣式，但輸出的 ScratchPack **不得靠缺省值或 `null` 暗示預設銀膜**。
+V1 每張票必須明確指定一個 `scratch.foil` ResourceRef。PackEditor 介面可以預選預設樣式，但輸出的 ScratchPack **不得靠缺省值或 `null` 暗示預設銀膜**。
 
 使用 ScratchGame 公用內建銀膜：
 
@@ -346,7 +346,7 @@ GameType 1～6 的核心勝負判定、公開參數、盤面生成、Prize Tier 
 GAMETYPE_SPEC.md
 ```
 
-## 10. Maker / Importer 共通驗證
+## 10. PackEditor / Importer 共通驗證
 
 至少驗證：
 
@@ -402,7 +402,7 @@ Imported Pack：
 
 外部 Pack 匯入後與 Built-in Pack 使用同一套 runtime model。外部 Pack 可以直接引用目前 GameType 可用的 Built-in ticket ref 與全域 Built-in foil ref，也可以透過 `source="package"` 攜帶自己的 PNG；兩者不建立第二套 loader 或 renderer。
 
-第一款正式 Built-in Base Pack「三星連線」的內容將由 V0.5.0 ScratchPack Maker 產生後提供給主程式發行流程，不由主程式另外手寫一套 Pack。其既定方向：
+第一款正式 Built-in Base Pack「三星連線」的內容將由 V0.5.0 PackEditor 產生後提供給主程式發行流程，不由主程式另外手寫一套 Pack。其既定方向：
 
 - `gameType="1"`。
 - `canvas=1`。
@@ -424,6 +424,6 @@ Imported Pack：
 - `formatVersion` 只代表 ScratchPack schema / 封裝版本，不代表 GameType 版本。
 - 已發布欄位的語意不得在相同 formatVersion 下偷偷改變；不相容 schema 變更必須升級 `formatVersion`。
 - 已發布的 Built-in ticket resolver key **(`gameType`, `ref`)** 與全域 foil `ref` 都視為公開相容性契約；新增視覺使用新 ref，不把既有 key 重新指向語意上不同的素材。
-- Built-in Asset Registry 只在本文件維護；素材庫 README、handoff、Maker UI 可引用 ref，但不得形成第二份權威清單。
+- Built-in Asset Registry 只在本文件維護；素材庫 README、handoff、PackEditor UI 可引用 ref，但不得形成第二份權威清單。
 - GameType 相容性只由 `GAMETYPE_SPEC.md` 管理。
 - `PROJECT_RULES.md` 不複製 schema；`TODO.md` 不複製 schema、Built-in registry 或 GameType 核心規則。
