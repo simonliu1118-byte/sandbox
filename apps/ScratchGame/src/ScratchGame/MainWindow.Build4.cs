@@ -314,12 +314,10 @@ public partial class MainWindow
 
     private (double X, double Y) GetResultTransitionTarget()
     {
-        const double chipWidth = 154;
         const double chipHeight = 38;
         const double edge = 18;
-        var x = Math.Max(0, (StageUiOverlay.ActualWidth - chipWidth) / 2.0 - edge);
         var y = Math.Max(0, (StageUiOverlay.ActualHeight - chipHeight) / 2.0 - edge);
-        return (x, y);
+        return (0, y);
     }
 
     private static DoubleAnimation CreateResultUiAnimation(

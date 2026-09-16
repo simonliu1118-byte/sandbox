@@ -40,18 +40,21 @@ public partial class UserDialog : Window
 
     private async void AddUser_OnClick(object sender, RoutedEventArgs e)
     {
+        var name = PlayerNamePrompt.Show(this);
+        if (name is null)
+            return;
+
         try
         {
-            var user = await _catalog.CreateUserAsync(NewUserNameTextBox.Text);
+            var user = await _catalog.CreateUserAsync(name);
             var row = UserRow.FromProfile(user);
             _users.Add(row);
             UserListBox.SelectedItem = row;
             UserListBox.ScrollIntoView(row);
-            NewUserNameTextBox.Clear();
         }
         catch (Exception ex)
         {
-            GameModal.Warning(this, "新增使用者", ex.Message);
+            GameModal.Warning(this, "新增玩家", ex.Message);
         }
     }
 
@@ -100,17 +103,8 @@ public partial class UserDialog : Window
         }
         catch (Exception ex)
         {
-            GameModal.Warning(this, "修改使用者名稱", ex.Message);
+            GameModal.Warning(this, "修改玩家名稱", ex.Message);
         }
-    }
-
-    private void PlayStats_OnClick(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not UserRow row)
-            return;
-
-        var dialog = new PlayStatsDialog(row.ToProfile()) { Owner = this };
-        dialog.ShowDialog();
     }
 
     private void UpdateOwnerSummaryIfCurrent(UserProfile profile)
@@ -128,7 +122,7 @@ public partial class UserDialog : Window
     {
         if (UserListBox.SelectedItem is not UserRow row)
         {
-            GameModal.Info(this, "使用者", "請先選擇使用者。");
+            GameModal.Info(this, "選擇玩家", "請先選擇玩家。");
             return;
         }
 
@@ -160,13 +154,13 @@ public partial class UserDialog : Window
         public long TotalSpent
         {
             get => _totalSpent;
-            private set { _totalSpent = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalSpentText)); OnPropertyChanged(nameof(NetText)); }
+            private set { _totalSpent = value; OnPropertyChanged(); }
         }
 
         public long TotalRedeemed
         {
             get => _totalRedeemed;
-            private set { _totalRedeemed = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalRedeemedText)); OnPropertyChanged(nameof(NetText)); }
+            private set { _totalRedeemed = value; OnPropertyChanged(); }
         }
 
         public long WalletBalance
@@ -178,55 +172,34 @@ public partial class UserDialog : Window
         public long CompletedTicketCount
         {
             get => _completedTicketCount;
-            private set { _completedTicketCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(WinRateText)); }
+            private set { _completedTicketCount = value; OnPropertyChanged(); }
         }
 
         public long WinCount
         {
             get => _winCount;
-            private set { _winCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(WinRateText)); }
+            private set { _winCount = value; OnPropertyChanged(); }
         }
 
         public long MaxPrize
         {
             get => _maxPrize;
-            private set { _maxPrize = value; OnPropertyChanged(); OnPropertyChanged(nameof(MaxPrizeText)); }
+            private set { _maxPrize = value; OnPropertyChanged(); }
         }
 
         public long GrantCount
         {
             get => _grantCount;
-            private set
-            {
-                _grantCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(GrantSummaryText));
-            }
+            private set { _grantCount = value; OnPropertyChanged(); }
         }
 
         public long GrantTotalAmount
         {
             get => _grantTotalAmount;
-            private set
-            {
-                _grantTotalAmount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(GrantTotalText));
-                OnPropertyChanged(nameof(GrantSummaryText));
-            }
+            private set { _grantTotalAmount = value; OnPropertyChanged(); }
         }
 
-        public long Net => TotalRedeemed - TotalSpent;
         public string WalletText => $"${WalletBalance:N0}";
-        public string TotalSpentText => $"${TotalSpent:N0}";
-        public string TotalRedeemedText => $"${TotalRedeemed:N0}";
-        public string NetText => Net >= 0 ? $"+${Net:N0}" : $"-${Math.Abs(Net):N0}";
-        public string MaxPrizeText => $"${MaxPrize:N0}";
-        public string GrantTotalText => $"${GrantTotalAmount:N0}";
-        public string GrantSummaryText => $"資助 {GrantCount:N0} 次　｜　累計 {GrantTotalText}";
-        public string WinRateText => CompletedTicketCount > 0
-            ? ((double)WinCount / CompletedTicketCount).ToString("P2")
-            : "0.00%";
 
         public string DisplayName
         {

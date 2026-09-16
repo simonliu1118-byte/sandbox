@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="選擇玩家"
-        Width="760" Height="600"
+        Width="760" Height="540"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -117,43 +117,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="RecordButton" TargetType="Button">
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="14,4"/>
-            <Setter Property="Margin" Value="16,0,0,0"/>
-            <Setter Property="FontFamily" Value="Microsoft JhengHei UI"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#F7DEB6"/>
-            <Setter Property="Background" Value="#53301F"/>
-            <Setter Property="BorderBrush" Value="#A87542"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome"
-                                CornerRadius="8"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#68412B"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#D9A252"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.78"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Window.Resources>
 
     <Border CornerRadius="22"
@@ -165,8 +128,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="58"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="56"/>
-                <RowDefinition Height="58"/>
+                <RowDefinition Height="62"/>
             </Grid.RowDefinitions>
 
             <Image x:Name="DialogBackgroundImage" Visibility="Collapsed"/>
@@ -181,7 +143,7 @@
 
             <ListBox x:Name="UserListBox"
                      Grid.Row="1"
-                     Margin="0,8,0,10"
+                     Margin="0,8,0,12"
                      Padding="0,0,0,2"
                      Background="Transparent"
                      BorderThickness="0"
@@ -195,7 +157,6 @@
                         <Grid MinHeight="46">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
@@ -235,7 +196,7 @@
                                         </Style>
                                     </StackPanel.Style>
                                     <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="260"
+                                             Width="320"
                                              Height="34"
                                              Style="{StaticResource ThemedTextBox}"
                                              KeyDown="EditNameTextBox_OnKeyDown"/>
@@ -249,7 +210,7 @@
                             <StackPanel Grid.Column="1"
                                         HorizontalAlignment="Right"
                                         VerticalAlignment="Center"
-                                        Margin="18,0,0,0">
+                                        Margin="22,0,2,0">
                                 <TextBlock Text="錢包"
                                            HorizontalAlignment="Right"
                                            Foreground="#B99376"
@@ -260,26 +221,12 @@
                                            Foreground="#FFD46C"
                                            HorizontalAlignment="Right"/>
                             </StackPanel>
-
-                            <Button Grid.Column="2"
-                                    Content="遊玩紀錄"
-                                    Style="{StaticResource RecordButton}"
-                                    Click="PlayStats_OnClick"/>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <TextBox x:Name="NewUserNameTextBox"
-                     Grid.Row="2"
-                     Width="360"
-                     Height="40"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Center"
-                     Style="{StaticResource ThemedTextBox}"
-                     ToolTip="輸入新玩家名稱"/>
-
-            <Grid Grid.Row="3" VerticalAlignment="Bottom">
+            <Grid Grid.Row="2" VerticalAlignment="Bottom">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>

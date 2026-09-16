@@ -17,7 +17,7 @@
             <RowDefinition Height="4"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="4"/>
-            <RowDefinition Height="104"/>
+            <RowDefinition Height="116"/>
         </Grid.RowDefinitions>
 
         <!-- Header theme: external artwork only. Dynamic controls stay in WPF. -->
@@ -38,7 +38,7 @@
                     <Button Style="{StaticResource HeaderButton}" Click="UserButtonEnhanced_OnClick">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="使用者" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Text="選擇玩家" FontSize="15" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource HeaderButton}" Click="SettingsButton_OnClick">
@@ -185,9 +185,9 @@
                     <Button x:Name="ResultResumeButton"
                             Visibility="Collapsed"
                             Opacity="1"
-                            HorizontalAlignment="Right"
+                            HorizontalAlignment="Center"
                             VerticalAlignment="Bottom"
-                            Margin="0,0,18,18"
+                            Margin="0,0,0,18"
                             Width="170"
                             Style="{StaticResource ResultPillButton}"
                             RenderTransformOrigin="0.5,0.5"
@@ -272,12 +272,12 @@
             <Border Height="1" VerticalAlignment="Top" Background="#FFE39A"/>
         </Grid>
 
-        <Grid Grid.Row="4" Background="#760006" ClipToBounds="True">
+        <Grid Grid.Row="4" Background="#760006" ClipToBounds="False">
             <Image x:Name="FooterBackgroundImage" Stretch="Fill"/>
-            <Grid Margin="24,8,24,6">
+            <Grid Margin="24,6,24,5">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="18"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
@@ -289,14 +289,14 @@
                         Grid.Row="0"
                         Grid.Column="0"
                         Width="330"
-                        Height="64"
+                        Height="60"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         Background="#C12B1713"
                         BorderBrush="#D8A34F"
                         BorderThickness="1.5"
                         CornerRadius="16"
-                        Padding="12,7">
+                        Padding="12,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="48"/>
@@ -328,6 +328,16 @@
                     <Button x:Name="RevealAllButton" Content="✦  全部刮開" Width="220" Style="{StaticResource RevealActionButton}" Click="RevealAllEnhanced_OnClick"/>
                     <Button x:Name="SwapTicketButton" Content="↻  換一張" Width="220" Style="{StaticResource PrimaryActionButton}" Click="SwapTicket_OnClick"/>
                 </StackPanel>
+
+                <Button x:Name="PlayStatsFooterButton"
+                        Grid.Row="0"
+                        Grid.Column="2"
+                        Content="遊玩紀錄"
+                        Width="150"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource ResultPillButton}"
+                        Click="PlayStatsFooter_OnClick"/>
 
                 <TextBlock x:Name="StatusText"
                            Grid.Row="1"
