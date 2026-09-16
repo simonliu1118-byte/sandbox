@@ -9,6 +9,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>ScratchGame.Regression</AssemblyName>
     <RootNamespace>ScratchGame.Regression</RootNamespace>
+    <StartupObject>ScratchGame.Regression.StaEntryPoint</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
