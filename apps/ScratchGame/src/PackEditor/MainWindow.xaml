@@ -10,150 +10,111 @@
         SnapsToDevicePixels="True">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="68"/>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="74"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="36"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#321713" BorderBrush="#8B5E35" BorderThickness="0,0,0,1">
-            <Grid Margin="18,0">
+            <Grid Margin="22,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="PackEditor" FontFamily="Segoe UI" FontSize="24" FontWeight="Bold" Foreground="#FFD981" VerticalAlignment="Center"/>
-                    <TextBlock Text="  ScratchPack Editor" FontFamily="Microsoft JhengHei UI" FontSize="14" Foreground="#B99376" VerticalAlignment="Center"/>
-                </StackPanel>
+                <TextBlock Text="PackEditor" FontFamily="Segoe UI" FontSize="25" FontWeight="Bold" Foreground="#FFD981" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="新增 Pack" Style="{StaticResource ToolbarButton}" Click="NewPack_OnClick"/>
-                    <Button x:Name="OpenPackButton" Content="開啟" Style="{StaticResource ToolbarButton}" IsEnabled="False" ToolTip="完成既有 Pack 編輯流程後開放"/>
-                    <Button x:Name="SavePackButton" Content="儲存" Style="{StaticResource ToolbarButton}" IsEnabled="False" ToolTip="完成既有 Pack 編輯流程後開放"/>
-                    <Button x:Name="ExportPackButton" Content="輸出 .scratchpack" Style="{StaticResource ToolbarButton}" IsEnabled="False" Click="ExportPack_OnClick"/>
+                    <Button x:Name="ExportPackButton" Content="輸出 .scratchpack" Style="{StaticResource ToolbarPrimaryButton}" IsEnabled="False" Click="ExportPack_OnClick"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Border Grid.Row="1" Background="#281410" BorderBrush="#654232" BorderThickness="0,0,0,1">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BasicNavButton" Content="①  基本資料" Style="{StaticResource NavButton}" Click="BasicNav_OnClick"/>
+                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                    <Button x:Name="AssetsNavButton" Content="②  票面素材" Style="{StaticResource NavButton}" Click="AssetsNav_OnClick"/>
+                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                    <Button x:Name="GameAreaNavButton" Content="③  遊戲區域" Style="{StaticResource NavButton}" Click="GameAreaNav_OnClick"/>
+                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                    <Button x:Name="PrizeNavButton" Content="④  獎金池" Style="{StaticResource NavButton}" Click="PrizeNav_OnClick"/>
+                    <TextBlock Text="›" Style="{StaticResource StepArrow}"/>
+                    <Button x:Name="ValidationNavButton" Content="⑤  驗證與輸出" Style="{StaticResource NavButton}" Click="ValidationNav_OnClick"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="430"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="380"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#281410" BorderBrush="#654232" BorderThickness="0,0,1,0">
-                <StackPanel Margin="0,16,0,0">
-                    <TextBlock Text="編輯項目" Margin="16,0,0,8" FontFamily="Microsoft JhengHei UI" FontSize="12" Foreground="#A8836D"/>
-                    <Button x:Name="BasicNavButton" Content="基本資料" Style="{StaticResource NavButton}" Click="BasicNav_OnClick"/>
-                    <Button x:Name="AssetsNavButton" Content="票面素材" Style="{StaticResource NavButton}" Click="AssetsNav_OnClick"/>
-                    <Button x:Name="GameAreaNavButton" Content="遊戲區域" Style="{StaticResource NavButton}" Click="GameAreaNav_OnClick"/>
-                    <Button x:Name="PrizeNavButton" Content="獎金池" Style="{StaticResource NavButton}" Click="PrizeNav_OnClick"/>
-                    <Button x:Name="ValidationNavButton" Content="驗證與輸出" Style="{StaticResource NavButton}" Click="ValidationNav_OnClick"/>
-                </StackPanel>
-            </Border>
-
-            <Grid Grid.Column="1" Margin="22,18">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid Margin="4,0,4,12">
-                    <TextBlock Text="彩券即時預覽" FontFamily="Microsoft JhengHei UI" FontSize="20" FontWeight="Bold" Foreground="#FFE2A0"/>
-                    <TextBlock Text="Canvas 1 · 1080 × 882" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontFamily="Segoe UI" FontSize="12" Foreground="#9E7E69"/>
-                </Grid>
-
-                <Border Grid.Row="1" Background="#140B09" BorderBrush="#6A4838" BorderThickness="1" CornerRadius="12" Padding="20">
-                    <Viewbox Stretch="Uniform">
-                        <Grid Width="1080" Height="882" Background="#F3E8D5">
-                            <Image x:Name="TicketPreviewImage" Stretch="Fill" Visibility="Collapsed"/>
-                            <StackPanel x:Name="PreviewPlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="ScratchPack 預覽" FontFamily="Microsoft JhengHei UI" FontSize="42" FontWeight="Bold" Foreground="#5A3527" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="PreviewPlaceholderText" Text="建立 Pack 並選擇票面素材後，票面會在此顯示。" Margin="0,18,0,0" FontFamily="Microsoft JhengHei UI" FontSize="21" Foreground="#80604D" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <Canvas x:Name="EditorOverlayCanvas" Width="1080" Height="882" IsHitTestVisible="False" ClipToBounds="True"/>
-                            <Border BorderBrush="#A77B49" BorderThickness="4" IsHitTestVisible="False"/>
-                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,18,18,0" Padding="12,7" Background="#AA2B1712" CornerRadius="9" Visibility="{Binding ElementName=TicketPreviewImage, Path=Visibility}">
-                                <TextBlock x:Name="PreviewResourceText" FontFamily="Consolas" FontSize="14" Foreground="#FFE6B5"/>
-                            </Border>
-                        </Grid>
-                    </Viewbox>
-                </Border>
-
-                <Grid Grid.Row="2" Margin="4,10,4,0">
-                    <TextBlock x:Name="PreviewHintText" Text="Scratch Zone＝洋紅｜面額區＝青色｜票號區＝綠色" FontFamily="Microsoft JhengHei UI" FontSize="12" Foreground="#927260"/>
-                    <TextBlock x:Name="CurrentResourceSummaryText" HorizontalAlignment="Right" FontFamily="Microsoft JhengHei UI" FontSize="12" Foreground="#B99578"/>
-                </Grid>
-            </Grid>
-
-            <Border Grid.Column="2" Background="#24120F" BorderBrush="#654232" BorderThickness="1,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="20,18">
+            <Border Grid.Column="0" Background="#24120F" BorderBrush="#654232" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="24,22,24,26">
                         <StackPanel x:Name="BasicPanel">
                             <TextBlock Text="基本資料" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="彩券名稱" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="PackNameTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
                             <TextBlock Text="作者" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="AuthorTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
-                            <TextBlock Text="GameType" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="GameTypeComboBox" Height="36" SelectionChanged="GameTypeComboBox_OnSelectionChanged">
-                                <ComboBoxItem Content="GameType 1" Tag="1"/>
+                            <TextBlock Text="遊戲類型" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="GameTypeComboBox" Height="38" SelectionChanged="GameTypeComboBox_OnSelectionChanged">
+                                <ComboBoxItem Content="星星連線" Tag="1"/>
                             </ComboBox>
-                            <TextBlock Text="PackEditor 只提供目前 ScratchGame 已正式支援的 GameType。" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
                             <TextBlock Text="面額" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="PriceTextBox" Style="{StaticResource FieldTextBox}" TextChanged="DraftField_OnChanged"/>
-                            <TextBlock Text="Canvas" Style="{StaticResource FieldLabel}"/>
-                            <TextBox Text="Canvas 1 — 1080 × 882" Style="{StaticResource FieldTextBox}" IsReadOnly="True"/>
-                            <TextBlock Text="Package ID" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="PackageIdTextBox" Style="{StaticResource FieldTextBox}" IsReadOnly="True" FontFamily="Consolas" FontSize="12"/>
-                            <TextBlock Text="新增 Pack 時自動產生 UUID v4；同一 Pack 後續儲存時維持不變。" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
-                            <TextBlock Text="最低 ScratchGame 版本" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="MinimumVersionTextBox" Style="{StaticResource FieldTextBox}" IsReadOnly="True"/>
-                            <TextBlock Text="目前採 PackEditor 所屬 ScratchGame 版本作為保守相容基準。" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
+                            <TextBlock Text="彩券尺寸" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="1080 × 882 px" Style="{StaticResource FieldTextBox}" IsReadOnly="True" IsTabStop="False"/>
+                            <Grid Visibility="Collapsed">
+                                <TextBox x:Name="PackageIdTextBox"/>
+                                <TextBox x:Name="MinimumVersionTextBox"/>
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel x:Name="AssetsPanel" Visibility="Collapsed">
                             <TextBlock Text="票面素材" Style="{StaticResource SectionHeader}"/>
                             <TextBlock Text="票面來源" Style="{StaticResource FieldLabel}"/>
                             <StackPanel Orientation="Horizontal">
-                                <RadioButton x:Name="TicketBuiltInRadio" Content="Built-in" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="TicketSource_OnChanged"/>
+                                <RadioButton x:Name="TicketBuiltInRadio" Content="內建票面" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="TicketSource_OnChanged"/>
                                 <RadioButton x:Name="TicketPackageRadio" Content="自訂 PNG" GroupName="TicketSource" Style="{StaticResource ChoiceRadio}" Checked="TicketSource_OnChanged"/>
                             </StackPanel>
                             <StackPanel x:Name="TicketBuiltInPanel">
-                                <TextBlock Text="Built-in 票面" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                <ComboBox x:Name="TicketBuiltInComboBox" Height="36" SelectionChanged="TicketBuiltInComboBox_OnSelectionChanged"/>
-                                <TextBlock x:Name="TicketBuiltInHintText" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
+                                <TextBlock Text="票面樣式" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
+                                <ComboBox x:Name="TicketBuiltInComboBox" Height="38" SelectionChanged="TicketBuiltInComboBox_OnSelectionChanged"/>
+                                <TextBlock x:Name="TicketBuiltInHintText" Visibility="Collapsed"/>
                             </StackPanel>
                             <StackPanel x:Name="TicketPackagePanel" Visibility="Collapsed">
                                 <TextBlock Text="自訂票面 PNG" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
                                 <Button Content="選擇 PNG…" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ChooseTicketPng_OnClick"/>
-                                <TextBlock x:Name="TicketPackagePathText" Text="尚未選擇" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#C7A58B" FontSize="12"/>
-                                <TextBlock x:Name="TicketPackageInfoText" Margin="0,4,0,0" Foreground="#90715E" FontSize="11"/>
-                                <TextBlock Text="Canvas 1 自訂票面必須精確為 1080 × 882；不自動縮放或裁切。" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
+                                <TextBlock x:Name="TicketPackagePathText" Text="尚未選擇" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="13"/>
+                                <TextBlock x:Name="TicketPackageInfoText" Margin="0,4,0,0" Foreground="#A88972" FontSize="12"/>
                             </StackPanel>
-                            <Border Margin="0,20,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+                            <Border Margin="0,22,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,18,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="銀膜來源" FontFamily="Microsoft JhengHei UI" FontSize="17" FontWeight="SemiBold" Foreground="#F0D2A1"/>
+                                    <TextBlock Text="銀膜" FontFamily="Microsoft JhengHei UI" FontSize="17" FontWeight="SemiBold" Foreground="#F0D2A1"/>
                                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
-                                        <RadioButton x:Name="FoilBuiltInRadio" Content="Built-in" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="FoilSource_OnChanged"/>
+                                        <RadioButton x:Name="FoilBuiltInRadio" Content="內建銀膜" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="FoilSource_OnChanged"/>
                                         <RadioButton x:Name="FoilPackageRadio" Content="自訂 PNG" GroupName="FoilSource" Style="{StaticResource ChoiceRadio}" Checked="FoilSource_OnChanged"/>
                                     </StackPanel>
                                     <StackPanel x:Name="FoilBuiltInPanel">
-                                        <TextBlock Text="Built-in 銀膜" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
-                                        <ComboBox x:Name="FoilBuiltInComboBox" Height="36" SelectionChanged="FoilBuiltInComboBox_OnSelectionChanged"/>
-                                        <TextBlock x:Name="FoilBuiltInHintText" Margin="0,5,0,0" TextWrapping="Wrap" Foreground="#90715E" FontSize="11"/>
+                                        <TextBlock Text="銀膜樣式" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
+                                        <ComboBox x:Name="FoilBuiltInComboBox" Height="38" SelectionChanged="FoilBuiltInComboBox_OnSelectionChanged"/>
+                                        <TextBlock x:Name="FoilBuiltInHintText" Visibility="Collapsed"/>
                                     </StackPanel>
                                     <StackPanel x:Name="FoilPackagePanel" Visibility="Collapsed">
                                         <TextBlock Text="自訂銀膜 PNG" Style="{StaticResource FieldLabel}" Margin="0,8,0,5"/>
                                         <Button Content="選擇 PNG…" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ChooseFoilPng_OnClick"/>
-                                        <TextBlock x:Name="FoilPackagePathText" Text="尚未選擇" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#C7A58B" FontSize="12"/>
-                                        <TextBlock x:Name="FoilPackageInfoText" Margin="0,4,0,0" Foreground="#90715E" FontSize="11"/>
+                                        <TextBlock x:Name="FoilPackagePathText" Text="尚未選擇" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#E2C5A7" FontSize="13"/>
+                                        <TextBlock x:Name="FoilPackageInfoText" Margin="0,4,0,0" Foreground="#A88972" FontSize="12"/>
                                     </StackPanel>
-                                    <Border Margin="0,14,0,0" Height="118" Background="#140B09" BorderBrush="#654232" BorderThickness="1" CornerRadius="9">
+                                    <Border Margin="0,14,0,0" Height="128" Background="#140B09" BorderBrush="#654232" BorderThickness="1" CornerRadius="9">
                                         <Grid Margin="8">
                                             <Image x:Name="FoilPreviewImage" Stretch="Uniform" Visibility="Collapsed"/>
-                                            <TextBlock x:Name="FoilPreviewPlaceholder" Text="銀膜預覽" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#806A5A"/>
+                                            <TextBlock x:Name="FoilPreviewPlaceholder" Text="銀膜預覽" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#806A5A" FontSize="14"/>
                                         </Grid>
                                     </Border>
                                 </StackPanel>
@@ -162,92 +123,67 @@
 
                         <StackPanel x:Name="GameAreaPanel" Visibility="Collapsed">
                             <TextBlock Text="遊戲區域" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="GameType 1 由整組網格參數產生 row-major Scratch Zones，不逐格重複設定。" Margin="0,7,0,5" TextWrapping="Wrap" Foreground="#A88770" FontSize="12"/>
-
                             <TextBlock Text="網格尺寸" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="GridSizeComboBox" Height="36" SelectionChanged="GridSizeComboBox_OnSelectionChanged">
+                            <ComboBox x:Name="GridSizeComboBox" Height="38" SelectionChanged="GridSizeComboBox_OnSelectionChanged">
                                 <ComboBoxItem Content="3 × 3" Tag="3"/>
                                 <ComboBoxItem Content="4 × 4" Tag="4"/>
                                 <ComboBoxItem Content="5 × 5" Tag="5"/>
                             </ComboBox>
-                            <CheckBox x:Name="AllowNearMissCheckBox" Content="允許 Near Miss 盤面" Margin="0,10,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
-
-                            <TextBlock Text="Scratch Zone 形狀" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox x:Name="ZoneShapeComboBox" Height="36" SelectionChanged="ZoneShapeComboBox_OnSelectionChanged">
-                                <ComboBoxItem Content="roundedRectangle" Tag="roundedRectangle"/>
-                                <ComboBoxItem Content="rectangle" Tag="rectangle"/>
-                                <ComboBoxItem Content="circle" Tag="circle"/>
-                                <ComboBoxItem Content="ellipse" Tag="ellipse"/>
+                            <CheckBox x:Name="AllowNearMissCheckBox" Content="允許近似中獎盤面" Margin="0,12,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
+                            <TextBlock Text="刮獎區形狀" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="ZoneShapeComboBox" Height="38" SelectionChanged="ZoneShapeComboBox_OnSelectionChanged">
+                                <ComboBoxItem Content="圓角矩形" Tag="roundedRectangle"/>
+                                <ComboBoxItem Content="矩形" Tag="rectangle"/>
+                                <ComboBoxItem Content="正圓" Tag="circle"/>
+                                <ComboBoxItem Content="橢圓" Tag="ellipse"/>
                             </ComboBox>
-
-                            <TextBlock Text="網格起點 / 格子尺寸" Style="{StaticResource FieldLabel}"/>
-                            <UniformGrid Columns="2" Rows="3">
-                                <TextBox x:Name="ZoneXTextBox" Style="{StaticResource FieldTextBox}" Margin="0,0,5,6" ToolTip="起點 X" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="ZoneYTextBox" Style="{StaticResource FieldTextBox}" Margin="5,0,0,6" ToolTip="起點 Y" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="ZoneWidthTextBox" Style="{StaticResource FieldTextBox}" Margin="0,0,5,6" ToolTip="格子 Width" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="ZoneHeightTextBox" Style="{StaticResource FieldTextBox}" Margin="5,0,0,6" ToolTip="格子 Height" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="HorizontalGapTextBox" Style="{StaticResource FieldTextBox}" Margin="0,0,5,0" ToolTip="水平間距" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="VerticalGapTextBox" Style="{StaticResource FieldTextBox}" Margin="5,0,0,0" ToolTip="垂直間距" TextChanged="LayoutField_OnChanged"/>
+                            <TextBlock Text="網格位置與尺寸" Style="{StaticResource FieldLabel}"/>
+                            <UniformGrid Columns="3" Rows="2">
+                                <StackPanel Margin="0,0,6,9"><TextBlock Text="起點 X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0,3,9"><TextBlock Text="起點 Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="6,0,0,9"><TextBlock Text="格寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,6,0"><TextBlock Text="格高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="ZoneHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="3,0,3,0"><TextBlock Text="水平間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="HorizontalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="6,0,0,0"><TextBlock Text="垂直間距" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="VerticalGapTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
-                            <TextBlock Text="依序：X、Y、Width、Height、水平間距、垂直間距" Margin="0,4,0,0" Foreground="#90715E" FontSize="11"/>
-
                             <TextBlock Text="圓角" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="CornerRadiusTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/>
-
-                            <CheckBox x:Name="PriceDisplayCheckBox" Content="由程式繪製面額" Margin="0,18,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
-                            <TextBlock Text="面額區 X / Y / Width / Height" Style="{StaticResource FieldLabel}"/>
+                            <CheckBox x:Name="PriceDisplayCheckBox" Content="由程式繪製面額" Margin="0,20,0,0" Foreground="#E4CCAD" Checked="LayoutOption_OnChanged" Unchecked="LayoutOption_OnChanged"/>
+                            <TextBlock Text="面額位置" Style="{StaticResource FieldLabel}"/>
                             <UniformGrid Columns="4">
-                                <TextBox x:Name="PriceXTextBox" Style="{StaticResource FieldTextBox}" Margin="0,0,4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="PriceYTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="PriceWidthTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="PriceHeightTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0,0,0" TextChanged="LayoutField_OnChanged"/>
+                                <StackPanel Margin="0,0,4,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="PriceHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
-
-                            <TextBlock Text="票號區 X / Y / Width / Height" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Text="票號位置" Style="{StaticResource FieldLabel}"/>
                             <UniformGrid Columns="4">
-                                <TextBox x:Name="SerialXTextBox" Style="{StaticResource FieldTextBox}" Margin="0,0,4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="SerialYTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="SerialWidthTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0" TextChanged="LayoutField_OnChanged"/>
-                                <TextBox x:Name="SerialHeightTextBox" Style="{StaticResource FieldTextBox}" Margin="4,0,0,0" TextChanged="LayoutField_OnChanged"/>
+                                <StackPanel Margin="0,0,4,0"><TextBlock Text="X" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialXTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0"><TextBlock Text="Y" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialYTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0"><TextBlock Text="寬" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialWidthTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
+                                <StackPanel Margin="4,0,0,0"><TextBlock Text="高" Style="{StaticResource MiniFieldLabel}"/><TextBox x:Name="SerialHeightTextBox" Style="{StaticResource FieldTextBox}" TextChanged="LayoutField_OnChanged"/></StackPanel>
                             </UniformGrid>
                         </StackPanel>
 
                         <StackPanel x:Name="PrizePanel" Visibility="Collapsed">
                             <TextBlock Text="獎金池" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="線數只供 PackEditor 顯示；正式 ScratchPack 仍只寫 amount / count。" Margin="0,7,0,5" TextWrapping="Wrap" Foreground="#A88770" FontSize="12"/>
                             <TextBlock Text="發行張數 / 每本張數" Style="{StaticResource FieldLabel}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBox x:Name="IssueSizeTextBox" Style="{StaticResource FieldTextBox}" TextChanged="PrizeHeader_OnChanged"/>
                                 <TextBox x:Name="TicketsPerBookTextBox" Grid.Column="2" Style="{StaticResource FieldTextBox}" TextChanged="PrizeHeader_OnChanged"/>
                             </Grid>
-
-                            <DataGrid x:Name="PrizeDataGrid"
-                                      Margin="0,14,0,0"
-                                      Height="270"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      HeadersVisibility="Column"
-                                      GridLinesVisibility="Horizontal"
-                                      RowHeaderWidth="0"
-                                      Background="#FFF8ED"
-                                      Foreground="#2E1C16"
-                                      CellEditEnding="PrizeDataGrid_OnCellEditEnding">
+                            <DataGrid x:Name="PrizeDataGrid" Margin="0,16,0,0" Height="286" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" RowHeaderWidth="0" Background="#FFF8ED" Foreground="#2E1C16" CellEditEnding="PrizeDataGrid_OnCellEditEnding">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="線數" Width="70" IsReadOnly="True" Binding="{Binding LineCount}"/>
                                     <DataGridTextColumn Header="獎金" Width="*" Binding="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"/>
                                     <DataGridTextColumn Header="張數" Width="*" Binding="{Binding Count, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-
-                            <Border Margin="0,16,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,13,0,0">
+                            <Border Margin="0,18,0,0" BorderBrush="#654232" BorderThickness="0,1,0,0" Padding="0,15,0,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="27"/><RowDefinition Height="27"/><RowDefinition Height="27"/><RowDefinition Height="27"/>
-                                        <RowDefinition Height="27"/><RowDefinition Height="27"/><RowDefinition Height="27"/>
-                                    </Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/><RowDefinition Height="29"/></Grid.RowDefinitions>
                                     <TextBlock Text="中獎張數" Foreground="#B99376"/><TextBlock x:Name="WinningCountText" Grid.Column="1" Foreground="#F5DEC0"/>
                                     <TextBlock Grid.Row="1" Text="未中獎張數" Foreground="#B99376"/><TextBlock x:Name="LosingCountText" Grid.Row="1" Grid.Column="1" Foreground="#F5DEC0"/>
                                     <TextBlock Grid.Row="2" Text="中獎率" Foreground="#B99376"/><TextBlock x:Name="WinRateSummaryText" Grid.Row="2" Grid.Column="1" Foreground="#F5DEC0"/>
@@ -261,23 +197,46 @@
 
                         <StackPanel x:Name="ValidationPanel" Visibility="Collapsed">
                             <TextBlock Text="驗證與輸出" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="輸出前會先建立真正的暫存 .scratchpack，再由 ScratchGame 同一份 ScratchPackV1Loader 重新載入驗證。只有 Round-trip PASS 才會寫出正式檔案。" Margin="0,9,0,16" TextWrapping="Wrap" Foreground="#B49379" FontSize="12"/>
-                            <Button Content="執行完整驗證" Style="{StaticResource ToolbarButton}" HorizontalAlignment="Left" Click="ValidateDraft_OnClick"/>
-                            <Border Margin="0,16,0,0" Padding="14" Background="#1A0E0B" BorderBrush="#654232" BorderThickness="1" CornerRadius="10">
-                                <TextBlock x:Name="ValidationResultText" Text="尚未執行完整驗證。" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="13" Foreground="#D7B99A"/>
+                            <Button Content="執行完整驗證" Margin="0,18,0,0" Style="{StaticResource CompactActionButton}" HorizontalAlignment="Left" Click="ValidateDraft_OnClick"/>
+                            <Border Margin="0,16,0,0" Padding="16" Background="#1A0E0B" BorderBrush="#654232" BorderThickness="1" CornerRadius="10">
+                                <TextBlock x:Name="ValidationResultText" Text="尚未執行完整驗證。" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="14" LineHeight="22" Foreground="#E0C2A2"/>
                             </Border>
-                            <Button Content="輸出 .scratchpack…" Margin="0,18,0,0" Style="{StaticResource ToolbarButton}" HorizontalAlignment="Left" Click="ExportPack_OnClick"/>
+                            <Button Content="輸出 .scratchpack…" Margin="0,20,0,0" Style="{StaticResource ToolbarPrimaryButton}" HorizontalAlignment="Left" Click="ExportPack_OnClick"/>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
             </Border>
-        </Grid>
 
-        <Border Grid.Row="2" Background="#2B1612" BorderBrush="#654232" BorderThickness="0,1,0,0">
-            <Grid Margin="16,0">
-                <TextBlock x:Name="StatusText" Text="尚未建立 Pack" VerticalAlignment="Center" FontFamily="Microsoft JhengHei UI" FontSize="12" Foreground="#C5A083"/>
-                <TextBlock Text="ScratchPack V1 · V0.5.0 PackEditor" HorizontalAlignment="Right" VerticalAlignment="Center" FontFamily="Segoe UI" FontSize="11" Foreground="#8F715E"/>
+            <Grid Grid.Column="1" Margin="28,22,28,26">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid Margin="4,0,4,12">
+                    <TextBlock Text="即時預覽" FontFamily="Microsoft JhengHei UI" FontSize="21" FontWeight="Bold" Foreground="#FFE2A0"/>
+                    <TextBlock Text="1080 × 882 px" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontFamily="Segoe UI" FontSize="13" Foreground="#B18D72"/>
+                </Grid>
+                <Border Grid.Row="1" Background="#140B09" BorderBrush="#6A4838" BorderThickness="1" CornerRadius="12" Padding="20">
+                    <Viewbox Stretch="Uniform">
+                        <Grid Width="1080" Height="882" Background="#F3E8D5">
+                            <Image x:Name="TicketPreviewImage" Stretch="Fill" Visibility="Collapsed"/>
+                            <StackPanel x:Name="PreviewPlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock x:Name="PreviewPlaceholderText" Text="請先新增 Pack" Width="720" TextAlignment="Center" TextWrapping="Wrap" FontFamily="Microsoft JhengHei UI" FontSize="34" FontWeight="Bold" Foreground="#5A3527" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <Canvas x:Name="EditorOverlayCanvas" Width="1080" Height="882" IsHitTestVisible="False" ClipToBounds="True"/>
+                            <Border BorderBrush="#A77B49" BorderThickness="4" IsHitTestVisible="False"/>
+                            <TextBlock x:Name="PreviewResourceText" Visibility="Collapsed"/>
+                        </Grid>
+                    </Viewbox>
+                </Border>
+                <Grid Grid.Row="2" Margin="4,12,4,0">
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,18,0"><Border Width="12" Height="12" Background="#DA37AA" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="刮獎區" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,18,0"><Border Width="12" Height="12" Background="#2AC6E2" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="面額" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
+                        <StackPanel Orientation="Horizontal"><Border Width="12" Height="12" Background="#4DC474" CornerRadius="3" VerticalAlignment="Center"/><TextBlock Text="票號" Margin="6,0,0,0" Foreground="#BFA18A" FontSize="13" VerticalAlignment="Center"/></StackPanel>
+                    </StackPanel>
+                    <TextBlock x:Name="PreviewHintText" Visibility="Collapsed"/>
+                    <TextBlock x:Name="CurrentResourceSummaryText" Visibility="Collapsed"/>
+                </Grid>
             </Grid>
-        </Border>
+        </Grid>
+        <TextBlock x:Name="StatusText" Visibility="Collapsed"/>
     </Grid>
 </Window>
