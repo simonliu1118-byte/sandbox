@@ -31,6 +31,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Read version
         id: version
         run: |
@@ -134,6 +138,21 @@ jobs:
             }
           }
 
+      - name: Verify portable packager tests
+        working-directory: apps/ScratchGame/tools
+        run: |
+          python -m py_compile package_portable.py build_reference_testpack.py test_package_portable.py
+          python -m unittest -v test_package_portable.py
+
+      - name: Build canonical ThreeStar TestPack
+        run: |
+          $testPack = 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack'
+          python 'apps/ScratchGame/tools/build_reference_testpack.py' --output $testPack
+          if (-not (Test-Path $testPack)) {
+            Write-Error 'Canonical ThreeStar-Test.scratchpack was not created.'
+            exit 1
+          }
+
       - name: Restore ScratchGame Windows x64 runtime packs
         run: >-
           dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
@@ -142,6 +161,11 @@ jobs:
       - name: Restore PackEditor Windows x64 runtime packs
         run: >-
           dotnet restore 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -r win-x64
+
+      - name: Restore regression runner Windows x64 runtime packs
+        run: >-
+          dotnet restore 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj'
           -r win-x64
 
       - name: Build ScratchGame
@@ -155,6 +179,28 @@ jobs:
           dotnet build 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Build regression runner
+        run: >-
+          dotnet build 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj'
+          -c Release -r win-x64 --no-restore
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Run ScratchGame domain regression
+        env:
+          SCRATCHGAME_REGRESSION: '1'
+        run: |
+          $workRoot = Join-Path $env:RUNNER_TEMP 'ScratchGameRegressionWork'
+          if (Test-Path $workRoot) {
+            Remove-Item $workRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
+          $testPack = (Resolve-Path 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack').Path
+
+          dotnet run --project 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj' `
+            -c Release -r win-x64 --no-build --no-restore -- `
+            --scratchpack $testPack `
+            --work-root $workRoot
 
       - name: Verify generated Windows icon sizes
         run: |
