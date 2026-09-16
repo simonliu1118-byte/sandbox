@@ -85,7 +85,7 @@
 
         <Style x:Key="UserListItem" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -95,11 +95,13 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Card"
+                                Margin="2,2,4,2"
                                 Background="#402019"
                                 BorderBrush="#6A4739"
                                 BorderThickness="1"
                                 CornerRadius="13"
-                                Padding="16,12">
+                                Padding="16,12"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -144,7 +146,7 @@
             <ListBox x:Name="UserListBox"
                      Grid.Row="1"
                      Margin="0,8,0,12"
-                     Padding="0,0,0,2"
+                     Padding="2,2,4,4"
                      Background="Transparent"
                      BorderThickness="0"
                      HorizontalContentAlignment="Stretch"

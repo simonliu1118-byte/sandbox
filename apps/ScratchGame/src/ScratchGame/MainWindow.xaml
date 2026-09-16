@@ -17,7 +17,7 @@
             <RowDefinition Height="4"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="4"/>
-            <RowDefinition Height="116"/>
+            <RowDefinition Height="104"/>
         </Grid.RowDefinitions>
 
         <!-- Header theme: external artwork only. Dynamic controls stay in WPF. -->
@@ -272,12 +272,12 @@
             <Border Height="1" VerticalAlignment="Top" Background="#FFE39A"/>
         </Grid>
 
-        <Grid Grid.Row="4" Background="#760006" ClipToBounds="False">
+        <Grid Grid.Row="4" Background="#760006" ClipToBounds="True">
             <Image x:Name="FooterBackgroundImage" Stretch="Fill"/>
-            <Grid Margin="24,6,24,5">
+            <Grid Margin="24,8,24,6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="18"/>
+                    <RowDefinition Height="20"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
@@ -289,14 +289,14 @@
                         Grid.Row="0"
                         Grid.Column="0"
                         Width="330"
-                        Height="60"
+                        Height="64"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         Background="#C12B1713"
                         BorderBrush="#D8A34F"
                         BorderThickness="1.5"
                         CornerRadius="16"
-                        Padding="12,6">
+                        Padding="12,7">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="48"/>
