@@ -16,10 +16,10 @@
 ## 目前版本線
 
 ```text
-V0.5.3 / BUILD 0
+V0.5.3 Build 1
 branch: scratchgame/feature-scratchpack-v1-runtime
-HEAD: 6612f88d7542d5b7558baca9cf8cc6894071dc87
-Windows CI: Run #179 PASS
+source commit: 56722c0fe0c22a96af6a9976188168db98ee419a
+Windows CI: Run #181 PASS
 ```
 
 ## ScratchPack V1 runtime
@@ -51,20 +51,42 @@ PackEditor 是 ScratchGame 附屬 EXE，與 ScratchGame 共用 VERSION / BUILD�
 
 `① 基本資料與票面素材 → ② 遊戲區域 → ③ 獎金池 → ④ 驗證與輸出`
 
-PackEditor 正式收尾已依使用者決定延後：**先完成 portable、automation、基本 GameType；基本 GameType 全部完善後再回來完成 PackEditor 正式 UI / preview / validation UX。**
+PackEditor 正式收尾已依使用者決定延後：**先完成 automation、基本 GameType；基本 GameType 全部完善後再回來完成 PackEditor 正式 UI / preview / validation UX。**
 
 ## ThreeStar-Test
 
-`TestPacks/ThreeStar-Test.scratchpack` 是目前 reference / test Pack，不是正式 Built-in Pack，但使用正式 ScratchPack schema / loader / GameType pipeline。
+`ThreeStar-Test` 是目前 reference / test Pack，不是正式 Built-in Pack，但使用正式 ScratchPack schema / loader / GameType pipeline。
+
+Repository 保存 reference source：
+
+```text
+reference-packs/ThreeStar-Test/manifest.json
+reference-packs/ThreeStar-Test/ticket.json
+```
+
+`tools/build_reference_testpack.py` deterministic 產生 portable 所需：
+
+```text
+TestPacks/ThreeStar-Test.scratchpack
+```
+
+V0.5.3 Build 1 baseline：
+
+```text
+size: 800 bytes
+SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
+```
 
 目前使用者明確要求：
 
 - 開發 / 測試 portable **必須包含 TestPacks**。
-- TestPack 應納入 size / SHA-256 integrity verification。
+- TestPack 已納入 `runtime-assets.json` `testPacks` 區段與 size / SHA-256 integrity verification。
+- TestPack 缺失、hash 不符都必須 FAIL；正確檔案必須進輸出 ZIP。
+- 未宣告 TestPack 不得因來源 ZIP / folder 中存在就被繼承。
 - 一直保留到 V1.0.0 正式驗收完成。
 - 到 V1.0.0 release gate 再主動提醒使用者，確認後才移除；不得提前移除。
 
-V0.5.3 Build 0 packager 尚未符合這一點，目前仍錯誤禁止 TestPacks；下一步 V0.5.3 Build 1 修正。
+Build 1 packager unit tests **7/7 PASS**；Windows CI **Run #181 PASS**。
 
 ThreeStar-Test 已接受的 Canvas 1 / GameType 1 geometry：
 
@@ -80,11 +102,12 @@ serialDisplayArea: x=364 y=774 width=350 height=59
 
 ## Portable / automation 關係
 
-V0.5.3 Build 0 已建立正式 packager 骨架：兩個 EXE、runtime asset manifest、size / SHA verification、post-ZIP verification。
+V0.5.3 Build 1 已完成正式 packager 核心：兩個 EXE、runtime asset manifest、TestPack manifest、size / SHA verification、post-ZIP verification，以及 canonical TestPack builder。
 
 下一步順序：
 
-1. Build 1 納入 / 驗證 TestPacks。
-2. 建立完整 automated regression：Pack load → Import → finite pool → buy → pending → scratch → redeem → Wallet / stats。
-3. 基本 GameType 逐一完成。
-4. 最後再回 PackEditor 正式收尾。
+1. 建立完整 automated regression：Build → Portable → Pack load → Import → finite pool → buy → pending → scratch → redeem → Wallet / stats。
+2. 加入 PackEditor → `.scratchpack` → ScratchGame Importer round-trip regression。
+3. 完成 ICON binary SOP 共通治理。
+4. 基本 GameType 逐一完成。
+5. 最後再回 PackEditor 正式收尾。

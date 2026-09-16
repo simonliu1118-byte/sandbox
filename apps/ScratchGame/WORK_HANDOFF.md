@@ -8,11 +8,11 @@ Repository：`simonliu1118-byte/sandbox`
 
 主開發分支：`scratchgame/feature-scratchpack-v1-runtime`
 
-目前基準：**V0.5.3 / BUILD 0**
+目前基準：**V0.5.3 Build 1**
 
-目前 HEAD：`6612f88d7542d5b7558baca9cf8cc6894071dc87`
+Build 1 source commit：`56722c0fe0c22a96af6a9976188168db98ee419a`
 
-最近 Windows CI：**Run #179 PASS**。
+最近 Windows CI：**Run #181 PASS**。
 
 ScratchGame 與 PackEditor 共用同一 VERSION / BUILD；PackEditor 是 ScratchGame 附屬 EXE，不是獨立產品。
 
@@ -23,15 +23,14 @@ ScratchGame 與 PackEditor 共用同一 VERSION / BUILD；PackEditor 是 Scratch
 3. `apps/ScratchGame/PROJECT_RULES.md`。
 4. `apps/ScratchGame/TODO.md`。
 5. `apps/ScratchGame/RUNTIME_PACKAGE.md`。
-6. `apps/ScratchGame/SCRATCHPACK_SPEC.md` / `GAMETYPE_SPEC.md`。
+6. `apps/ScratchGame/SCRATCHPACK_V1_HANDOFF.md`。
 7. VERSION / BUILD。
-8. 只再讀當次工作直接相關 source；不要為了延續工作重掃整個 repo。
+8. ScratchPack / GameType 工作需要時再讀 `SCRATCHPACK_SPEC.md` / `GAMETYPE_SPEC.md`。
+9. 只再讀當次工作直接相關 source；不要為了延續工作重掃整個 repo。
 
 ---
 
-# 1. 目前最重要狀態
-
-## V0.5.2 UI 修改已完成，但使用者決定延後集中驗收
+# 1. V0.5.2 UI 修改已完成，但延後集中驗收
 
 V0.5.2 Build 1 已完成但尚未由使用者逐項實機驗收：
 
@@ -47,48 +46,45 @@ V0.5.2 Build 1 已完成但尚未由使用者逐項實機驗收：
 
 永久 UI 規則已寫入 `PROJECT_RULES.md`：**未經使用者當次明確要求，不得自行變動 Header / Stage / Footer 的尺寸或整體區域邊界。** UI 問題必須優先在區域內部處理。
 
-使用者指示：**V0.5.2 這批修改之後一起驗收，現在先做 portable / automation / 文件。**
+使用者指示：**這批 UI 之後一起驗收；目前先完成 portable / automation / 文件。**
 
 ---
 
-# 2. V0.5.3 Portable Packager 現況
+# 2. V0.5.3 Portable Packager — Build 1 已完成
 
-V0.5.3 Build 0 commit：
+Build 0 commit：
 
 `6612f88d7542d5b7558baca9cf8cc6894071dc87`
 
-已完成：
+Build 1 source commit：
 
-- `tools/package_portable.py` 正式同時要求 `ScratchGame.exe` + `PackEditor.exe`。
+`56722c0fe0c22a96af6a9976188168db98ee419a`
+
+Windows CI：**Run #181 PASS**。
+
+目前正式 packager 已完成：
+
+- `tools/package_portable.py` 同時要求 `ScratchGame.exe` + `PackEditor.exe`。
 - 支援 `--assets <dir>`。
 - 支援 `--assets-zip <approved portable / asset bundle>`。
 - `runtime-assets.json` 記錄 runtime assets 的 relative path / byte size / SHA-256。
 - required asset 缺檔、空檔、size mismatch、SHA mismatch 都 FAIL。
 - output ZIP 建立後重新開啟，核對檔案集合與 source bytes identity。
 - 不直接繼承舊 package 的 EXE 或任意額外檔案。
-- packager unit tests 已建立。
-- V0.5.3 Build 0 Windows CI Run #179 PASS。
+- `testPacks` 已成為 manifest 正式區段。
+- `TestPacks/ThreeStar-Test.scratchpack` 是 required TestPack；缺失 / size / SHA 不符都 FAIL。
+- `verify_output()` 已不再禁止整個 `TestPacks/`；仍只允許 manifest 白名單檔案。
+- `tools/build_reference_testpack.py` 可由 repo reference source deterministic 建立 canonical ThreeStar-Test。
+- packager Python static compile PASS；unit tests **7/7 PASS**。
 
-## 重要：Build 0 有一個剛確認的規格錯誤
+Canonical ThreeStar-Test baseline：
 
-目前 `package_portable.py` 與 `RUNTIME_PACKAGE.md` **錯誤地禁止 `TestPacks/` 進 portable**。
+```text
+size: 800 bytes
+SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
+```
 
-使用者已明確更正：
-
-> 現在仍持續測試，portable 必須包含 TestPacks；一直保留到 V1.0.0 正式驗收完成，屆時再提醒使用者決定移除。
-
-因此下一個工作必須是 **V0.5.3 Build 1**，不要升 patch。
-
-Build 1 要做：
-
-1. `TestPacks/ThreeStar-Test.scratchpack` 納入正式開發 / 測試 portable。
-2. TestPack 也納入 manifest / size / SHA-256 integrity gate。
-3. packager 不再把 `TestPacks/` 當 forbidden output。
-4. unit tests 改成驗證 TestPack 必須存在且 bytes 正確。
-5. `RUNTIME_PACKAGE.md` 同步。
-6. 集中修改後 static / unit test，最後只跑一次 Windows CI。
-
-**不要提前刪 TestPacks。V1.0.0 正式驗收完成時必須主動提醒使用者。**
+**TestPacks 必須一直保留到 V1.0.0 正式驗收完成。到 V1.0.0 release gate 時主動提醒使用者，再由使用者決定移除；不得提前自行刪除。**
 
 ---
 
@@ -100,21 +96,22 @@ V0.5.3 packager 的方向是：
 
 - repo 保存 packager + exact hash manifest；
 - package 時使用已核准的 asset directory 或完整 asset ZIP；
-- packager只抽取 manifest 宣告的資源，避免「拿舊 ZIP 換 EXE」的人工作法；
+- packager 只抽取 manifest 宣告的資源，避免「拿舊 ZIP 換 EXE」的人工作法；
+- ThreeStar-Test binary 由 repo reference source deterministic 重建，manifest 鎖定 exact size / SHA；
 - TestPack 在 0.x / V1 驗收前是**刻意需要的測試資源**，不是應被過濾的垃圾檔。
 
-目前 Build 0 CI 還是 build / publish / icon / startup smoke test 為主；因 asset bundle 尚未建立長期 CI 來源，所以 executable artifact 不能被稱為完整 portable package。
+目前 Windows CI 的 artifact 仍是 executable-only；因 approved external asset bundle 尚未建立長期 CI 來源，所以不能稱為完整 portable package。
 
-下一階段 automation 可以一併決定 approved runtime asset bundle 的長期存放 / CI 取得方式，讓 CI 最終直接產生完整 portable artifact。
+下一階段 automation 要一併決定 approved runtime asset bundle 的長期存放 / CI 取得方式，讓 CI 最終直接產生完整 portable artifact。
 
 ---
 
 # 4. Portable 完成後的優先順序
 
-使用者已重新排序 Roadmap：
+使用者已定案：
 
-1. **先完成正式 portable packager。**
-2. **做完整自動驗證 / regression。**
+1. **Portable Packager — 已完成 Build 1。**
+2. **現在做完整自動驗證 / regression。**
 3. **更新 ICON binary SOP 與各種狀態 / handoff 文件。**
 4. **開始逐一完善基本 GameType。**
 5. **基本 GameType 全部完善後，才回 PackEditor 做正式收尾。**
@@ -126,7 +123,7 @@ V0.5.3 packager 的方向是：
 
 ---
 
-# 5. 自動驗證 / Regression 下一階段目標
+# 5. 下一階段：完整自動驗證 / Regression
 
 目標不是只測 compiler，而是建立：
 
@@ -136,6 +133,7 @@ V0.5.3 packager 的方向是：
 
 - ScratchGame / PackEditor build / publish / startup smoke。
 - portable completeness / asset hash / TestPack hash。
+- approved runtime asset bundle 長期來源與 CI 完整 portable artifact。
 - ScratchPackV1Loader validation。
 - Built-in / Imported install path。
 - GameType 1 finite pool。
@@ -160,7 +158,7 @@ PackEditor 是 create-only：
 - 不建立 editor-only `.scratchproject`。
 - 輸出必須用正式 `ScratchPackV1Loader` round-trip validation。
 
-目前 UI 已不是舊 handoff 的五步驟，而是：
+目前 UI：
 
 `① 基本資料與票面素材 → ② 遊戲區域 → ③ 獎金池 → ④ 驗證與輸出`
 
@@ -178,18 +176,16 @@ PackEditor 是 create-only：
 
 ---
 
-# 7. ICON 事件 / 待升級共通治理
+# 7. ICON binary SOP / 待升級共通治理
 
-舊 handoff 把 PackEditor ICON 當 blocker 已過期；後續真正要保存的是這次事件形成的 binary SOP。
-
-核心原則：
+PackEditor ICON 已不是目前 blocker。後續要保存的是這次形成的 binary SOP。
 
 ### Gate 1 — Source Integrity
 
 - intended PNG 先人工目視正確。
 - 記錄 byte size / SHA-256 / dimensions。
 - binary-safe upload：正常 git 或 Git Data API `create_blob` base64。
-- 從 repo read-back 後 SHA-256 必須與 intended source 完全一致。
+- 從 repo read-back 後 SHA-256 必須與 intended source完全一致。
 - 必要時 render repo read-back 再目視。
 
 ### Gate 2 — Windows Embedding
@@ -206,25 +202,21 @@ PackEditor 是 create-only：
 
 # 8. 文件現況
 
-本次交接已更新：
+V0.5.3 Build 1 完成後已同步：
 
 - `TODO.md`
 - `WORK_HANDOFF.md`
 - `SCRATCHPACK_V1_HANDOFF.md`
 - `RUNTIME_PACKAGE.md`
 
-注意：`RUNTIME_PACKAGE.md` 會記錄**目標規格與目前 Build 0 gap**；真正 packager source 在下一個 Build 1 才會修 TestPacks。
-
 ---
 
-# 9. 下一個對話直接執行的工作
+# 9. 下一個工作直接執行
 
-不要先做 V0.5.2 UI 驗收，也不要先做 PackEditor 收尾。
+不要先做 V0.5.2 UI 驗收，也不要先做 PackEditor 正式收尾。
 
 直接從：
 
-> **V0.5.3 Build 1 — 讓正式 portable packager 必須包含並驗證 TestPacks**
+> **Automated Regression — 建立 Build → Portable → ScratchPack / finite pool / buy / scratch / redeem / Wallet/statistics 全鏈自動驗證，並加入 PackEditor round-trip。**
 
 開始。
-
-完成 Build 1 後，再進入 automated regression。

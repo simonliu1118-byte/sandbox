@@ -7,9 +7,9 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前版本：**V0.5.3 / BUILD 0**
-- V0.5.3 commit：`6612f88d7542d5b7558baca9cf8cc6894071dc87`
-- Windows CI：**Run #179 PASS**
+- 目前版本：**V0.5.3 Build 1**
+- Build 1 source commit：`56722c0fe0c22a96af6a9976188168db98ee419a`
+- Windows CI：**Run #181 PASS**
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.2 Build 1 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改尚待使用者集中實機驗收，不阻擋目前先做 packaging / automation / 文件治理。
 
@@ -24,54 +24,63 @@
 - 「選擇玩家」玩家卡底框裁切修正於 UserDialog 內處理。
 - 曾誤改 Footer 高度，V0.5.2 Build 1 已恢復原 Footer 尺寸；`PROJECT_RULES.md` 已明定未經使用者要求不得改 Header / Stage / Footer 尺寸。
 
-## V0.5.3 — 正式 Portable Packager（目前工作）
+## V0.5.3 — 正式 Portable Packager
 
-### 已完成
+### Build 0 已完成
 
-- `tools/package_portable.py` 已正式要求 `ScratchGame.exe` + `PackEditor.exe`。
+- `tools/package_portable.py` 正式要求 `ScratchGame.exe` + `PackEditor.exe`。
 - 支援 `--assets <dir>` 與 `--assets-zip <approved package / asset bundle>`。
 - `runtime-assets.json` 保存可打包 runtime assets 的 path / byte size / SHA-256 baseline。
 - 打包前逐檔驗證；輸出後重新開 ZIP 驗證檔案集合與 bytes identity。
 - 舊 EXE 與未宣告檔案不得從 asset source 被誤繼承。
-- Packager unit tests 已建立；V0.5.3 Build 0 Windows CI Run #179 PASS。
+- packager unit tests 已建立。
 
-### 立即待修 — V0.5.3 Build 1
+### Build 1 已完成 — TestPacks 納入 portable
 
-**目前 Build 0 的 packager 錯誤地禁止 `TestPacks/`。使用者已明確更正：開發 / 測試階段必須包含 TestPacks。**
+Build 0 曾錯誤禁止 `TestPacks/`。V0.5.3 Build 1 已依使用者要求完成修正：
 
-下一步必須：
+1. `TestPacks/ThreeStar-Test.scratchpack` 納入 `runtime-assets.json` 的 `testPacks` manifest。
+2. TestPack 受 path / byte size / SHA-256 integrity gate 保護。
+3. directory source 與 ZIP source 缺少 TestPack 都會 FAIL。
+4. TestPack bytes / hash 不符會 FAIL。
+5. 正確 TestPack 必須存在輸出 ZIP；未宣告的 TestPack 不會被白名單外繼承。
+6. 移除 `verify_output()` 對整個 `TestPacks/` 的 forbidden-output 邏輯。
+7. 新增 `tools/build_reference_testpack.py`，從 repo reference source deterministic 建立 canonical `ThreeStar-Test.scratchpack`。
+8. packager unit tests **7/7 PASS**；Python static compile PASS。
+9. Windows CI **Run #181 PASS**。
 
-1. 把目前正式測試 Pack（至少 `TestPacks/ThreeStar-Test.scratchpack`）納入 portable package。
-2. TestPack 也應進 manifest / hash integrity gate，不做任意資料夾全拷貝。
-3. 更新 packager tests：TestPack 缺失 / hash 不符必須 FAIL；正確來源必須進輸出 ZIP。
-4. 移除 `verify_output()` 對 `TestPacks/` 的禁止條件。
-5. `RUNTIME_PACKAGE.md` / handoff / package manifest 同步。
-6. static / unit tests 後只跑一次 Windows CI。
+Canonical ThreeStar-Test baseline：
+
+```text
+size: 800 bytes
+SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
+```
 
 **TestPacks 保留到 V1.0.0 正式驗收完成。到 V1.0.0 release gate 時必須主動提醒使用者，再由使用者確認後移除 TestPacks；不可提前移除。**
 
-## Portable 後下一階段 — 自動驗證 / Regression
+## 下一階段 — 自動驗證 / Regression
 
-Portable Build 1 完成後，優先做完整自動驗證，不先做 PackEditor 正式收尾。
+Portable Build 1 完成後，現在優先做完整自動驗證，不先做 PackEditor 正式收尾。
 
 目標鏈：
 
-`Build → Package → Pack load → Import → finite pool → buy → pending → scratch/result → redeem → Wallet/statistics`
+`Build → Portable Package → ScratchPack load → Import → finite pool → buy → pending → scratch/result → redeem → Wallet/statistics`
 
 至少涵蓋：
 
 - ScratchGame / PackEditor build、publish、startup smoke test。
 - portable completeness + runtime asset / TestPack hash verification。
+- 建立 approved runtime asset bundle 的長期來源，使 CI 能真正產生完整 portable artifact。
 - ScratchPackV1Loader validation。
 - Built-in / Imported installation path。
 - GameType 1 finite pool、購票、Pending Ticket、換票限制、刮獎、兌獎。
 - Wallet / cumulative statistics transaction correctness。
 - PackEditor → `.scratchpack` → ScratchGame Importer round-trip regression。
 
-## 文件 / Governance — Portable 與自動驗證後立即整理
+## 文件 / Governance — Automated Regression 後立即整理
 
 - 持續同步 `TODO.md`、`WORK_HANDOFF.md`、`SCRATCHPACK_V1_HANDOFF.md`、`RUNTIME_PACKAGE.md`。
-- 清除舊 V0.5.0 / V0.5.1、五步 PackEditor、ICON blocker 等過期狀態描述。
+- 清除仍殘留的舊 V0.5.0 / V0.5.1、五步 PackEditor、ICON blocker 等過期狀態描述。
 - PackEditor ICON 事件整理成 repository 共通 binary / icon SOP：
   - intended source 先人工目視；
   - 記錄 byte size / SHA-256 / dimensions；

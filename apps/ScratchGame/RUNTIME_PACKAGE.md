@@ -27,22 +27,38 @@ ScratchGame/
 目前仍在持續開發 / 測試，使用者已明確要求：
 
 - portable package 必須包含目前核准的 `TestPacks/`。
-- TestPack 不是任意全資料夾繼承；應列入 manifest，以 path / byte size / SHA-256 驗證。
-- 至少目前的 `TestPacks/ThreeStar-Test.scratchpack` 必須隨測試 portable 提供。
+- TestPack 不是任意全資料夾繼承；必須列入 `runtime-assets.json`，以 path / byte size / SHA-256 驗證。
+- 目前 required TestPack 為 `TestPacks/ThreeStar-Test.scratchpack`。
 - **TestPacks 一直保留到 V1.0.0 正式驗收完成。**
 - 到 V1.0.0 release gate 時，必須主動提醒使用者，再由使用者確認是否移除；不得提前自行刪除。
 
-### V0.5.3 Build 0 已知 gap
+V0.5.3 Build 1 已修正 Build 0 錯誤：`package_portable.py` 不再禁止 `TestPacks/`，而是只接受 manifest 明確宣告的 TestPack。未宣告的 TestPack 仍不會被繼承到輸出 ZIP。
 
-目前 HEAD `6612f88d7542d5b7558baca9cf8cc6894071dc87` 的 `package_portable.py` 仍錯誤地把 `TestPacks/` 視為 forbidden output。這是 Build 0 在使用者補充規格前形成的錯誤假設。
+## ThreeStar-Test canonical package
 
-**下一步 V0.5.3 Build 1 必須修正 source / tests / manifest；本文件描述的是已確認的目標規格，不代表 Build 0 已符合。**
+Repository 保存 `reference-packs/ThreeStar-Test/manifest.json` 與 `ticket.json` 作為 reference source；不把 `.scratchpack` binary 當成 Git binary release 檔保存。
+
+`tools/build_reference_testpack.py` 會以固定 JSON canonicalization、固定 ZIP member order / timestamp / attributes / compression 建立可重現的：
+
+```text
+TestPacks/ThreeStar-Test.scratchpack
+```
+
+V0.5.3 Build 1 baseline：
+
+```text
+byte size: 800
+SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
+```
+
+`test_package_portable.py` 會重新從 reference source 建立 canonical TestPack，並核對上述 manifest baseline，避免 reference source 與 packaging manifest 靜默漂移。
 
 ## Runtime assets 保存方式
 
 外部美術 / 音效目前不作為 repository binary source。Repository 保存：
 
 - `tools/package_portable.py`
+- `tools/build_reference_testpack.py`
 - `runtime-assets.json`
 
 打包可使用：
@@ -106,28 +122,32 @@ PackEditor.exe
 - asset manifest SHA-256
 - 實際封裝檔案清單
 
-## V0.5.3 Build 0 已完成
+## V0.5.3 Build 1 已完成
 
-- packager 同時接受 ScratchGame.exe / PackEditor.exe。
-- `--assets` / `--assets-zip`。
-- runtime asset size + SHA-256 gate。
-- output ZIP structure / bytes read-back verification。
-- packager unit tests。
-- Windows CI Run #179 PASS。
+Build 1 source commit：`56722c0fe0c22a96af6a9976188168db98ee419a`
 
-## V0.5.3 Build 1 待做
+Windows CI：**Run #181 PASS**。
 
-- 把 `ThreeStar-Test.scratchpack` 納入 manifest / hash gate。
-- 移除 TestPacks forbidden-output 邏輯。
-- 新增 TestPack missing / hash mismatch / successful packaging tests。
-- 用 approved full asset source 實際重建完整 portable。
-- static / unit validation 後只跑一次 Windows CI。
+已完成：
 
-## CI 邊界
+- `runtime-assets.json` 新增 `testPacks` 區段。
+- `ThreeStar-Test.scratchpack` 納入 path / byte size / SHA-256 integrity gate。
+- directory source 與 ZIP source 都把 required TestPack 視為必要檔案。
+- 移除 `verify_output()` 對整個 `TestPacks/` 的禁止條件；仍只允許 manifest whitelist 內容。
+- 新增 deterministic reference TestPack builder。
+- unit tests 覆蓋 TestPack 缺失、hash mismatch、正確輸出、ZIP-source round-trip 與 canonical baseline；**7/7 PASS**。
+- Python static compile (`py_compile`) PASS。
+- Windows build / publish / shell icon / startup smoke / artifact：Run #181 PASS。
 
-Build 0 的 Windows CI 仍主要負責 build / publish / icon / startup smoke test。因 approved external asset bundle 尚未建立長期 CI 取得方式，executable-only artifact 仍不能稱為完整 portable package。
+## CI 邊界 / 下一階段
 
-後續 automated regression 階段再完成 asset bundle 長期來源與 CI 最終 portable artifact，使完整 package 可以從固定來源重建，不再人工用舊包替換 EXE。
+目前 Windows workflow 仍主要負責 build / publish / icon / startup smoke test。因 approved external asset bundle 尚未建立長期 CI 取得方式，executable-only artifact 仍不能稱為完整 portable package。
+
+下一階段 automated regression 要完成 approved asset bundle 長期來源與 CI 最終 portable artifact，並建立：
+
+`Build → Portable Package → ScratchPack load → Import → finite pool → buy → pending → scratch/result → redeem → Wallet/statistics`
+
+同時加入 PackEditor → `.scratchpack` → ScratchGame Importer round-trip regression。
 
 ## Legacy assets
 
