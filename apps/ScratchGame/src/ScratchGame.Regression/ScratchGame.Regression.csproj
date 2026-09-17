@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>ScratchGame.Regression</AssemblyName>
+    <RootNamespace>ScratchGame.Regression</RootNamespace>
+    <StartupObject>ScratchGame.Regression.StaEntryPoint</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScratchGame\ScratchGame.csproj" />
+    <Compile Include="..\PackEditor\PackDraft.cs" Link="PackEditor\PackDraft.cs" />
+    <Compile Include="..\PackEditor\PackExportService.cs" Link="PackEditor\PackExportService.cs" />
+  </ItemGroup>
+</Project>

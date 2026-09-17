@@ -4,6 +4,9 @@ namespace ScratchGame.Data;
 
 public sealed class AppDatabase
 {
+    public const long InitialWalletBalance = 100_000;
+    public const long DefaultWalletGrantAmount = 100_000;
+
     public string DataDirectory { get; }
     public string DatabasePath { get; }
     public string BackupDirectory { get; }
@@ -22,7 +25,15 @@ public sealed class AppDatabase
         Directory.CreateDirectory(DataDirectory);
         Directory.CreateDirectory(BackupDirectory);
 
+        var existedBeforeOpen = File.Exists(DatabasePath) && new FileInfo(DatabasePath).Length > 0;
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var previousSchemaVersion = existedBeforeOpen
+            ? await GetSchemaVersionAsync(connection, cancellationToken)
+            : 0;
+
+        if (existedBeforeOpen && previousSchemaVersion < 5)
+            await CreateMigrationBackupAsync(connection, cancellationToken);
+
         var command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE IF NOT EXISTS app_meta (
@@ -33,8 +44,14 @@ public sealed class AppDatabase
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 display_name TEXT NOT NULL,
-                total_spent INTEGER NOT NULL DEFAULT 0,
-                total_redeemed INTEGER NOT NULL DEFAULT 0,
+                total_spent INTEGER NOT NULL DEFAULT 0 CHECK(total_spent >= 0),
+                total_redeemed INTEGER NOT NULL DEFAULT 0 CHECK(total_redeemed >= 0),
+                wallet_balance INTEGER NOT NULL DEFAULT 100000 CHECK(wallet_balance >= 0),
+                completed_ticket_count INTEGER NOT NULL DEFAULT 0 CHECK(completed_ticket_count >= 0),
+                win_count INTEGER NOT NULL DEFAULT 0 CHECK(win_count >= 0),
+                max_prize INTEGER NOT NULL DEFAULT 0 CHECK(max_prize >= 0),
+                grant_count INTEGER NOT NULL DEFAULT 0 CHECK(grant_count >= 0),
+                grant_total_amount INTEGER NOT NULL DEFAULT 0 CHECK(grant_total_amount >= 0),
                 created_utc TEXT NOT NULL
             );
 
@@ -54,6 +71,27 @@ public sealed class AppDatabase
             CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_package_id
                 ON ticket_definitions(source_package_id)
                 WHERE source_package_id IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS scratchpack_installations (
+                package_id TEXT PRIMARY KEY,
+                ticket_id TEXT NOT NULL UNIQUE,
+                source_kind TEXT NOT NULL CHECK(source_kind IN ('BuiltIn','Imported')),
+                content_hash TEXT NOT NULL,
+                installed_utc TEXT NOT NULL,
+                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS ticket_metadata (
+                ticket_id TEXT PRIMARY KEY,
+                style_number INTEGER NOT NULL DEFAULT 0 CHECK(style_number >= 0),
+                tickets_per_book INTEGER NOT NULL CHECK(tickets_per_book > 0),
+                price_display INTEGER NOT NULL DEFAULT 0 CHECK(price_display IN (0, 1)),
+                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_style_number
+                ON ticket_metadata(style_number)
+                WHERE style_number > 0;
 
             CREATE TABLE IF NOT EXISTS prize_tiers (
                 ticket_id TEXT NOT NULL,
@@ -110,26 +148,43 @@ public sealed class AppDatabase
 
             CREATE INDEX IF NOT EXISTS ix_pending_batch ON pending_tickets(batch_id);
 
-            CREATE TABLE IF NOT EXISTS ticket_history (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                ticket_id TEXT NOT NULL,
-                batch_number INTEGER NOT NULL,
-                price INTEGER NOT NULL,
-                prize_amount INTEGER NOT NULL CHECK(prize_amount >= 0),
-                completed_utc TEXT NOT NULL,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
-                FOREIGN KEY(ticket_id) REFERENCES ticket_definitions(id) ON DELETE RESTRICT
+            CREATE TABLE IF NOT EXISTS batch_serial_claims (
+                batch_id TEXT NOT NULL,
+                serial_index INTEGER NOT NULL CHECK(serial_index > 0),
+                pending_ticket_id TEXT NULL,
+                consumed INTEGER NOT NULL DEFAULT 0 CHECK(consumed IN (0, 1)),
+                PRIMARY KEY(batch_id, serial_index),
+                UNIQUE(pending_ticket_id),
+                FOREIGN KEY(batch_id) REFERENCES batches(id) ON DELETE CASCADE
             );
 
-            CREATE INDEX IF NOT EXISTS ix_history_user_time
-                ON ticket_history(user_id, completed_utc DESC);
+            CREATE INDEX IF NOT EXISTS ix_serial_pending
+                ON batch_serial_claims(pending_ticket_id);
 
-            INSERT INTO app_meta(key, value)
-            VALUES ('schema_version', '1')
-            ON CONFLICT(key) DO NOTHING;
+            -- Schema 3 起不再使用 Reservation。舊 Pending 的 reserved 數量視為已經發行，
+            -- 轉入 consumed_count；之後 reserved_count 永遠維持 0，只為舊資料庫相容而保留欄位。
+            UPDATE batch_prize_state
+            SET consumed_count = consumed_count + reserved_count,
+                reserved_count = 0
+            WHERE reserved_count > 0;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await EnsureUserAggregateColumnsAsync(connection, cancellationToken);
+
+        // V0.4 測試階段不保留逐張玩家歷史，也不嘗試從舊 history 回填統計。
+        // 新的累積統計從目前版本開始計算；舊測試資料消失可接受。
+        var removeHistory = connection.CreateCommand();
+        removeHistory.CommandText = "DROP TABLE IF EXISTS ticket_history;";
+        await removeHistory.ExecuteNonQueryAsync(cancellationToken);
+
+        var schema = connection.CreateCommand();
+        schema.CommandText = """
+            INSERT INTO app_meta(key, value)
+            VALUES ('schema_version', '5')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """;
+        await schema.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken = default)
@@ -146,5 +201,88 @@ public sealed class AppDatabase
             """;
         await pragma.ExecuteNonQueryAsync(cancellationToken);
         return connection;
+    }
+
+    private static async Task EnsureUserAggregateColumnsAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var columns = connection.CreateCommand();
+        columns.CommandText = "PRAGMA table_info(users);";
+        await using (var reader = await columns.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+                existing.Add(reader.GetString(1));
+        }
+
+        var additions = new (string Name, string Sql)[]
+        {
+            ("wallet_balance", "ALTER TABLE users ADD COLUMN wallet_balance INTEGER NOT NULL DEFAULT 100000 CHECK(wallet_balance >= 0);"),
+            ("completed_ticket_count", "ALTER TABLE users ADD COLUMN completed_ticket_count INTEGER NOT NULL DEFAULT 0 CHECK(completed_ticket_count >= 0);"),
+            ("win_count", "ALTER TABLE users ADD COLUMN win_count INTEGER NOT NULL DEFAULT 0 CHECK(win_count >= 0);"),
+            ("max_prize", "ALTER TABLE users ADD COLUMN max_prize INTEGER NOT NULL DEFAULT 0 CHECK(max_prize >= 0);"),
+            ("grant_count", "ALTER TABLE users ADD COLUMN grant_count INTEGER NOT NULL DEFAULT 0 CHECK(grant_count >= 0);"),
+            ("grant_total_amount", "ALTER TABLE users ADD COLUMN grant_total_amount INTEGER NOT NULL DEFAULT 0 CHECK(grant_total_amount >= 0);")
+        };
+
+        foreach (var (name, sql) in additions)
+        {
+            if (existing.Contains(name))
+                continue;
+
+            var alter = connection.CreateCommand();
+            alter.CommandText = sql;
+            await alter.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task<int> GetSchemaVersionAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "app_meta", cancellationToken))
+            return 0;
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM app_meta WHERE key = 'schema_version' LIMIT 1;";
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is not null && int.TryParse(Convert.ToString(value), out var version) ? version : 0;
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        SqliteConnection connection,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name LIMIT 1;";
+        command.Parameters.AddWithValue("$name", tableName);
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
+    }
+
+    private async Task CreateMigrationBackupAsync(
+        SqliteConnection source,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(BackupDirectory);
+        var path = Path.Combine(
+            BackupDirectory,
+            $"ScratchGame_migration_{DateTime.Now:yyyyMMdd-HHmmss}.db");
+
+        await using var destination = new SqliteConnection($"Data Source={path}");
+        await destination.OpenAsync(cancellationToken);
+        source.BackupDatabase(destination);
+
+        var backups = Directory.EnumerateFiles(BackupDirectory, "ScratchGame_*.db")
+            .Select(file => new FileInfo(file))
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .ToList();
+        foreach (var old in backups.Skip(5))
+        {
+            try { old.Delete(); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 }

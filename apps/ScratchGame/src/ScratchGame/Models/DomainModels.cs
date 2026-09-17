@@ -15,15 +15,27 @@ public sealed record TicketDefinition(
     double PublishedWinRate,
     bool Enabled,
     bool Locked,
-    string? SourcePackageId = null);
+    string? SourcePackageId = null,
+    int ActiveBatchNumber = 0,
+    long MaxPrize = 0,
+    DateTimeOffset? ActiveBatchStartedAt = null);
 
 public sealed record UserProfile(
     string Id,
     string DisplayName,
     long TotalSpent,
-    long TotalRedeemed)
+    long TotalRedeemed,
+    long WalletBalance = 100_000,
+    long CompletedTicketCount = 0,
+    long WinCount = 0,
+    long MaxPrize = 0,
+    long GrantCount = 0,
+    long GrantTotalAmount = 0)
 {
     public long Net => TotalRedeemed - TotalSpent;
+    public double WinRate => CompletedTicketCount > 0
+        ? (double)WinCount / CompletedTicketCount
+        : 0;
 }
 
 public sealed record BatchInfo(
@@ -45,15 +57,6 @@ public sealed record PendingTicket(
     string PayloadJson,
     DateTimeOffset CreatedAt,
     string? ScratchStateJson = null);
-
-public sealed record TicketHistoryEntry(
-    string Id,
-    string UserId,
-    string TicketId,
-    int BatchNumber,
-    long Price,
-    long PrizeAmount,
-    DateTimeOffset CompletedAt);
 
 public enum BatchStatus
 {

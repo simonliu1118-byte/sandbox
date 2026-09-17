@@ -5,6 +5,10 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - 'apps/ScratchGame/src/**'
+      - 'apps/ScratchGame/tools/**'
+      - 'apps/ScratchGame/RuntimeAssets/Live/**'
+      - 'apps/ScratchGame/reference-packs/ThreeStar-Test/**'
+      - 'apps/ScratchGame/runtime-assets.json'
       - 'apps/ScratchGame/VERSION'
       - 'apps/ScratchGame/BUILD'
       - '.github/workflows/scratchgame-build.yml'
@@ -30,6 +34,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Read version
         id: version
         run: |
@@ -39,22 +47,229 @@ jobs:
           "build=$build" >> $env:GITHUB_OUTPUT
           if ($build -eq '0') {
             "display=V$version" >> $env:GITHUB_OUTPUT
+            "slug=V$version" >> $env:GITHUB_OUTPUT
           } else {
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
+            "slug=V$version-Build$build" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Restore Windows x64 runtime packs
+      - name: Verify PackEditor product identity
+        run: |
+          $editorRoot = 'apps/ScratchGame/src/PackEditor'
+          if (Test-Path (Join-Path $editorRoot 'VERSION')) {
+            Write-Error 'PackEditor must use the ScratchGame VERSION and must not own a parallel VERSION file.'
+            exit 1
+          }
+          if (Test-Path (Join-Path $editorRoot 'BUILD')) {
+            Write-Error 'PackEditor must use the ScratchGame BUILD and must not own a parallel BUILD file.'
+            exit 1
+          }
+          $project = Get-Content (Join-Path $editorRoot 'PackEditor.csproj') -Raw
+          if ($project -notmatch '\.\.\\\.\.\\VERSION') {
+            Write-Error 'PackEditor.csproj must read apps/ScratchGame/VERSION.'
+            exit 1
+          }
+          if ($project -notmatch 'ScratchPackV1Loader.cs' -or $project -notmatch 'ScratchPackModels.cs') {
+            Write-Error 'PackEditor must compile the authoritative ScratchPack model/loader source rather than maintain editor-only copies.'
+            exit 1
+          }
+          Write-Host 'PackEditor remains an attached ScratchGame executable with shared version and ScratchPack authority.'
+
+      - name: Verify crisp Stage UI ownership
+        run: |
+          $xamlPath = 'apps/ScratchGame/src/ScratchGame/MainWindow.xaml'
+          [xml]$doc = Get-Content $xamlPath -Raw
+          $ns = [System.Xml.XmlNamespaceManager]::new($doc.NameTable)
+          $ns.AddNamespace('p', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+          $ns.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+
+          foreach ($name in @('ResultOverlay', 'ResultResumeButton')) {
+            $node = $doc.SelectSingleNode("//*[@x:Name='$name']", $ns)
+            if ($null -eq $node) {
+              Write-Error "Required Stage UI element '$name' is missing."
+              exit 1
+            }
+
+            $cursor = $node
+            while ($null -ne $cursor) {
+              if ($cursor.LocalName -eq 'Viewbox') {
+                Write-Error "Program-owned Stage UI '$name' must not be inside a Viewbox. Fractional ticket scaling blurs WPF text."
+                exit 1
+              }
+
+              $effectProperty = $cursor.ChildNodes | Where-Object {
+                $_.NodeType -eq [System.Xml.XmlNodeType]::Element -and $_.LocalName -like '*.Effect'
+              } | Select-Object -First 1
+              if ($null -ne $effectProperty) {
+                Write-Error "Program-owned Stage UI '$name' must not inherit an Effect from '$($cursor.LocalName)'. Render shadows on a background-only sibling/child layer instead."
+                exit 1
+              }
+
+              $cursor = $cursor.ParentNode
+            }
+          }
+
+          $ticketStage = $doc.SelectSingleNode("//*[@x:Name='TicketStage']", $ns)
+          if ($null -eq $ticketStage -or $ticketStage.ParentNode.LocalName -ne 'Viewbox') {
+            Write-Error 'TicketStage must remain the design-coordinate child of the ticket Viewbox.'
+            exit 1
+          }
+          Write-Host 'Stage UI ownership check passed.'
+
+      - name: Verify application icon masters
+        run: |
+          $sources = @(
+            @{ Name = 'ScratchGame'; Path = 'apps/ScratchGame/src/ScratchGame/Assets/ScratchGame-icon-source.png' },
+            @{ Name = 'PackEditor'; Path = 'apps/ScratchGame/src/PackEditor/Assets/PackEditor-icon-source.png' }
+          )
+
+          Add-Type -AssemblyName System.Drawing
+          foreach ($entry in $sources) {
+            if (-not (Test-Path $entry.Path)) {
+              Write-Error "$($entry.Name) icon master PNG is missing."
+              exit 1
+            }
+
+            $image = [System.Drawing.Image]::FromFile((Resolve-Path $entry.Path).Path)
+            try {
+              Write-Host "$($entry.Name) icon master: $($image.Width)x$($image.Height)"
+              if ($image.Width -ne 256 -or $image.Height -ne 256) {
+                Write-Error "$($entry.Name) icon master must be exactly 256x256."
+                exit 1
+              }
+            }
+            finally {
+              $image.Dispose()
+            }
+          }
+
+      - name: Verify portable packager tests
+        working-directory: apps/ScratchGame/tools
+        run: |
+          python -m py_compile package_portable.py build_reference_testpack.py test_package_portable.py
+          python -m unittest -v test_package_portable.py
+
+      - name: Build canonical ThreeStar TestPack
+        run: |
+          $testPack = 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack'
+          python 'apps/ScratchGame/tools/build_reference_testpack.py' --output $testPack
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testPack)) {
+            Write-Error 'Canonical ThreeStar-Test.scratchpack was not created.'
+            exit 1
+          }
+
+      - name: Restore ScratchGame Windows x64 runtime packs
         run: >-
           dotnet restore 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -r win-x64
 
-      - name: Build
+      - name: Restore PackEditor Windows x64 runtime packs
+        run: >-
+          dotnet restore 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -r win-x64
+
+      - name: Restore regression runner Windows x64 runtime packs
+        run: >-
+          dotnet restore 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj'
+          -r win-x64
+
+      - name: Build ScratchGame
         run: >-
           dotnet build 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --no-restore
           /p:Version=${{ steps.version.outputs.version }}
 
-      - name: Publish Windows x64 executable
+      - name: Build PackEditor
+        run: >-
+          dotnet build 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -c Release -r win-x64 --no-restore
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Build regression runner
+        run: >-
+          dotnet build 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj'
+          -c Release -r win-x64 --no-restore
+          /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Run ScratchGame domain regression
+        env:
+          SCRATCHGAME_REGRESSION: '1'
+        run: |
+          $workRoot = Join-Path $env:RUNNER_TEMP 'ScratchGameRegressionWork'
+          if (Test-Path $workRoot) {
+            Remove-Item $workRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
+          $testPack = (Resolve-Path 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack').Path
+
+          dotnet run --project 'apps/ScratchGame/src/ScratchGame.Regression/ScratchGame.Regression.csproj' `
+            -c Release -r win-x64 --no-build --no-restore -- `
+            --scratchpack $testPack `
+            --work-root $workRoot
+
+      - name: Verify generated Windows icon sizes
+        run: |
+          $icons = @(
+            @{ Name = 'ScratchGame'; Path = 'apps/ScratchGame/src/ScratchGame/obj/ScratchGame.generated.ico' },
+            @{ Name = 'PackEditor'; Path = 'apps/ScratchGame/src/PackEditor/obj/PackEditor.generated.ico' }
+          )
+          $required = @(16,20,24,28,32,40,48,64,72,80,96,128,256)
+
+          foreach ($entry in $icons) {
+            $iconPath = $entry.Path
+            if (-not (Test-Path $iconPath)) {
+              Write-Error "Generated $($entry.Name).ico is missing."
+              exit 1
+            }
+
+            $bytes = [System.IO.File]::ReadAllBytes($iconPath)
+            if ($bytes.Length -lt 6) {
+              Write-Error "Generated $($entry.Name).ico is too small."
+              exit 1
+            }
+
+            $reserved = [BitConverter]::ToUInt16($bytes, 0)
+            $type = [BitConverter]::ToUInt16($bytes, 2)
+            $count = [BitConverter]::ToUInt16($bytes, 4)
+            if ($reserved -ne 0 -or $type -ne 1 -or $count -lt 1) {
+              Write-Error "Generated $($entry.Name).ico has an invalid ICONDIR header."
+              exit 1
+            }
+
+            $sizes = @()
+            for ($i = 0; $i -lt $count; $i++) {
+              $offset = 6 + (16 * $i)
+              if ($offset + 16 -gt $bytes.Length) {
+                Write-Error "Generated $($entry.Name) icon directory entry #$($i + 1) is truncated."
+                exit 1
+              }
+
+              $width = [int]$bytes[$offset]
+              $height = [int]$bytes[$offset + 1]
+              if ($width -eq 0) { $width = 256 }
+              if ($height -eq 0) { $height = 256 }
+              $imageBytes = [BitConverter]::ToUInt32($bytes, $offset + 8)
+              $imageOffset = [BitConverter]::ToUInt32($bytes, $offset + 12)
+              if ([uint64]$imageOffset + [uint64]$imageBytes -gt [uint64]$bytes.Length) {
+                Write-Error "Generated $($entry.Name) icon image ${width}x${height} points outside the file."
+                exit 1
+              }
+              if ($width -ne $height) {
+                Write-Error "Generated $($entry.Name) icon contains a non-square entry: ${width}x${height}."
+                exit 1
+              }
+              $sizes += $width
+            }
+
+            $missing = @($required | Where-Object { $_ -notin $sizes })
+            Write-Host "$($entry.Name) generated ICO entries: $($sizes -join ', ')"
+            if ($missing.Count -gt 0) {
+              Write-Error "Generated $($entry.Name).ico is missing native Windows sizes: $($missing -join ', ')"
+              exit 1
+            }
+          }
+
+      - name: Publish ScratchGame Windows x64 executable
         run: >-
           dotnet publish 'apps/ScratchGame/src/ScratchGame/ScratchGame.csproj'
           -c Release -r win-x64 --self-contained true --no-restore
@@ -64,23 +279,172 @@ jobs:
           /p:DebugType=None
           /p:DebugSymbols=false
           /p:Version=${{ steps.version.outputs.version }}
-          -o 'apps/ScratchGame/dist'
+          -o 'apps/ScratchGame/dist/ScratchGame'
 
-      - name: Verify Windows output
+      - name: Publish PackEditor Windows x64 executable
+        run: >-
+          dotnet publish 'apps/ScratchGame/src/PackEditor/PackEditor.csproj'
+          -c Release -r win-x64 --self-contained true --no-restore
+          /p:PublishSingleFile=true
+          /p:IncludeNativeLibrariesForSelfExtract=true
+          /p:EnableCompressionInSingleFile=true
+          /p:DebugType=None
+          /p:DebugSymbols=false
+          /p:Version=${{ steps.version.outputs.version }}
+          -o 'apps/ScratchGame/dist/PackEditor'
+
+      - name: Verify Windows outputs and shell icons
         run: |
-          if (-not (Test-Path 'apps/ScratchGame/dist/ScratchGame.exe')) {
-            Write-Error 'ScratchGame.exe was not produced.'
-            exit 1
+          $executables = @(
+            @{ Name = 'ScratchGame'; Path = 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe' },
+            @{ Name = 'PackEditor'; Path = 'apps/ScratchGame/dist/PackEditor/PackEditor.exe' }
+          )
+
+          foreach ($entry in $executables) {
+            if (-not (Test-Path $entry.Path)) {
+              Write-Error "Missing published executable: $($entry.Path)"
+              exit 1
+            }
+
+            $info = Get-Item $entry.Path
+            Write-Host "$($info.Name) size: $([Math]::Round($info.Length / 1MB, 2)) MB"
+            if ($info.Length -lt 35MB) {
+              Write-Error "$($info.Name) is unexpectedly small for a self-contained single-file build."
+              exit 1
+            }
           }
-          $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -File -Filter '*.dll')
+
+          $looseDlls = @(Get-ChildItem 'apps/ScratchGame/dist' -Recurse -File -Filter '*.dll')
           if ($looseDlls.Count -gt 0) {
-            Write-Error "Unexpected loose DLLs: $($looseDlls.Name -join ', ')"
+            Write-Error "Unexpected loose DLLs: $($looseDlls.FullName -join ', ')"
             exit 1
           }
 
-      - name: Upload executable artifact
+          Add-Type -AssemblyName System.Drawing
+          foreach ($entry in $executables) {
+            $exe = (Resolve-Path $entry.Path).Path
+            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+            if ($null -eq $icon) {
+              Write-Error "Windows could not resolve an associated application icon from $($entry.Name).exe."
+              exit 1
+            }
+            try {
+              Write-Host "$($entry.Name) associated icon resolved: $($icon.Width)x$($icon.Height)"
+              if ($icon.Width -lt 16 -or $icon.Height -lt 16) {
+                Write-Error "Resolved $($entry.Name) application icon is invalid."
+                exit 1
+              }
+            }
+            finally {
+              $icon.Dispose()
+            }
+          }
+
+      - name: Smoke launch ScratchGame and PackEditor
+        run: |
+          $previousLocalAppData = $env:LOCALAPPDATA
+          try {
+            foreach ($name in @('ScratchGame', 'PackEditor')) {
+              $exe = if ($name -eq 'ScratchGame') {
+                (Resolve-Path 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe').Path
+              } else {
+                (Resolve-Path 'apps/ScratchGame/dist/PackEditor/PackEditor.exe').Path
+              }
+              $smokeLocalAppData = Join-Path $env:RUNNER_TEMP "${name}SmokeLocalAppData"
+              New-Item -ItemType Directory -Force -Path $smokeLocalAppData | Out-Null
+              $env:LOCALAPPDATA = $smokeLocalAppData
+              $process = $null
+              try {
+                $process = Start-Process -FilePath $exe -PassThru
+                $deadline = [DateTime]::UtcNow.AddSeconds(6)
+                while ([DateTime]::UtcNow -lt $deadline) {
+                  Start-Sleep -Milliseconds 500
+                  $process.Refresh()
+                  if ($process.HasExited) {
+                    Write-Error "$name exited during startup smoke test. Exit code: $($process.ExitCode)"
+                    exit 1
+                  }
+                }
+                Write-Host "$name remained running for startup smoke test (PID $($process.Id))."
+              }
+              finally {
+                if ($null -ne $process) {
+                  $process.Refresh()
+                  if (-not $process.HasExited) {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                  }
+                  $process.Dispose()
+                }
+              }
+            }
+          }
+          finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+          }
+
+      - name: Stage repository runtime assets
+        run: |
+          $assetRoot = 'apps/ScratchGame/.ci/PortableAssets'
+          if (Test-Path $assetRoot) {
+            Remove-Item $assetRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $assetRoot | Out-Null
+
+          $liveRoot = 'apps/ScratchGame/RuntimeAssets/Live'
+          foreach ($folder in @('Themes', 'BuiltInAssets', 'UI', 'Audio')) {
+            $source = Join-Path $liveRoot $folder
+            if (-not (Test-Path $source)) {
+              Write-Error "Required runtime asset folder is missing from repository: $source"
+              exit 1
+            }
+            Copy-Item $source -Destination $assetRoot -Recurse -Force
+          }
+
+          $testPackDir = Join-Path $assetRoot 'TestPacks'
+          New-Item -ItemType Directory -Force -Path $testPackDir | Out-Null
+          Copy-Item `
+            'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack' `
+            (Join-Path $testPackDir 'ThreeStar-Test.scratchpack') `
+            -Force
+
+      - name: Build and verify complete portable package
+        id: package
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $build = '${{ steps.version.outputs.build }}'
+          $slug = '${{ steps.version.outputs.slug }}'
+          $portableName = "ScratchGame-$slug-win-x64.zip"
+          $portablePath = Join-Path 'apps/ScratchGame/dist' $portableName
+
+          python 'apps/ScratchGame/tools/package_portable.py' `
+            --exe 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe' `
+            --pack-editor-exe 'apps/ScratchGame/dist/PackEditor/PackEditor.exe' `
+            --assets 'apps/ScratchGame/.ci/PortableAssets' `
+            --asset-manifest 'apps/ScratchGame/runtime-assets.json' `
+            --output $portablePath `
+            --folder-name 'ScratchGame' `
+            --version $version `
+            --build $build
+
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $portablePath)) {
+            Write-Error 'Complete portable package was not created.'
+            exit 1
+          }
+
+          $item = Get-Item $portablePath
+          $sha = (Get-FileHash $portablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Portable package: $($item.Name)"
+          Write-Host "Portable size: $($item.Length) bytes"
+          Write-Host "Portable SHA-256: $sha"
+          "path=$portablePath" >> $env:GITHUB_OUTPUT
+          "filename=$portableName" >> $env:GITHUB_OUTPUT
+          "sha256=$sha" >> $env:GITHUB_OUTPUT
+
+      - name: Upload complete portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ScratchGame-${{ steps.version.outputs.display }}-win-x64
-          path: apps/ScratchGame/dist/ScratchGame.exe
+          name: ScratchGame-${{ steps.version.outputs.slug }}-portable-win-x64
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 14

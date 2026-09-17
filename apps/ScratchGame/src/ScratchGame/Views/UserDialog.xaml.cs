@@ -36,22 +36,53 @@ public partial class UserDialog : Window
             ? null
             : _users.FirstOrDefault(user => user.Id == currentUser.Id);
         UserListBox.SelectedItem = current ?? _users.FirstOrDefault();
+
+        Loaded += UserDialog_OnLoaded;
+    }
+
+    private void UserDialog_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= UserDialog_OnLoaded;
+
+        // The selected card changes BorderThickness during the first realization pass.
+        // Force one complete ListBox measure/arrange before the dialog is presented so
+        // the rounded border cannot retain the narrower pre-selection layout.
+        UserListBox.InvalidateMeasure();
+        UserListBox.InvalidateArrange();
+        UserListBox.UpdateLayout();
+
+        if (UserListBox.SelectedItem is not { } selected)
+            return;
+
+        UserListBox.ScrollIntoView(selected);
+        UserListBox.UpdateLayout();
+
+        if (UserListBox.ItemContainerGenerator.ContainerFromItem(selected) is FrameworkElement container)
+        {
+            container.InvalidateMeasure();
+            container.InvalidateArrange();
+            container.InvalidateVisual();
+            container.UpdateLayout();
+        }
     }
 
     private async void AddUser_OnClick(object sender, RoutedEventArgs e)
     {
+        var name = PlayerNamePrompt.Show(this);
+        if (name is null)
+            return;
+
         try
         {
-            var user = await _catalog.CreateUserAsync(NewUserNameTextBox.Text);
+            var user = await _catalog.CreateUserAsync(name);
             var row = UserRow.FromProfile(user);
             _users.Add(row);
             UserListBox.SelectedItem = row;
             UserListBox.ScrollIntoView(row);
-            NewUserNameTextBox.Clear();
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "新增使用者", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "新增玩家", ex.Message);
         }
     }
 
@@ -100,36 +131,53 @@ public partial class UserDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "修改使用者名稱", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "修改玩家名稱", ex.Message);
         }
     }
 
-    private async void ResetStats_OnClick(object sender, RoutedEventArgs e)
+    private async void DeleteUser_OnClick(object sender, RoutedEventArgs e)
     {
-        if (UserListBox.SelectedItem is not UserRow row)
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.DataContext is not UserRow row)
+            return;
+
+        if (row.Id == _currentUserId)
         {
-            MessageBox.Show(this, "請先選擇要重置的使用者。", "重置損益", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Warning(this, "刪除玩家", "目前正在使用這位玩家。請先切換到其他玩家，再回來刪除。");
             return;
         }
 
-        var confirm = MessageBox.Show(
-            this,
-            $"要將「{row.DisplayName}」目前的投入、兌獎與損益歸零嗎？\n\n這不會刪除彩券歷史，也不會改變票池。",
-            "重置損益",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (confirm != MessageBoxResult.Yes)
+        if (_users.Count <= 1)
+        {
+            GameModal.Warning(this, "刪除玩家", "至少必須保留一個玩家。");
             return;
+        }
+
+        if (!GameModal.Confirm(
+                this,
+                "刪除玩家",
+                $"確定要刪除「{row.DisplayName}」嗎？\n\n這位玩家的錢包與累積統計會一併永久刪除，無法復原。",
+                "刪除",
+                "取消"))
+        {
+            return;
+        }
 
         try
         {
-            var reset = await _profiles.ResetStatsAsync(row.Id);
-            row.ApplyProfile(reset);
-            UpdateOwnerSummaryIfCurrent(reset);
+            var wasSelected = ReferenceEquals(UserListBox.SelectedItem, row);
+            await _profiles.DeleteAsync(row.Id);
+            _users.Remove(row);
+
+            if (wasSelected || UserListBox.SelectedItem is null)
+            {
+                UserListBox.SelectedItem = _users.FirstOrDefault(user => user.Id == _currentUserId)
+                    ?? _users.FirstOrDefault();
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "重置損益", MessageBoxButton.OK, MessageBoxImage.Warning);
+            GameModal.Warning(this, "刪除玩家", ex.Message);
         }
     }
 
@@ -141,17 +189,14 @@ public partial class UserDialog : Window
         if (owner.FindName("UserSummaryText") is not System.Windows.Controls.TextBlock summary)
             return;
 
-        var netText = profile.Net >= 0
-            ? $"+${profile.Net:N0}"
-            : $"-${Math.Abs(profile.Net):N0}";
-        summary.Text = $"{profile.DisplayName}　損益 {netText}";
+        summary.Text = $"{profile.DisplayName}　錢包 ${profile.WalletBalance:N0}";
     }
 
     private void Select_OnClick(object sender, RoutedEventArgs e)
     {
         if (UserListBox.SelectedItem is not UserRow row)
         {
-            MessageBox.Show(this, "請先選擇使用者。", "使用者", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameModal.Info(this, "選擇玩家", "請先選擇玩家。");
             return;
         }
 
@@ -171,32 +216,64 @@ public partial class UserDialog : Window
         private bool _isEditing;
         private long _totalSpent;
         private long _totalRedeemed;
+        private long _walletBalance;
+        private long _completedTicketCount;
+        private long _winCount;
+        private long _maxPrize;
+        private long _grantCount;
+        private long _grantTotalAmount;
 
         public string Id { get; init; } = string.Empty;
 
         public long TotalSpent
         {
             get => _totalSpent;
-            private set
-            {
-                _totalSpent = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(Net));
-            }
+            private set { _totalSpent = value; OnPropertyChanged(); }
         }
 
         public long TotalRedeemed
         {
             get => _totalRedeemed;
-            private set
-            {
-                _totalRedeemed = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(Net));
-            }
+            private set { _totalRedeemed = value; OnPropertyChanged(); }
         }
 
-        public long Net => TotalRedeemed - TotalSpent;
+        public long WalletBalance
+        {
+            get => _walletBalance;
+            private set { _walletBalance = value; OnPropertyChanged(); OnPropertyChanged(nameof(WalletText)); }
+        }
+
+        public long CompletedTicketCount
+        {
+            get => _completedTicketCount;
+            private set { _completedTicketCount = value; OnPropertyChanged(); }
+        }
+
+        public long WinCount
+        {
+            get => _winCount;
+            private set { _winCount = value; OnPropertyChanged(); }
+        }
+
+        public long MaxPrize
+        {
+            get => _maxPrize;
+            private set { _maxPrize = value; OnPropertyChanged(); }
+        }
+
+        public long GrantCount
+        {
+            get => _grantCount;
+            private set { _grantCount = value; OnPropertyChanged(); }
+        }
+
+        public long GrantTotalAmount
+        {
+            get => _grantTotalAmount;
+            private set { _grantTotalAmount = value; OnPropertyChanged(); }
+        }
+
+        public string WalletText => $"${WalletBalance:N0}";
 
         public string DisplayName
         {
@@ -231,9 +308,25 @@ public partial class UserDialog : Window
             EditName = profile.DisplayName;
             TotalSpent = profile.TotalSpent;
             TotalRedeemed = profile.TotalRedeemed;
+            WalletBalance = profile.WalletBalance;
+            CompletedTicketCount = profile.CompletedTicketCount;
+            WinCount = profile.WinCount;
+            MaxPrize = profile.MaxPrize;
+            GrantCount = profile.GrantCount;
+            GrantTotalAmount = profile.GrantTotalAmount;
         }
 
-        public UserProfile ToProfile() => new(Id, DisplayName, TotalSpent, TotalRedeemed);
+        public UserProfile ToProfile() => new(
+            Id,
+            DisplayName,
+            TotalSpent,
+            TotalRedeemed,
+            WalletBalance,
+            CompletedTicketCount,
+            WinCount,
+            MaxPrize,
+            GrantCount,
+            GrantTotalAmount);
 
         private void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

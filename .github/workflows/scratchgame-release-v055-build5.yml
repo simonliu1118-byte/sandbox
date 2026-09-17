@@ -1,0 +1,105 @@
+name: ScratchGame Release V0.5.5 Build 5
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit.message == 'release(ScratchGame): V0.5.5 Build 5'
+    runs-on: ubuntu-latest
+
+    env:
+      TAG: ScratchGame-v0.5.5-build5
+      RELEASE_TITLE: ScratchGame V0.5.5 Build 5
+      ACCEPTANCE_RUN_ID: '35271132305'
+      ACCEPTANCE_HEAD_SHA: '556aaa1152ed5939bd15b67aa581cf8d1029c2a9'
+      ARTIFACT_ID: '10519115830'
+      ARTIFACT_ARCHIVE: ScratchGame-V0.5.5-Build5-portable-win-x64.zip
+      ARTIFACT_ARCHIVE_SHA256: 4b96f75733e48c23b3e2e0657f683c9ee6eaa7a1dc4a97f1719f561a0f622e3a
+      RELEASE_ZIP: ScratchGame-V0.5.5-Build5-win-x64.zip
+      RELEASE_ZIP_SHA256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+
+      - name: Verify version identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(tr -d '\r\n' < apps/ScratchGame/VERSION)" = "0.5.5"
+          test "$(tr -d '\r\n' < apps/ScratchGame/BUILD)" = "5"
+          test -f apps/ScratchGame/RELEASE_NOTES_V0.5.5_BUILD5.md
+
+      - name: Lightweight secret-pattern gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----)' -- . ':!*.md'; then
+            echo "Potential secret-like material detected in tracked non-Markdown files."
+            exit 1
+          fi
+
+      - name: Verify accepted Windows CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ACCEPTANCE_RUN_ID}")"
+          test "$(jq -r '.conclusion' <<<"$run_json")" = "success"
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "${ACCEPTANCE_HEAD_SHA}"
+
+      - name: Download and verify accepted Portable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            -o "${ARTIFACT_ARCHIVE}"
+
+          echo "${ARTIFACT_ARCHIVE_SHA256}  ${ARTIFACT_ARCHIVE}" | sha256sum -c -
+
+          mkdir -p release-dist
+          unzip -q "${ARTIFACT_ARCHIVE}" -d release-dist
+          test -f "release-dist/${RELEASE_ZIP}"
+          echo "${RELEASE_ZIP_SHA256}  release-dist/${RELEASE_ZIP}" | sha256sum -c -
+
+          unzip -l "release-dist/${RELEASE_ZIP}" | grep -F 'ScratchGame/ScratchGame.exe'
+          unzip -l "release-dist/${RELEASE_ZIP}" | grep -F 'ScratchGame/PackEditor.exe'
+          unzip -l "release-dist/${RELEASE_ZIP}" | grep -F 'ScratchGame/PACKAGE_CONTENTS.txt'
+          unzip -l "release-dist/${RELEASE_ZIP}" | grep -F 'ScratchGame/TestPacks/ThreeStar-Test.scratchpack'
+
+          printf '%s  %s\n' "${RELEASE_ZIP_SHA256}" "${RELEASE_ZIP}" > release-dist/SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; leaving it unchanged."
+            exit 0
+          fi
+
+          gh release create "${TAG}" \
+            "release-dist/${RELEASE_ZIP}" \
+            "release-dist/SHA256SUMS.txt" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${RELEASE_TITLE}" \
+            --notes-file apps/ScratchGame/RELEASE_NOTES_V0.5.5_BUILD5.md

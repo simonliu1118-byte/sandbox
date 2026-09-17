@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>PackEditor</AssemblyName>
+    <RootNamespace>PackEditor</RootNamespace>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\..\..\VERSION').Trim())</Version>
+    <GeneratedApplicationIcon>$(MSBuildProjectDirectory)\obj\PackEditor.generated.ico</GeneratedApplicationIcon>
+    <ApplicationIcon>$(GeneratedApplicationIcon)</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- PackEditor is an auxiliary executable of ScratchGame, not a second product.
+       It compiles the authoritative ScratchPack model/loader source directly so
+       ResourceRef and validation rules never fork into an editor-only copy. -->
+  <ItemGroup>
+    <None Include="Assets\PackEditor-icon-source.png" />
+    <Compile Include="..\ScratchGame\Models\ScratchPackModels.cs" Link="Shared\ScratchPackModels.cs" />
+    <Compile Include="..\ScratchGame\Engine\GameType2Rules.cs" Link="Shared\GameType2Rules.cs" />
+    <Compile Include="..\ScratchGame\Services\ScratchPackV1Loader.cs" Link="Shared\ScratchPackV1Loader.cs" />
+  </ItemGroup>
+
+  <Target Name="GenerateWindowsApplicationIcon" BeforeTargets="PrepareForBuild">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\GenerateWindowsIcon.ps1&quot; -SourcePath &quot;$(MSBuildProjectDirectory)\Assets\PackEditor-icon-source.png&quot; -OutputPath &quot;$(GeneratedApplicationIcon)&quot;" />
+  </Target>
+</Project>
