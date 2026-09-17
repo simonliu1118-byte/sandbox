@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -407,7 +408,7 @@ public partial class SettingsDialog : Window
                     Grid.SetColumn(scrollBar, 0);
                     Grid.SetColumnSpan(scrollBar, span);
                     scrollBar.HorizontalAlignment = HorizontalAlignment.Right;
-                    scrollBar.Width = 12;
+                    scrollBar.Width = 14;
                     scrollBar.Margin = new Thickness(0, 4, 3, 4);
                     scrollBar.Background = Brushes.Transparent;
                 }
