@@ -6,15 +6,17 @@
 
 Repository：`simonliu1118-byte/sandbox`
 
-主開發分支：`scratchgame/feature-scratchpack-v1-runtime`
+目前正式基準：`main`
 
-目前工作版本線：**V0.5.5 / Build 5**
+最新正式版本：**V0.5.5 / Build 5**
+
+正式 Tag：`ScratchGame-v0.5.5-build5`
 
 ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame 附屬 EXE，不是獨立產品。
 
 新對話不要依舊聊天記憶直接改。先讀：
 
-1. 最新 branch HEAD 與該 HEAD 的最新 Windows CI。
+1. 最新 `main` HEAD 與 ScratchGame 最新正式 Release / CI。
 2. 根 `AGENTS.md` / `REPOSITORY_RULES.md` / `REPO_POLICY.md`。
 3. `apps/ScratchGame/PROJECT_RULES.md`。
 4. `apps/ScratchGame/TODO.md`。
@@ -24,9 +26,37 @@ ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame �
 8. ScratchPack / GameType 工作需要時再讀 `SCRATCHPACK_SPEC.md` / `GAMETYPE_SPEC.md`。
 9. 只再讀當次工作直接相關 source；不要重掃整個 repo。
 
+V0.5.5 Build 5 已完成實機驗收與正式 Release；下一個獨立工作是 GameType 3。新開發應由最新 `main` 建立新的 ScratchGame branch，不要把既有 Build 5 UI 驗收 branch 當成尚未完成的工作線繼續堆疊。
+
 ---
 
-# 1. 已完成基準
+# 1. 最新正式 Release
+
+```text
+Version: V0.5.5 Build 5
+Tag: ScratchGame-v0.5.5-build5
+Release date: 2026/09/18
+Portable: ScratchGame-V0.5.5-Build5-win-x64.zip
+SHA-256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
+Acceptance CI: Run #200 PASS
+User real-machine acceptance: PASS
+```
+
+正式發布說明：`RELEASE_NOTES_V0.5.5_BUILD5.md`。
+
+## V0.5.5 Build 5 最終內容
+
+- 設定清單表頭上圓角收邊完成。
+- UserDialog「錢包」標示提升辨識度。
+- 玩家卡右上角提供簡易刪除 `×`。
+- 刪除玩家使用 ScratchGame Confirm Modal 二次確認。
+- 目前正在使用的玩家、最後一位玩家、仍有 Pending Ticket 的玩家不可刪除。
+- DB 刪除使用 transaction；刪除會永久移除該玩家 Wallet 與累積統計。
+- Run #200：ScratchGame / PackEditor / Regression、GameType 1 / 2 regression、Windows icons、兩個 EXE startup smoke、完整 Portable 全部 PASS。
+
+---
+
+# 2. 已完成基準
 
 - V0.5.2：選擇玩家、新增玩家 Modal、Footer 遊玩紀錄、Stage 中獎結果 UI、銀膜碎屑／刮痕等 UI 批次。
 - 永久 UI 規則：**未經使用者當次明確要求，不得自行改 Header / Stage / Footer 寬高、Grid 區域尺寸或整體邊界。**
@@ -37,6 +67,7 @@ ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame �
 - V0.5.5 Build 2：中獎結果 transition target 與 resume pill 同步；設定清單固定列 + 資訊 Popup；Run #196 PASS。
 - V0.5.5 Build 3：設定清單操作欄合併、資料列化與文件校正；Run #197 PASS。
 - V0.5.5 Build 4：設定清單右側對齊與中央資訊 Modal；Run #199 PASS。
+- V0.5.5 Build 5：UI 收尾 + 簡易玩家刪除；Run #200 PASS；2026/09/18 使用者驗收 PASS。
 
 Canonical TestPack：
 
@@ -60,49 +91,6 @@ visual: 紅色彩券 + 金槌
 
 ---
 
-# 2. V0.5.5 Build 5 — UI 收尾 + 簡易玩家刪除
-
-本批仍屬 V0.5.5 同一條實機驗收線，不開新 Patch；VERSION 維持 `0.5.5`，BUILD 升為 `5`。
-
-## A. 設定清單表頭
-
-- Build 4 實機可見表頭色塊在上方圓角仍露出方角。
-- Build 5 將表頭背景本身設為與外層清單一致的上方圓角，避免色塊突出圓角外框。
-- 不改欄寬、操作欄或資料列結構。
-
-## B. 選擇玩家錢包標示
-
-- 玩家卡右側「錢包」由 11px 輔助字提升為 16px Bold。
-- 字色提升為接近 Footer 玩家名片主文字的亮色。
-- Wallet 金額仍維持 20px 金色粗體。
-
-## C. 簡易刪除玩家
-
-使用者要求先做功能版，之後再重新設計玩家管理介面。
-
-- 每張玩家卡右上角新增小型紅色 `×`。
-- 刪除前用 ScratchGame 自訂 Confirm Modal 二次確認。
-- 確認內容明示：該玩家錢包與累積統計會永久刪除，無法復原。
-- 目前正在使用的玩家不可直接刪除；先切換到別的玩家後才能刪除。
-- 至少保留一個玩家。
-- 有未完成 Pending Ticket 的玩家不可刪除。
-- DB 刪除使用 transaction；成功後立即從 UserDialog 清單移除。
-- 若被刪除列原本是目前選取列，清單回到現行玩家或第一個可用玩家。
-
-## D. 本批驗證要求
-
-1. VERSION `0.5.5` / BUILD `5`。
-2. ScratchGame / PackEditor / Regression build PASS。
-3. GameType 1 / 2 regression PASS。
-4. shell icon / startup smoke PASS。
-5. complete Portable PASS。
-6. 使用者實機確認：
-   - 設定清單表頭上圓角乾淨。
-   - UserDialog「錢包」標示辨識度。
-   - 右上刪除 `×` 位置、確認流程、目前玩家 / 最後一位 / Pending 保護。
-
----
-
 # 3. ScratchPack / GameType 權威
 
 - ScratchPack schema：`SCRATCHPACK_SPEC.md`。
@@ -123,10 +111,10 @@ PackEditor 是 create-only：不開啟、修改、覆寫既有 `.scratchpack`；
 
 ---
 
-# 5. 後續順序
+# 5. 接續順序
 
-1. 完成 V0.5.5 Build 5 實機驗收。
-2. 下一個獨立項目依 `GAMETYPE_SPEC.md` 進 GameType 3。
+1. 由最新 `main` 建立新的 ScratchGame 開發 branch。
+2. 依 `GAMETYPE_SPEC.md` 實作 GameType 3。
 3. 再逐一完成 GameType 4～6。
 4. 基本 GameType 全部完成後回 PackEditor 正式 UI / preview / validation UX 收尾。
 5. Decoration / 整體遊戲體驗。
