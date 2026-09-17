@@ -1,11 +1,14 @@
 # ScratchGame UI / Runtime Asset Spec
 
-本檔描述 ScratchGame 主程式外部視覺與音效資源。ScratchPack 正式格式、ResourceRef 與 Built-in ticket / foil registry 仍以 `SCRATCHPACK_SPEC.md` 為唯一權威；本檔不另建 Pack schema 或 Built-in registry。
+更新日期：2026/09/18
+
+本檔描述 ScratchGame 主程式外部視覺、音效與 Windows application icon 資源。ScratchPack 正式格式、ResourceRef 與 Built-in ticket / foil registry 仍以 `SCRATCHPACK_SPEC.md` 為唯一權威；本檔不另建 Pack schema 或 Built-in registry。
 
 ## 1. Portable runtime structure
 
 ```text
 ScratchGame.exe
+PackEditor.exe
 Themes/
 └─ Default/
    ├─ Frame/
@@ -31,9 +34,11 @@ Audio/
 ├─ big-win-auto.wav
 ├─ wallet-grant.wav
 └─ lose.wav
+TestPacks/
+└─ ThreeStar-Test.scratchpack
 ```
 
-Theme、UI effect、ticket / foil Built-in asset 與 audio 都是 EXE 外部資源；可替換的視覺／音效不強制嵌入 `ScratchGame.exe`。
+Theme、UI effect、ticket / foil Built-in asset 與 audio 都是 EXE 外部資源；可替換的視覺／音效不強制嵌入 `ScratchGame.exe`。`TestPacks/` 是目前開發／測試 portable 的驗證 fixture，保留規則見 `PROJECT_RULES.md` / `RUNTIME_PACKAGE.md`。
 
 ## 2. Theme model
 
@@ -76,7 +81,7 @@ Footer image
 - ScratchPack Built-in ticket / foil 實體資源位於 `BuiltInAssets/`，公開 ref 與解析規則仍只由 `SCRATCHPACK_SPEC.md` 定義。
 - 挑券縮圖不是獨立 Pack 檔案；主程式在 Pack 安裝後產生 360×294 runtime cache，遺失時可重建。
 - TicketBackgroundImage、symbol、ScratchSurface、hit geometry 必須使用同一份 Pack Canvas / `scratch.zones` 設計座標。
-- `Tickets/ThreeStar/` 僅可作舊本機資料相容資源，不是 V0.4 ScratchPack 的正式第二套票面來源。
+- `Tickets/ThreeStar/` 僅可作舊本機資料相容資源，不是現行 ScratchPack 的正式第二套票面來源。
 
 ## 6. Wallet grant Stage effect
 
@@ -103,22 +108,42 @@ Footer image
 
 ## 8. Application icon
 
-ScratchGame application icon 的程式建置唯一入口：
+目前 application icon 使用 **repository 內的 256×256 master PNG → build-time generated multi-size ICO**，不再維護 hand-edited `.ico` 作 source of truth。
+
+ScratchGame master：
 
 ```text
-apps/ScratchGame/src/ScratchGame/Assets/ScratchGame.ico
+apps/ScratchGame/src/ScratchGame/Assets/ScratchGame-icon-source.png
 ```
 
-規則：
+PackEditor master：
 
-- 目前正式圖示為紅金刮刮樂票＋金幣圖案。
-- 正式圖示的高解析 master PNG 保存在 Asset Library；repository 的 `.ico` 是 Windows / C# resource compiler 實際驗證通過的 runtime 版本，目前包含 **16×16 與 32×32 的 32-bit DIB entries**。Windows 可依 Shell / DPI 需求縮放顯示；若未來增加更高尺寸，必須先通過同一套 Windows Build / Shell / startup CI，不能再次使用非標準 ICO。
-- `ScratchGame.csproj` 的 `ApplicationIcon` 與主視窗 XAML `Icon` 都引用同一個 `ScratchGame.ico`。桌面捷徑、開始功能表與工作列不得另維護第二份 icon 圖檔。
-- Windows 桌面捷徑、開始功能表與工作列一律由最終 EXE 的 application icon 取得。
+```text
+apps/ScratchGame/src/PackEditor/Assets/PackEditor-icon-source.png
+```
+
+共同規則：
+
+- 兩個 master PNG 都必須是 256×256；CI 會直接驗證尺寸。
+- `tools/GenerateWindowsIcon.ps1` 在 build 前產生 `obj/*.generated.ico`。
+- `ScratchGame.csproj` / `PackEditor.csproj` 的 `ApplicationIcon` 指向各自 generated ICO；不得平行維護第二套 application icon source。
+- generated ICO 必須包含 Windows native sizes：`16, 20, 24, 28, 32, 40, 48, 64, 72, 80, 96, 128, 256`。
+- Windows CI 直接解析 generated ICO directory，確認尺寸與 image offset 合法。
+- publish 後的 `ScratchGame.exe` / `PackEditor.exe` 必須能由 Windows `ExtractAssociatedIcon` 解析出 application icon。
 - **禁止在 single-file publish 完成後，再用 `BeginUpdateResource`、resource editor 或其他方式改寫最終 EXE。** .NET single-file bundle 將 runtime / application payload 附加於 PE；publish 後重寫 PE 可能截掉 bundle並造成 EXE 無法啟動。
-- CI 必須直接驗證 untouched published EXE：self-contained bundle 大小合理、Windows 能解析 associated icon，且 EXE 能通過實際 startup smoke test。
-- Asset Library 的 `AppIcon/` 保存 approved master PNG 與同版 ICO 作為美術素材備份；程式建置仍只讀 repository 的 `Assets/ScratchGame.ico`。
+- CI 必須驗證 untouched published EXE：self-contained bundle 大小合理、無意外 loose DLL、Windows associated icon 可解析、兩個 EXE 都通過 startup smoke。
 
 ## 9. Packaging
 
-GitHub Actions 只產出並上傳 `exe-only` artifact。完整 portable package 必須由 `tools/package_portable.py` 驗證 required runtime resources 後建立；缺任一必要 Theme、Built-in resource、UI effect 或 Audio 檔即失敗。
+完整 portable 由 `tools/package_portable.py` 組裝並驗證；缺任一 required Theme、Built-in resource、UI effect、Audio 或 required TestPack 即失敗。
+
+目前 Windows CI 會直接：
+
+1. publish `ScratchGame.exe` / `PackEditor.exe`；
+2. 建立 deterministic `ThreeStar-Test.scratchpack`；
+3. 驗證 `runtime-assets.json` 的 size / SHA-256；
+4. 組完整 portable；
+5. post-ZIP 再驗證內容；
+6. 上傳完整 `ScratchGame-V<version>-BuildN-portable-win-x64` Actions Artifact。
+
+因此舊的「Actions 只上傳 exe-only artifact」敘述已廢止；目前 CI 的產品驗證單位是**完整 portable package**。

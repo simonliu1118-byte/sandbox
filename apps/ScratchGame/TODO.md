@@ -7,12 +7,13 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.5 / Build 2**。
+- 目前工作版本：**V0.5.5 / Build 3**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2：完整 Portable automation 已完成，Run #189 PASS。
 - V0.5.4 Build 2：GameType 2「中獎號碼」核心、Renderer、Runtime 與 regression 已完成，Run #192 全部 PASS。
 - V0.5.5 Build 0：彩券小舖卡片排版完成，Run #193 全部 PASS。
 - V0.5.5 Build 1：玩家初次 layout、結果按鈕位置、PackEditor ICON master 修正完成，Run #194 全部 PASS。
+- V0.5.5 Build 2：動畫 target 與設定資訊 Popup 完成，Run #196 全部 PASS。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 由 CI 直接組完整 Portable。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步。
 
@@ -49,31 +50,35 @@
 - PackEditor ICON 回復核可 256×256、19093 bytes master。
 - Run #194 PASS。
 
-### Build 2 — 本批
+### Build 2
 
-1. **中獎結果暫時隱藏動畫位置同步**
-   - Build 1 下移 resume pill 後，transition chip 仍用舊固定 18px 位置，因此動畫終點與按鈕脫鉤。
-   - `GetResultTransitionTarget()` 改為直接使用 `ResultResumeButton.Margin.Bottom` 計算終點。
-   - 之後若只調整 resume pill bottom margin，隱藏／恢復動畫會自動跟隨。
-   - 不改 Header / Stage / Footer row size 或整體 layout boundary。
+- `GetResultTransitionTarget()` 改為依 `ResultResumeButton.Margin.Bottom` 計算動畫終點。
+- 設定清單移除 accordion，改成固定高度 row card + 資訊 Popup。
+- Imported Pack 的解除安裝移入資訊卡；Built-in Pack 仍只能隱藏。
+- Run #196 PASS。
 
-2. **設定選單彩券清單重整**
-   - 修正表頭色塊左右不齊：表頭背景改為完整填滿清單外框，欄位內容再依 scrollbar / row 內距對齊。
-   - 移除三角形與 accordion 列內展開，避免彩券數增加時整頁高度反覆被展開內容撐動。
-   - 主清單改為固定高度、圓角且有 hover 的 compact row card。
-   - 最右欄改成「資訊」按鈕。
-   - 按「資訊」載入該彩券 detail，於按鈕旁開小型資訊 Popup：顯示來源、玩法、批次、面額、中獎率、剩餘、發行量／本數與獎池分配。
-   - Imported Pack 的「解除安裝 Pack」移入資訊卡；Built-in Pack 保持不可解除安裝，只能隱藏。
-   - 匯入 ScratchPack 後不再自動展開清單列。
+### Build 3 — 本批
+
+1. **設定清單操作欄合併**
+   - 原「顯示 / 批次操作 / 資訊」三欄合併為單一「操作」欄。
+   - 按鈕順序固定為：**資訊 / 發行下一批 / 隱藏**。
+   - 操作欄使用單一寬欄排版，修正「發行下一批」右側被裁切。
+
+2. **設定清單列視覺簡化**
+   - 取消一列一張 compact card 的外框與圓角。
+   - 取消整列 hover / click 視覺。
+   - 改成平面資料列 + 底部分隔線。
+   - 清單外框只由外層 Border 負責，避免 row 右邊框因 scrollbar / margin 呈現不完整。
+   - 實際操作按鈕仍保留一般 hover / pressed 回饋。
 
 本批完成條件：
 
-1. VERSION 維持 `0.5.5`，BUILD `2`。
+1. VERSION 維持 `0.5.5`，BUILD `3`。
 2. ScratchGame / PackEditor / Regression build PASS。
 3. GameType 1 / 2 regression 不退化。
 4. ScratchGame / PackEditor startup smoke PASS。
-5. 完整 V0.5.5 Build 2 Portable 成功產生。
-6. 使用者實機確認動畫落點、設定清單表頭／列視覺與資訊卡操作。
+5. 完整 V0.5.5 Build 3 Portable 成功產生。
+6. 使用者實機確認操作欄、按鈕裁切、資料列分隔線與資訊卡操作。
 
 ## GameType 主線
 

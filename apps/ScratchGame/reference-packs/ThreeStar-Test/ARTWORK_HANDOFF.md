@@ -1,69 +1,88 @@
 # ThreeStar-Test Artwork Handoff
 
-更新日期：2026-09-15
+更新日期：2026/09/18
 
-本檔只記錄目前美術工作狀態與下一步，不是 ScratchPack schema 或 GameType 規格來源。權威規格仍為 `SCRATCHPACK_SPEC.md` 與 `GAMETYPE_SPEC.md`。
+本檔只記錄 ThreeStar-Test 的美術歷史與目前 reference Pack 狀態，不是 ScratchPack schema 或 GameType 規格來源。權威規格仍為 `SCRATCHPACK_SPEC.md` 與 `GAMETYPE_SPEC.md`。
 
 ## 目前 Reference Pack
 
-`ThreeStar-Test` 已建立：
+`ThreeStar-Test` 目前正式 reference source：
 
 - `manifest.json`
 - `ticket.json`
 - `packageId = 2e1e951e-0ca0-4b47-8146-82e0415d6155`
-- `canvas = 1`，正式尺寸必須為 `1080 × 882`
+- `canvas = 1`，固定 `1080 × 882`
 - `gameType = "1"`
 - `gridSize = 3`
-- `issueSize = 8`，覆蓋 0 線未中獎與 1、2、3、4、5、6、8 線所有合法正獎 outcome
+- `issueSize = 8`
+- `ticketsPerBook = 8`
+- `allowNearMiss = true`
+- Built-in ticket ref：`01-blue`
+- Built-in foil ref：`brushed-silver-three-star`
 
-目前 `ticket.json` 的標準九宮格 geometry：
+目前 `ticket.json` 已接受 geometry：
 
-- 每格 `160 × 100`
-- X：`276 / 460 / 644`
-- Y：`225 / 353 / 481`
-- 水平間距 `24`
-- 垂直間距 `28`
-- `roundedRectangle`，`cornerRadius = 12`
+```text
+zone size: 191 × 138
+X: 219, 444, 669
+Y: 256, 422, 588
+horizontal gap: 34
+vertical gap: 28
+priceDisplayArea: x=852 y=43 width=201 height=82
+serialDisplayArea: x=364 y=774 width=350 height=59
+```
 
-面額區：`x=854, y=54, width=160, height=78`。
-票號區：`x=390, y=780, width=300, height=44`。
+以上才是目前 geometry 權威；早期 160×100 / X 276,460,644 / Y 225,353,481 等數值已廢止，不得再依舊草稿恢復。
 
-## 目前美術草稿
+## 目前美術資產責任
 
-目前保留三張票面方向與一張獨立銀膜：
+- Dynamic price：`priceDisplay=1` 時由主程式依 `priceDisplayArea` 繪製。
+- Dynamic serial：由主程式依 `serialDisplayArea` 繪製。
+- 刮膜：由 `scratch.foil` ResourceRef + `scratch.zones` geometry 驅動。
+- 動態遊戲內容：由 GameType Renderer 負責。
+- Base ticket art 不燒死面額、票號、動態遊戲內容或刮膜。
+- ScratchPack V1 不使用舊 `art.mask` 欄位；正式銀膜入口是 `scratch.foil`。
 
-1. `red-original-silver`：紅色／金色版本，仍帶有銀膜，作為視覺方向參考。
-2. `red-base-no-foil`：紅色／彩虹版本，已移除動態面額、票號與銀膜，九格保留底框／占位美術。
-3. `blue-base-no-foil`：藍色星空／彩虹版本，已移除動態面額、票號與銀膜，九格保留底框／占位美術。
-4. `foil-silver-style-a`：第一種獨立銀膜樣式，透明背景；未來可作 Maker 內建銀膜樣式候選。
+ThreeStar-Test 目前 ticket 與 foil 都使用 Built-in ResourceRef，因此 canonical `.scratchpack` 只需要 `manifest.json + ticket.json`，不必在 Pack 內重複 PNG。
 
-原始生成草稿目前皆為 `1388 × 1133`，**不是**正式 `canvas=1` 尺寸。它們只作美術草稿／Maker 樣式候選，不得直接升格為正式 `assets/three-star.png`。
+## 歷史美術草稿
 
-若 `artwork-drafts/` 中保存的是 `.archive-preview.avif`，它們是為了對話交接與 Git 備份而建立的壓縮預覽副本，不是 production master；正式資產仍需從原始 PNG／本地工作檔重新輸出。
+`artwork-drafts/` 只保存設計參考，不是 production authority。現有歷史檔包括：
 
-## 已定案的資產責任
+- `01-blue-original-concept.webp`
+- `02-red-classic-concept.webp`
+- `03-red-clean-base-draft.webp`
+- `04-blue-clean-base-draft.webp`
+- `05-silver-foil-style-a.webp`
 
-- Base ticket art 不應燒死動態面額。
-- Base ticket art 不應燒死動態票號。
-- 銀膜應可作獨立資產，不應與 Base art 強耦合。
-- 未來 ScratchPack Maker 可保留目前兩種票面方向作內建樣式候選，並保留不同銀膜樣式作可選素材。
-- 目前 `ticket.json` 的 `art.mask` 仍為 `null`；在銀膜尺寸與 geometry 正式驗證前不要改成正式 mask 路徑。
+這些早期 generation 約為 1388×1133，只可作概念參考；不得拿其尺寸或舊 geometry 覆蓋目前 `ticket.json`。
 
-## 下一步
+正式可公開引用的 Built-in ticket / foil ref 清單只由 `SCRATCHPACK_SPEC.md` 定義。實際 portable runtime canonical assets 位於：
 
-使用**影像處理工具**（PIL / ImageMagick 類），不要再用圖片生成器做精確尺寸工作：
+```text
+RuntimeAssets/Live/BuiltInAssets/Tickets/gameType1/
+RuntimeAssets/Live/BuiltInAssets/Foils/
+```
 
-1. 對選定的紅／藍 Base art 做精確 `1080 × 882` 輸出。
-2. 使用一致的幾何轉換處理銀膜資產；不可只靠肉眼縮放。
-3. 重新量測並校正九宮格，使畫面刮區精確對齊 `ticket.json` 的 9 個 `160 × 100` zones（X 276/460/644；Y 225/353/481）。
-4. 確認面額區與票號區沒有被固定文字／裝飾侵入。
-5. 逐張驗證尺寸、透明度、zone 對齊後，才挑一張升格為 `assets/three-star.png`。
-6. 若選用自訂銀膜，再把對應 mask 正式接入 Pack；在此之前維持 `art.mask = null`。
+## ThreeStar-Test 測試獎池
+
+```text
+1 line  -> 100
+2 lines -> 500
+3 lines -> 1000
+4 lines -> 2500
+5 lines -> 5000
+6 lines -> 10000
+8 lines -> 100000
+0 lines -> derived losing ticket
+```
 
 ## 不要做的事
 
-- 不要把草稿 PNG／AVIF 直接當正式票面。
-- 不要用圖片生成器重做精確 `1080 × 882` 尺寸；圖片生成器只負責視覺創作。
-- 不要把面額或票號重新燒進 Base art。
+- 不要把歷史草稿尺寸／geometry 當成目前 reference definition。
+- 不要恢復已廢止的 `art.mask` / 第二套 mask pipeline。
+- 不要把面額或票號燒進 Base art。
 - 不要為 ThreeStar 再新增另一套硬編碼 ticket definition。
-- 主畫面 Header / Stage / Footer 已驗收，不要因本次彩券美術工作順便修改主畫面。
+- 不要因 reference Pack 美術工作順便修改主畫面 Header / Stage / Footer 邊界。
+
+若未來要新增票面或銀膜樣式，先依 `SCRATCHPACK_SPEC.md` 新增穩定 ResourceRef，再依 binary asset SOP 驗證 canonical source、尺寸、size / SHA-256 與 Windows portable。

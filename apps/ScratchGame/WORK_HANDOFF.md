@@ -8,7 +8,7 @@ Repository：`simonliu1118-byte/sandbox`
 
 主開發分支：`scratchgame/feature-scratchpack-v1-runtime`
 
-目前工作版本線：**V0.5.5 / Build 2**
+目前工作版本線：**V0.5.5 / Build 3**
 
 ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame 附屬 EXE，不是獨立產品。
 
@@ -36,6 +36,7 @@ ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame �
 - V0.5.4 Build 2：GameType 2「中獎號碼」完成；Run #192 PASS。
 - V0.5.5 Build 0：彩券小舖卡片排版；Run #193 PASS。
 - V0.5.5 Build 1：玩家初次 layout、結果 resume pill 下移、PackEditor 正確 ICON master；Run #194 PASS。
+- V0.5.5 Build 2：中獎結果 transition target 與 resume pill 同步；設定清單改為固定高度 row card + 資訊 Popup；Run #196 PASS。
 
 Canonical TestPack：
 
@@ -61,55 +62,37 @@ visual: 紅色彩券 + 金槌
 
 ---
 
-# 2. V0.5.5 Build 2 — 本次實機返修
+# 2. V0.5.5 Build 3 — 設定清單第二次實機返修
 
-本批延續 V0.5.5 UI 驗收，不開新 Patch；VERSION 維持 0.5.5，BUILD 升 2。
+本批延續 V0.5.5 UI 驗收，不開新 Patch；VERSION 維持 `0.5.5`，BUILD 升為 `3`。
 
-### A. 暫時隱藏中獎結果的動畫終點
+使用者實機回報 Build 2 的 compact row card 仍不夠俐落，且三個操作欄位拆開後「發行下一批」右側會被裁切。
 
-Build 1 把 `ResultResumeButton` 往下移到接近 Stage / Footer 金線，但 `MainWindow.Build4.cs` 的 transition chip 仍用舊固定 `edge = 18` 計算飛行終點，因此動畫會飛向舊位置，最後按鈕才出現在新位置。
+Build 3 定案：
 
-Build 2：
+- 設定清單表頭原本的「顯示 / 批次操作 / 資訊」合併成單一 **「操作」** 欄。
+- 操作按鈕固定順序：**資訊 → 發行下一批 → 隱藏**。
+- 操作欄改為單一固定寬度區域，由三顆按鈕共同排版，不再分割成三個窄欄，避免按鈕文字被裁切。
+- 彩券列不再使用 card 外框、圓角、hover 背景或整列點擊感。
+- 每張彩券改成平面資料列；列與列之間只保留底部分隔線。
+- 資料列本身沒有 hover / pressed 視覺；只有實際可操作的按鈕維持一般按鈕互動效果。
+- 清單外層 Border 繼續負責完整外框，避免每列右側邊框因 scrollbar / margin 看起來沒有畫到底。
+- 資訊 Popup、Imported Pack 解除安裝、Built-in Pack 只能隱藏等既有行為不變。
+- 不修改 MainWindow Header / Stage / Footer 邊界。
 
-- `GetResultTransitionTarget()` 不再使用固定 18px。
-- 直接讀 `ResultResumeButton.Margin.Bottom` 計算動畫終點。
-- 隱藏與恢復使用同一 target，因此雙向動畫均與實際 resume pill 位置一致。
-- 不改 MainWindow.xaml、Stage/Footer row size 或整體 layout boundary。
+### 本批驗證要求
 
-### B. 設定選單主清單
-
-使用者實機回報：
-
-- 表頭背景左邊突出、右邊未填滿。
-- 原始平面 table 視覺較粗糙。
-- 三角形 accordion 展開在未來彩券數增加後會造成列表高度跳動，使用體驗不佳。
-
-Build 2 改為：
-
-- 表頭背景完整填滿清單外框；表頭文字欄位另依 scrollbar 與 row 內距對齊，不再用背景本身做右側補空。
-- 每張彩券固定一列 compact row card，圓角、細框、hover；列表高度不因查看詳細資料改變。
-- 移除三角形、`IsExpanded`、`ExpandGlyph`、row accordion。
-- 最右欄改為「資訊」按鈕。
-- 按「資訊」才呼叫 `GetTicketDetailAsync()`，並以 anchored Popup 顯示小型彩券資訊卡：
-  - Pack 來源 / 玩法 / 批次
-  - 面額 / 中獎率 / 剩餘張數
-  - 總發行 / 每本 / 總本數
-  - 獎池分配
-  - 解除安裝
-- Imported Pack 可在資訊卡解除安裝；Built-in Pack 按鈕 disabled，並提示只能隱藏。
-- 匯入 ScratchPack 後只重新整理清單，不再強迫展開任何列。
-
-### C. 本批驗證要求
-
-1. ScratchGame / PackEditor / Regression build PASS。
-2. GameType 1 / 2 regression PASS。
-3. shell icon / startup smoke PASS。
-4. complete Portable 19 files PASS。
-5. 使用者實機確認：
-   - 暫時隱藏動畫確實飛到目前低位的「顯示中獎結果」。
-   - 設定清單表頭左右背景完整。
-   - 多張彩券時主清單不因看資訊而改變高度。
-   - 資訊卡與解除安裝操作符合預期。
+1. VERSION 維持 `0.5.5`，BUILD `3`。
+2. ScratchGame / PackEditor / Regression build PASS。
+3. GameType 1 / 2 regression 不退化。
+4. shell icon / startup smoke PASS。
+5. complete Portable PASS。
+6. 使用者實機確認：
+   - 操作欄三顆按鈕完整顯示，順序為資訊 / 發行下一批 / 隱藏。
+   - 「發行下一批」右側不再裁切。
+   - 資料列只有底部分隔線，沒有 card / hover / click 感。
+   - 外層清單右側邊框完整。
+   - 資訊 Popup 與解除安裝行為正常。
 
 ---
 
@@ -135,7 +118,7 @@ PackEditor 是 create-only：不開啟、修改、覆寫既有 `.scratchpack`；
 
 # 5. 後續順序
 
-1. 完成 V0.5.5 Build 2 實機驗收。
+1. 完成 V0.5.5 Build 3 實機驗收。
 2. 下一個獨立項目依 `GAMETYPE_SPEC.md` 進 GameType 3。
 3. 再逐一完成 GameType 4～6。
 4. 基本 GameType 全部完成後回 PackEditor 正式 UI / preview / validation UX 收尾。

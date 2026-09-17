@@ -180,25 +180,21 @@
                         <Border Background="#5A251D"
                                 BorderBrush="#714536"
                                 BorderThickness="0,0,0,1">
-                            <Grid Margin="8,0,34,0" VerticalAlignment="Center">
+                            <Grid Margin="0,0,26,0" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="1.55*"/>
                                     <ColumnDefinition Width="0.62*"/>
                                     <ColumnDefinition Width="0.68*"/>
                                     <ColumnDefinition Width="1.0*"/>
                                     <ColumnDefinition Width="0.72*"/>
-                                    <ColumnDefinition Width="78"/>
-                                    <ColumnDefinition Width="112"/>
-                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="278"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="彩券" Margin="14,0,6,0" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="面額" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2" Text="中獎率" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="3" Text="玩法" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="4" Text="批次" Foreground="#FFE2A1" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="5" Text="顯示" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="6" Text="批次操作" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="7" Text="資訊" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="5" Text="操作" Foreground="#FFE2A1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
 
@@ -208,31 +204,17 @@
                             <ItemsControl x:Name="TicketItems">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="8,5,8,0"
-                                                BorderThickness="1"
-                                                CornerRadius="10">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#351B15"/>
-                                                    <Setter Property="BorderBrush" Value="#5D392F"/>
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#402119"/>
-                                                            <Setter Property="BorderBrush" Value="#855541"/>
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid MinHeight="54">
+                                        <Border Background="Transparent"
+                                                BorderBrush="#5D392F"
+                                                BorderThickness="0,0,0,1">
+                                            <Grid MinHeight="56">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="1.55*"/>
                                                     <ColumnDefinition Width="0.62*"/>
                                                     <ColumnDefinition Width="0.68*"/>
                                                     <ColumnDefinition Width="1.0*"/>
                                                     <ColumnDefinition Width="0.72*"/>
-                                                    <ColumnDefinition Width="78"/>
-                                                    <ColumnDefinition Width="112"/>
-                                                    <ColumnDefinition Width="72"/>
+                                                    <ColumnDefinition Width="278"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Margin="14,0,6,0"
                                                            Text="{Binding Ticket.DisplayName}"
@@ -244,9 +226,14 @@
                                                 <TextBlock Grid.Column="2" Text="{Binding WinRateText}" FontSize="14" Foreground="#F7E4C6" VerticalAlignment="Center"/>
                                                 <TextBlock Grid.Column="3" Text="{Binding Ticket.RuleDisplayName}" FontSize="14" Foreground="#F7E4C6" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                                                 <TextBlock Grid.Column="4" Text="{Binding Ticket.BatchText}" FontSize="14" Foreground="#F7E4C6" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                <Button Grid.Column="5" Content="隱藏" Tag="{Binding}" Style="{StaticResource RowActionButton}" Click="HideRow_OnClick"/>
-                                                <Button Grid.Column="6" Content="{Binding BatchActionText}" Tag="{Binding}" Style="{StaticResource RowBatchButton}" Click="StartBatchRow_OnClick"/>
-                                                <Button Grid.Column="7" Content="資訊" Tag="{Binding}" Style="{StaticResource RowInfoButton}" Click="InfoRow_OnClick"/>
+                                                <StackPanel Grid.Column="5"
+                                                            Orientation="Horizontal"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center">
+                                                    <Button Content="資訊" Tag="{Binding}" Style="{StaticResource RowInfoButton}" Click="InfoRow_OnClick"/>
+                                                    <Button Content="發行下一批" Tag="{Binding}" Style="{StaticResource RowBatchButton}" Click="StartBatchRow_OnClick"/>
+                                                    <Button Content="隱藏" Tag="{Binding}" Style="{StaticResource RowActionButton}" Click="HideRow_OnClick"/>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
