@@ -1,8 +1,31 @@
 # ScratchGame portable runtime package
 
-更新日期：2026/09/17
+更新日期：2026/09/18
 
 ScratchGame 的 Theme、彩券美術、音效與 Built-in assets 採 EXE 外部資源。`ScratchGame.exe` 與 `PackEditor.exe` 必須位於同一 portable 根目錄並共用同一組外部資源。
+
+## 最新正式 Portable
+
+ScratchGame V0.5.5 Build 5：
+
+```text
+Tag: ScratchGame-v0.5.5-build5
+File: ScratchGame-V0.5.5-Build5-win-x64.zip
+Size: 142755863 bytes
+SHA-256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
+Acceptance CI: Run #200 PASS
+User real-machine acceptance: PASS
+```
+
+GitHub Actions 原始 Artifact archive：
+
+```text
+Artifact: ScratchGame-V0.5.5-Build5-portable-win-x64
+Artifact ID: 10519115830
+Archive SHA-256: 4b96f75733e48c23b3e2e0657f683c9ee6eaa7a1dc4a97f1719f561a0f622e3a
+```
+
+正式 GitHub Release 掛載的是 Artifact 內已通過 post-package verification 的 `ScratchGame-V0.5.5-Build5-win-x64.zip`，不是 Actions 外層 Artifact archive。
 
 ## Canonical runtime assets
 
@@ -140,6 +163,8 @@ PackEditor.exe
 開發階段 GitHub Actions 上傳的是完整 Portable Artifact，保留期依 workflow 設定。
 
 正式 GitHub Release 仍遵守 repository 治理：只有使用者明確授權後才建立正式 Release / Tag。Release 使用當下通過完整 CI 驗證的程式與 `RuntimeAssets/Live` 素材，不另維護第二套 release-only 素材來源。
+
+正式 Release 的下載 ZIP 必須記錄 SHA-256；若 Release 來源是已驗證 Actions Artifact，必須抽出內層正式 portable ZIP 再發布，不能把 GitHub Actions 外層 Artifact archive 當作正式成品名稱。
 
 ## Legacy assets
 
