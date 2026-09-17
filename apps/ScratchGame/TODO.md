@@ -7,14 +7,14 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.5 / Build 0**。
+- 目前工作版本：**V0.5.5 / Build 1**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2：完整 Portable automation 已完成，Run #189 PASS。
 - V0.5.4 Build 2：GameType 2「中獎號碼」核心、Renderer、Runtime 與 regression 已完成，Run #192 全部 PASS。
 - V0.5.4 Build 2 Portable：`ScratchGame-V0.5.4-Build2-win-x64.zip`，SHA-256 `46513302980227b3d48e2c287830ea1666bf7ed83827c70419a36987eb85fb05`。
+- V0.5.5 Build 0：彩券小舖卡片排版完成，Run #193 全部 PASS，進入使用者實機驗收。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 由 CI 直接組完整 Portable。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步。
-- V0.5.2 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果與後續 UI 微調仍留待使用者集中實機驗收。
 
 **TestPacks 必須保留到 V1.0.0 正式驗收完成。到 V1.0.0 release gate 必須主動提醒使用者，再由使用者決定是否移除；不可提前移除。**
 
@@ -35,28 +35,45 @@
 - `GameType2RenderModel` 直接使用同一份 `scratch.zones` geometry，不建立第二套座標。
 - Windows CI Run #192：Type 2 + 原 GameType 1 regression、兩個 EXE build / smoke、完整 Portable 全部 PASS。
 
-## V0.5.5 — 彩券小舖卡片排版微調
+## V0.5.5 — 彩券小舖卡片排版
 
-目前工作項目：只調整 `NewTicketDialog` 彩券卡片內部排版，**卡片外框仍固定 182×252，不改視窗、Header / Stage / Footer 或其他整體版面邊界**。
+Build 0 已完成並由 Run #193 全部驗證通過：
 
-本批內容：
-
-- 彩券縮圖移到卡片最上方，並由原 121px 增加為 132px 顯示區。
-- 彩券名稱與面額移到縮圖下方。
+- `TicketCardItem` 外框仍固定 182×252。
+- 彩券縮圖移到最上方，顯示區 132px。
+- 名稱與面額移到縮圖下方。
 - 名稱、面額、總中獎率採相同 nominal 字級；總中獎率使用較低調顏色。
-- 「最高獎金」標題改成較小、低調文字。
-- 最高獎金金額改成大字、亮桃紅醒目顯示。
-- 移除卡片中的發行日期與批次顯示；資料本身沒有刪除，只是不在此 UI 呈現。
-- 內容區 row 高度總和仍為 244px，不改卡片外框尺寸。
+- 「最高獎金」標題縮小並降低視覺權重；最高獎金金額以大字、亮桃紅顯示。
+- 發行日期與批次不再於彩券小舖卡片顯示；底層資料未刪除。
+- 不修改卡片外框、NewTicketDialog 視窗尺寸或主畫面 Header / Stage / Footer 邊界。
+
+## V0.5.5 Build 1 — 實機驗收返修
+
+本批只處理使用者實機回報，不開新功能：
+
+1. **選擇玩家初次顯示裁切**
+   - 現象：第一次開啟時玩家卡片邊框被裁切；按一次「修改名稱」後即完整。
+   - 判定：初次 ListBox item realization / Measure / Arrange 未完成；先前只加 Margin/Padding 是治標。
+   - 修正：UserDialog Loaded 時主動讓 ListBox 與目前 selected container 完成一次 Measure / Arrange / UpdateLayout，等價於使用者點編輯後觸發的重新 layout，但不改玩家卡片尺寸。
+
+2. **「顯示中獎結果」下移**
+   - 維持 Stage UI owner，不搬進 Footer。
+   - 只把 resume pill 往下貼近 Stage / Footer 間金線；不改 Header / Stage / Footer row size 或整體 layout boundary。
+
+3. **PackEditor ICON master 回復**
+   - 已 byte-level 確認目前 repo 的 `PackEditor-icon-source.png`（4178 bytes，Git blob `f826f0aa88c023e0548538e44ac8dd630e49ccb2`）其實就是素材庫的 `PackEditor-icon-48.png`，先前誤把預覽／縮小版本當 master。
+   - 改回核可 256×256 master：紅色彩券＋金槌，19093 bytes，SHA-256 `557eabf2d0ea9f87a2d3525408206a1065ef42be3f4cc2295a4a0fe0d0971ed6`。
+   - 仍沿用既有 `GenerateWindowsIcon.ps1` 產生 multi-size ICO，並由 Windows CI 驗證 shell icon。
 
 本批完成條件：
 
-1. 正式工作 branch 只增加一個乾淨 V0.5.5 commit，不帶暫存 WIP commit 歷史。
-2. ScratchGame / PackEditor / Regression build 不退化。
-3. 原 GameType 1 / GameType 2 regression 全部 PASS。
+1. VERSION 維持 `0.5.5`，BUILD `1`。
+2. ScratchGame / PackEditor / Regression build PASS。
+3. GameType 1 / 2 regression 不退化。
 4. ScratchGame / PackEditor startup smoke PASS。
-5. 完整 V0.5.5 Portable 成功產生。
-6. 卡片最終視覺仍需使用者實機確認；若只需視覺微調，依版本規則續用 V0.5.5 Build N。
+5. PackEditor generated ICO / EXE associated icon verification PASS。
+6. 完整 V0.5.5 Build 1 Portable 成功產生。
+7. 玩家卡片初次開啟與兩個視覺修正仍需使用者實機確認。
 
 ## GameType 主線
 
@@ -70,7 +87,7 @@
 - GameType 2：完成。
 - GameType 3～6：規格已定，尚待逐一實作。
 
-V0.5.5 卡片排版完成後，下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**。
+V0.5.5 Build 1 實機驗收完成後，下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**。
 
 ## PackEditor 正式收尾 — 延後
 

@@ -36,6 +36,34 @@ public partial class UserDialog : Window
             ? null
             : _users.FirstOrDefault(user => user.Id == currentUser.Id);
         UserListBox.SelectedItem = current ?? _users.FirstOrDefault();
+
+        Loaded += UserDialog_OnLoaded;
+    }
+
+    private void UserDialog_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= UserDialog_OnLoaded;
+
+        // The selected card changes BorderThickness during the first realization pass.
+        // Force one complete ListBox measure/arrange before the dialog is presented so
+        // the rounded border cannot retain the narrower pre-selection layout.
+        UserListBox.InvalidateMeasure();
+        UserListBox.InvalidateArrange();
+        UserListBox.UpdateLayout();
+
+        if (UserListBox.SelectedItem is not { } selected)
+            return;
+
+        UserListBox.ScrollIntoView(selected);
+        UserListBox.UpdateLayout();
+
+        if (UserListBox.ItemContainerGenerator.ContainerFromItem(selected) is FrameworkElement container)
+        {
+            container.InvalidateMeasure();
+            container.InvalidateArrange();
+            container.InvalidateVisual();
+            container.UpdateLayout();
+        }
     }
 
     private async void AddUser_OnClick(object sender, RoutedEventArgs e)

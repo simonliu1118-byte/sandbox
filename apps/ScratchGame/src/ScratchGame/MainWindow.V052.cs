@@ -5,6 +5,15 @@ namespace ScratchGame;
 
 public partial class MainWindow
 {
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        // Keep the hidden-result resume pill visually attached to the Stage/Footer
+        // separator without changing Stage/Footer row sizes or global layout bounds.
+        ResultResumeButton.Margin = new Thickness(0, 0, 0, -28);
+    }
+
     private async void PlayStatsFooter_OnClick(object sender, RoutedEventArgs e)
     {
         if (_currentUser is null || !PlayStatsFooterButton.IsEnabled)
