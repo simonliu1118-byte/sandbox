@@ -64,9 +64,8 @@ public partial class NewTicketDialog : Window
                 ticket,
                 ResolveThumbnail(ticket),
                 $"${ticket.Price:N0}",
-                BuildBatchText(ticket),
-                $"最高獎金 {ticket.MaxPrize:N0} 元!",
-                ticket.PublishedWinRate.ToString("P2")))
+                $"{ticket.MaxPrize:N0} 元",
+                $"總中獎率 {ticket.PublishedWinRate:P2}"))
             .ToList();
 
         TicketListBox.ItemsSource = filtered;
@@ -74,17 +73,6 @@ public partial class NewTicketDialog : Window
         TicketListBox.Visibility = filtered.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (filtered.Count > 0)
             TicketListBox.SelectedIndex = 0;
-    }
-
-    private static string BuildBatchText(TicketDefinition ticket)
-    {
-        if (ticket.ActiveBatchNumber <= 0)
-            return "日期未定．批次未定";
-
-        var date = ticket.ActiveBatchStartedAt is { } started
-            ? started.ToLocalTime().ToString("yyyy/MM/dd")
-            : "日期未定";
-        return $"{date}．第{ticket.ActiveBatchNumber}批";
     }
 
     private string? ResolveThumbnail(TicketDefinition ticket)
@@ -153,7 +141,6 @@ public partial class NewTicketDialog : Window
         TicketDefinition Ticket,
         string? ThumbnailPath,
         string PriceText,
-        string BatchText,
         string MaxPrizeText,
         string WinRateText);
 }

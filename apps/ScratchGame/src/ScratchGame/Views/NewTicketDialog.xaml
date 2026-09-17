@@ -146,13 +146,9 @@
                             <DataTemplate>
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/><RowDefinition Height="22"/><RowDefinition Height="121"/><RowDefinition Height="20"/><RowDefinition Height="14"/><RowDefinition Height="21"/><RowDefinition Height="18"/>
+                                        <RowDefinition Height="132"/><RowDefinition Height="25"/><RowDefinition Height="22"/><RowDefinition Height="24"/><RowDefinition Height="15"/><RowDefinition Height="26"/>
                                     </Grid.RowDefinitions>
-                                    <Viewbox Grid.Row="0" Margin="2,0" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Ticket.DisplayName}" Width="166" FontFamily="Microsoft JhengHei UI" FontSize="14.5" FontWeight="Bold" Foreground="#FFF2D3" TextAlignment="Center" TextWrapping="Wrap"/>
-                                    </Viewbox>
-                                    <TextBlock Grid.Row="1" Text="{Binding PriceText}" FontFamily="Microsoft JhengHei UI" FontSize="15" FontWeight="Bold" Foreground="#FFD66F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <Border Grid.Row="2" Margin="2" CornerRadius="8" Background="#210E0B" BorderBrush="#5E3C31" BorderThickness="1" ClipToBounds="True">
+                                    <Border Grid.Row="0" Margin="2,1,2,2" CornerRadius="8" Background="#210E0B" BorderBrush="#5E3C31" BorderThickness="1" ClipToBounds="True">
                                         <Grid>
                                             <Image Source="{Binding ThumbnailPath}" Stretch="Uniform" Margin="3"/>
                                             <Border Background="#A82B1711" Visibility="Collapsed" x:Name="MissingArtwork">
@@ -160,12 +156,17 @@
                                             </Border>
                                         </Grid>
                                     </Border>
-                                    <Viewbox Grid.Row="3" Margin="2,0" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding MaxPrizeText}" Width="166" FontFamily="Microsoft JhengHei UI" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFE0A0" TextAlignment="Center"/>
+                                    <Viewbox Grid.Row="1" Margin="2,0" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Ticket.DisplayName}" Width="166" FontFamily="Microsoft JhengHei UI" FontSize="14.5" FontWeight="Bold" Foreground="#FFF2D3" TextAlignment="Center" TextWrapping="Wrap"/>
                                     </Viewbox>
-                                    <TextBlock Grid.Row="4" Text="中獎率" FontFamily="Microsoft JhengHei UI" Foreground="#D1AE91" FontSize="9.5" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
-                                    <TextBlock Grid.Row="5" Text="{Binding WinRateText}" FontFamily="Microsoft JhengHei UI" Foreground="#FFD45E" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="6" Text="{Binding BatchText}" FontFamily="Microsoft JhengHei UI" FontSize="9.5" Foreground="#D4B79E" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="2" Text="{Binding PriceText}" FontFamily="Microsoft JhengHei UI" FontSize="14.5" FontWeight="Bold" Foreground="#FFD66F" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Viewbox Grid.Row="3" Margin="2,0" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding WinRateText}" Width="166" FontFamily="Microsoft JhengHei UI" FontSize="14.5" FontWeight="Normal" Foreground="#C9A996" TextAlignment="Center"/>
+                                    </Viewbox>
+                                    <TextBlock Grid.Row="4" Text="最高獎金" FontFamily="Microsoft JhengHei UI" Foreground="#C9A996" FontSize="9.5" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                                    <Viewbox Grid.Row="5" Margin="2,0" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding MaxPrizeText}" Width="166" FontFamily="Microsoft JhengHei UI" FontSize="20.5" FontWeight="Black" Foreground="#FF5C9F" TextAlignment="Center"/>
+                                    </Viewbox>
                                 </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding ThumbnailPath}" Value="{x:Null}"><Setter TargetName="MissingArtwork" Property="Visibility" Value="Visible"/></DataTrigger>
