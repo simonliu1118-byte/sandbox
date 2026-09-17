@@ -9,7 +9,9 @@
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
 - 目前版本：**V0.5.3 Build 2**
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
-- Build 2 新增正式 automated regression gate；繼續工作前以最新 branch HEAD 對應的 Windows CI 是否 PASS 為準。
+- Build 2 automated regression 已完成；Windows CI Run #185 PASS。
+- 正式 runtime PNG / WAV 已回復到 `apps/ScratchGame/RuntimeAssets/Live/`，15 個 required assets 已重新核對為 byte-for-byte 正確。
+- 本階段正在把 repository runtime assets 接到完整 Portable CI；完成條件以最新 Windows workflow run PASS 與完整 Portable Artifact 產生成功為準。
 - V0.5.2 Build 1 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改仍留待使用者集中實機驗收，目前不回頭逐項修改。
 
 ## 已完成但待集中實機驗收 — V0.5.2
@@ -44,7 +46,7 @@
 
 Build 2 把自動驗證建立在穩定的產品規則上，不綁 UI 位置或畫面操作。UI 改版或內部重整若不改產品規則，不應要求重寫這套測試。
 
-新增 `ScratchGame.Regression`，Windows CI 會自動驗證：
+`ScratchGame.Regression` 自動驗證：
 
 1. canonical `ThreeStar-Test.scratchpack` 能通過正式 `ScratchPackV1Loader`。
 2. Imported Pack 正常安裝並建立有限票池。
@@ -53,28 +55,42 @@ Build 2 把自動驗證建立在穩定的產品規則上，不綁 UI 位置或�
 5. 尚未開始刮獎可以換票；換票不重複扣款、Remaining 總數不變。
 6. 一旦開始刮獎就禁止換票。
 7. GameType 1 每張 payload 的實際連線數必須等於該張既定獎項對應的目標連線數。
-8. 把 ThreeStar-Test 全批 8 張全部完成，必須精確得到 7 張中獎 + 1 張未中獎，所有票池歸零。
-9. 全批完成後固定核對：`completed=8`、`wins=7`、`spent=4,000`、`redeemed=119,100`、`maxPrize=100,000`、`wallet=215,100`。
+8. ThreeStar-Test 全批 8 張完成後，精確得到 7 張中獎 + 1 張未中獎，所有票池歸零。
+9. 固定核對：`completed=8`、`wins=7`、`spent=4,000`、`redeemed=119,100`、`maxPrize=100,000`、`wallet=215,100`。
 10. BuiltIn installation source 與相同內容重裝的 idempotent 行為。
 11. PackEditor 真實輸出 `.scratchpack` → 正式 Loader → ScratchGame Importer round-trip。
 12. workflow 同時跑 packager Python static/unit tests，並重新建立 canonical TestPack。
 
 Regression runner 只允許在 GitHub Actions 專用測試環境執行，且使用該次 runner 的暫存資料；不拿使用者正式玩家資料做測試。
 
-### 尚未完成的 automation 邊界
+## Portable / automation 收尾
 
-完整 production portable 還差一項：**正式 PNG / WAV asset bundle 的長期 CI 可取得來源**。
+正式 runtime asset source 已改為 repository：
 
-- repo 目前刻意只保存 `runtime-assets.json` 的 exact hash，不把全部 runtime binary 當 Git source。
-- 已從先前 `V0.5.2 Build 1 FULL Test Package` 核對目前 manifest 的 15 個 required production assets，path / size / SHA-256 **15/15 一致**。
-- 但 ChatGPT Library 不是 GitHub Actions 可長期直接讀取的來源，因此不能把 Library 檔案假裝成 CI 的正式 asset repository。
-- 在正式 asset bundle 有穩定 CI 來源前，workflow artifact 仍只能視為 executables；不得宣稱已完成 production portable artifact。
+```text
+apps/ScratchGame/RuntimeAssets/Live/
+```
 
-下一個 automation 收尾工作是建立／指定 CI 可讀的 approved asset bundle 來源，再讓 workflow 直接呼叫正式 packager 產生完整 portable ZIP。
+目前 15 個 required production assets 已回復並與 `runtime-assets.json` 15/15 完全一致。
+
+Windows workflow 的完整 Portable gate 要求：
+
+```text
+Repo Live assets
++ 當次 deterministic TestPack
++ 當次 publish ScratchGame.exe
++ 當次 publish PackEditor.exe
+→ package_portable.py
+→ size / SHA integrity gate
+→ post-package verification
+→ complete Portable Artifact
+```
+
+不再依賴外部 asset bundle、Dropbox、Google Drive 或 ChatGPT Library。
 
 ## Automated Regression 後的治理工作
 
-Automation 收尾後立即整理 ICON binary SOP，透過 `simonliu1118-byte/AITeam` governance branch 升為 repository 共通規則：
+Portable automation 完成後立即整理 ICON binary SOP，透過 `simonliu1118-byte/AITeam` governance branch 升為 repository 共通規則：
 
 - intended PNG 人工目視。
 - 記錄 byte size / SHA-256 / dimensions。
