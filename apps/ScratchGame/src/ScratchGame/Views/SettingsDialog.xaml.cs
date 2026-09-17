@@ -2,8 +2,6 @@ using Microsoft.Win32;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using System.Windows.Controls.Primitives;
-using System.Windows.Media;
 using ScratchGame.Data;
 using ScratchGame.Services;
 
@@ -14,7 +12,6 @@ public partial class SettingsDialog : Window
     private readonly AppDatabase _database;
     private readonly TicketAdminService _admin;
     private readonly BackupService _backup;
-    private TicketRowViewModel? _expandedRow;
 
     public SettingsDialog(AppDatabase database)
     {
@@ -27,66 +24,36 @@ public partial class SettingsDialog : Window
     private async void Window_OnLoaded(object sender, RoutedEventArgs e)
         => await ReloadAsync();
 
-    private async Task ReloadAsync(string? expandTicketId = null)
+    private async Task ReloadAsync()
     {
-        var tickets = await _admin.GetTicketsAsync();
-        var rows = tickets.Select(ticket => new TicketRowViewModel(ticket)).ToList();
-        TicketItems.ItemsSource = rows;
-        _expandedRow = null;
+        TicketInfoPopup.IsOpen = false;
+        TicketInfoPopup.DataContext = null;
 
-        if (expandTicketId is not null)
-        {
-            var row = rows.FirstOrDefault(item => item.Ticket.Id == expandTicketId);
-            if (row is not null)
-                await ExpandRowAsync(row);
-        }
+        var tickets = await _admin.GetTicketsAsync();
+        TicketItems.ItemsSource = tickets.Select(ticket => new TicketRowViewModel(ticket)).ToList();
     }
 
-    private async void TicketRow_OnClick(object sender, RoutedEventArgs e)
+    private async void InfoRow_OnClick(object sender, RoutedEventArgs e)
     {
-        // Row actions are independent controls. Clicking hide / batch / uninstall
-        // must never also toggle the accordion row.
-        if (IsInsideButton(e.OriginalSource as DependencyObject))
-            return;
-
+        e.Handled = true;
         if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
             return;
 
-        if (ReferenceEquals(_expandedRow, row) && row.IsExpanded)
-        {
-            row.IsExpanded = false;
-            _expandedRow = null;
-            return;
-        }
-
-        if (_expandedRow is not null)
-            _expandedRow.IsExpanded = false;
-        await ExpandRowAsync(row);
-    }
-
-    private static bool IsInsideButton(DependencyObject? source)
-    {
-        for (var current = source; current is not null; current = VisualTreeHelper.GetParent(current))
-        {
-            if (current is ButtonBase)
-                return true;
-        }
-        return false;
-    }
-
-    private async Task ExpandRowAsync(TicketRowViewModel row)
-    {
         try
         {
             row.Detail = await _admin.GetTicketDetailAsync(row.Ticket.Id);
-            row.IsExpanded = true;
-            _expandedRow = row;
+            TicketInfoPopup.DataContext = row;
+            TicketInfoPopup.PlacementTarget = sender as UIElement;
+            TicketInfoPopup.IsOpen = true;
         }
         catch (Exception ex)
         {
             GameModal.Warning(this, "彩券詳細資料", ex.Message);
         }
     }
+
+    private void CloseInfoPopup_OnClick(object sender, RoutedEventArgs e)
+        => TicketInfoPopup.IsOpen = false;
 
     private async void HideRow_OnClick(object sender, RoutedEventArgs e)
     {
@@ -140,10 +107,10 @@ public partial class SettingsDialog : Window
         }
     }
 
-    private async void UninstallRow_OnClick(object sender, RoutedEventArgs e)
+    private async void UninstallInfo_OnClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
-        if ((sender as FrameworkElement)?.Tag is not TicketRowViewModel row)
+        if (TicketInfoPopup.DataContext is not TicketRowViewModel row)
             return;
 
         if (!row.Ticket.CanUninstall)
@@ -151,6 +118,8 @@ public partial class SettingsDialog : Window
             GameModal.Info(this, "解除安裝", "Built-in Pack 不可解除安裝；不使用時請改用「隱藏」。");
             return;
         }
+
+        TicketInfoPopup.IsOpen = false;
 
         if (!GameModal.Confirm(
                 this,
@@ -185,8 +154,8 @@ public partial class SettingsDialog : Window
 
         try
         {
-            var ticketId = await _admin.ImportScratchPackAsync(picker.FileName);
-            await ReloadAsync(ticketId);
+            await _admin.ImportScratchPackAsync(picker.FileName);
+            await ReloadAsync();
             GameModal.Info(this, "ScratchPack", "彩券包匯入完成，第 1 批已自動發行，可以直接開始遊玩。");
         }
         catch (Exception ex)
@@ -220,7 +189,6 @@ public partial class SettingsDialog : Window
 
     private sealed class TicketRowViewModel : INotifyPropertyChanged
     {
-        private bool _isExpanded;
         private TicketAdminDetail? _detail;
 
         public TicketRowViewModel(TicketAdminItem ticket) => Ticket = ticket;
@@ -228,27 +196,18 @@ public partial class SettingsDialog : Window
         public TicketAdminItem Ticket { get; }
         public string PriceText => $"${Ticket.Price:N0}";
         public string WinRateText => Ticket.PublishedWinRate.ToString("P2");
-        public string ExpandGlyph => IsExpanded ? "▴" : "▾";
+        public string SourceText => Ticket.IsBuiltIn ? "內建 Pack" : "Imported Pack";
         public string IssueSizeText => Detail is null ? "—" : $"{Detail.IssueSize:N0} 張";
         public string TicketsPerBookText => Detail is null ? "—" : $"{Detail.TicketsPerBook:N0} 張";
         public string BookCountText => Detail is null ? "—" : $"{Detail.BookCount:N0} 本";
         public string RemainingText => Detail is null ? "—" : $"{Detail.RemainingCount:N0} 張";
         public bool CanUninstall => Ticket.CanUninstall;
+        public string UninstallHint => Ticket.IsBuiltIn
+            ? "內建 Pack 不可解除安裝；不使用時可從主清單隱藏。"
+            : "解除安裝會移除 Pack 與目前批次／票池資料。";
         public string BatchActionText => Ticket.ActiveBatchNumber is null ? "發行新一批" : "發行下一批";
-        public IReadOnlyList<PrizeRowViewModel> PrizeRows => Detail?.PrizeRows.Select(row => new PrizeRowViewModel(row)).ToList() ?? [];
-
-        public bool IsExpanded
-        {
-            get => _isExpanded;
-            set
-            {
-                if (_isExpanded == value)
-                    return;
-                _isExpanded = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(ExpandGlyph));
-            }
-        }
+        public IReadOnlyList<PrizeRowViewModel> PrizeRows
+            => Detail?.PrizeRows.Select(row => new PrizeRowViewModel(row)).ToList() ?? [];
 
         public TicketAdminDetail? Detail
         {

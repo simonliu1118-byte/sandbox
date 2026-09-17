@@ -7,12 +7,12 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.5 / Build 1**。
+- 目前工作版本：**V0.5.5 / Build 2**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2：完整 Portable automation 已完成，Run #189 PASS。
 - V0.5.4 Build 2：GameType 2「中獎號碼」核心、Renderer、Runtime 與 regression 已完成，Run #192 全部 PASS。
-- V0.5.4 Build 2 Portable：`ScratchGame-V0.5.4-Build2-win-x64.zip`，SHA-256 `46513302980227b3d48e2c287830ea1666bf7ed83827c70419a36987eb85fb05`。
-- V0.5.5 Build 0：彩券小舖卡片排版完成，Run #193 全部 PASS，進入使用者實機驗收。
+- V0.5.5 Build 0：彩券小舖卡片排版完成，Run #193 全部 PASS。
+- V0.5.5 Build 1：玩家初次 layout、結果按鈕位置、PackEditor ICON master 修正完成，Run #194 全部 PASS。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 由 CI 直接組完整 Portable。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步。
 
@@ -32,48 +32,48 @@
 - `payoutSource=play|winning`。
 - 未中獎票固定 0 命中；正獎命中格獎金總和精確等於 Prize Tier。
 - Loader / Model / Validator / Generator / Renderer / Runtime / Importer 全部完成。
-- `GameType2RenderModel` 直接使用同一份 `scratch.zones` geometry，不建立第二套座標。
 - Windows CI Run #192：Type 2 + 原 GameType 1 regression、兩個 EXE build / smoke、完整 Portable 全部 PASS。
 
-## V0.5.5 — 彩券小舖卡片排版
+## V0.5.5 UI 驗收線
 
-Build 0 已完成並由 Run #193 全部驗證通過：
+### Build 0
 
-- `TicketCardItem` 外框仍固定 182×252。
-- 彩券縮圖移到最上方，顯示區 132px。
-- 名稱與面額移到縮圖下方。
-- 名稱、面額、總中獎率採相同 nominal 字級；總中獎率使用較低調顏色。
-- 「最高獎金」標題縮小並降低視覺權重；最高獎金金額以大字、亮桃紅顯示。
-- 發行日期與批次不再於彩券小舖卡片顯示；底層資料未刪除。
-- 不修改卡片外框、NewTicketDialog 視窗尺寸或主畫面 Header / Stage / Footer 邊界。
+- 彩券小舖卡片重新排版；`TicketCardItem` 外框仍固定 182×252。
+- 不修改 NewTicketDialog 視窗尺寸或主畫面 Header / Stage / Footer 邊界。
+- Run #193 PASS。
 
-## V0.5.5 Build 1 — 實機驗收返修
+### Build 1
 
-本批只處理使用者實機回報，不開新功能：
+- UserDialog 第一次開啟主動完成 selected item Measure / Arrange / UpdateLayout。
+- 「顯示中獎結果」resume pill 下移貼近 Stage / Footer 金線，Stage ownership 不變。
+- PackEditor ICON 回復核可 256×256、19093 bytes master。
+- Run #194 PASS。
 
-1. **選擇玩家初次顯示裁切**
-   - 現象：第一次開啟時玩家卡片邊框被裁切；按一次「修改名稱」後即完整。
-   - 判定：初次 ListBox item realization / Measure / Arrange 未完成；先前只加 Margin/Padding 是治標。
-   - 修正：UserDialog Loaded 時主動讓 ListBox 與目前 selected container 完成一次 Measure / Arrange / UpdateLayout，等價於使用者點編輯後觸發的重新 layout，但不改玩家卡片尺寸。
+### Build 2 — 本批
 
-2. **「顯示中獎結果」下移**
-   - 維持 Stage UI owner，不搬進 Footer。
-   - 只把 resume pill 往下貼近 Stage / Footer 間金線；不改 Header / Stage / Footer row size 或整體 layout boundary。
+1. **中獎結果暫時隱藏動畫位置同步**
+   - Build 1 下移 resume pill 後，transition chip 仍用舊固定 18px 位置，因此動畫終點與按鈕脫鉤。
+   - `GetResultTransitionTarget()` 改為直接使用 `ResultResumeButton.Margin.Bottom` 計算終點。
+   - 之後若只調整 resume pill bottom margin，隱藏／恢復動畫會自動跟隨。
+   - 不改 Header / Stage / Footer row size 或整體 layout boundary。
 
-3. **PackEditor ICON master 回復**
-   - 已 byte-level 確認目前 repo 的 `PackEditor-icon-source.png`（4178 bytes，Git blob `f826f0aa88c023e0548538e44ac8dd630e49ccb2`）其實就是素材庫的 `PackEditor-icon-48.png`，先前誤把預覽／縮小版本當 master。
-   - 改回核可 256×256 master：紅色彩券＋金槌，19093 bytes，SHA-256 `557eabf2d0ea9f87a2d3525408206a1065ef42be3f4cc2295a4a0fe0d0971ed6`。
-   - 仍沿用既有 `GenerateWindowsIcon.ps1` 產生 multi-size ICO，並由 Windows CI 驗證 shell icon。
+2. **設定選單彩券清單重整**
+   - 修正表頭色塊左右不齊：表頭背景改為完整填滿清單外框，欄位內容再依 scrollbar / row 內距對齊。
+   - 移除三角形與 accordion 列內展開，避免彩券數增加時整頁高度反覆被展開內容撐動。
+   - 主清單改為固定高度、圓角且有 hover 的 compact row card。
+   - 最右欄改成「資訊」按鈕。
+   - 按「資訊」載入該彩券 detail，於按鈕旁開小型資訊 Popup：顯示來源、玩法、批次、面額、中獎率、剩餘、發行量／本數與獎池分配。
+   - Imported Pack 的「解除安裝 Pack」移入資訊卡；Built-in Pack 保持不可解除安裝，只能隱藏。
+   - 匯入 ScratchPack 後不再自動展開清單列。
 
 本批完成條件：
 
-1. VERSION 維持 `0.5.5`，BUILD `1`。
+1. VERSION 維持 `0.5.5`，BUILD `2`。
 2. ScratchGame / PackEditor / Regression build PASS。
 3. GameType 1 / 2 regression 不退化。
 4. ScratchGame / PackEditor startup smoke PASS。
-5. PackEditor generated ICO / EXE associated icon verification PASS。
-6. 完整 V0.5.5 Build 1 Portable 成功產生。
-7. 玩家卡片初次開啟與兩個視覺修正仍需使用者實機確認。
+5. 完整 V0.5.5 Build 2 Portable 成功產生。
+6. 使用者實機確認動畫落點、設定清單表頭／列視覺與資訊卡操作。
 
 ## GameType 主線
 
@@ -87,7 +87,7 @@ Build 0 已完成並由 Run #193 全部驗證通過：
 - GameType 2：完成。
 - GameType 3～6：規格已定，尚待逐一實作。
 
-V0.5.5 Build 1 實機驗收完成後，下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**。
+V0.5.5 UI 驗收完成後，下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**。
 
 ## PackEditor 正式收尾 — 延後
 

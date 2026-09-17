@@ -315,8 +315,8 @@ public partial class MainWindow
     private (double X, double Y) GetResultTransitionTarget()
     {
         const double chipHeight = 38;
-        const double edge = 18;
-        var y = Math.Max(0, (StageUiOverlay.ActualHeight - chipHeight) / 2.0 - edge);
+        var bottomMargin = ResultResumeButton.Margin.Bottom;
+        var y = Math.Max(0, (StageUiOverlay.ActualHeight - chipHeight) / 2.0 - bottomMargin);
         return (0, y);
     }
 
