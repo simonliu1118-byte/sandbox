@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ScratchGame.Data;
 using ScratchGame.Engine;
 using ScratchGame.Models;
 using ScratchGame.Services;
@@ -15,20 +16,14 @@ internal static class GameType2Regression
         RequireDedicatedCiEnvironment();
 
         var root = Path.Combine(Path.GetTempPath(), "ScratchGameType2Regression", Guid.NewGuid().ToString("N"));
+        AppDatabase? database = null;
+        var ownsDatabaseDirectory = false;
         Directory.CreateDirectory(root);
         try
         {
             var packagePath = BuildPackage(root);
             var loader = new ScratchPackV1Loader();
-
-            AssertThrows<InvalidDataException>(
-                () => loader.LoadAndValidate(packagePath, Path.Combine(root, "blocked-load")),
-                "Type 2 must remain blocked from normal install until its Renderer is complete");
-
-            var loaded = loader.LoadAndValidate(
-                packagePath,
-                Path.Combine(root, "core-load"),
-                allowUnrenderedGameTypes: true);
+            var loaded = loader.LoadAndValidate(packagePath, Path.Combine(root, "normal-load"));
 
             AssertEqual("2", loaded.Ticket.GameType, "Type 2 gameType");
             AssertEqual(2, loaded.Ticket.WinningNumberCount!.Value, "winningNumberCount");
@@ -40,7 +35,7 @@ internal static class GameType2Regression
             foreach (var amount in new long[] { 0, 100, 300, 500 })
             {
                 for (var attempt = 0; attempt < 20; attempt++)
-                    ValidatePayload(loaded.Ticket, amount);
+                    ValidatePayloadAndRenderModel(loaded.Ticket, amount);
             }
 
             var winningPayout = loaded.Ticket with { PayoutSource = "winning" };
@@ -48,7 +43,7 @@ internal static class GameType2Regression
             foreach (var amount in new long[] { 0, 100, 300, 500 })
             {
                 for (var attempt = 0; attempt < 10; attempt++)
-                    ValidatePayload(winningPayout, amount);
+                    ValidatePayloadAndRenderModel(winningPayout, amount);
             }
 
             var duplicateDisplayAmounts = loaded.Ticket with
@@ -67,10 +62,47 @@ internal static class GameType2Regression
                 () => GameType2Rules.ValidateDefinition(impossiblePrize),
                 "every positive Prize Tier must be exactly generatable");
 
-            Console.WriteLine("PASS: GameType 2 loader / validator / payload generator core contract");
+            database = new AppDatabase();
+            if (File.Exists(database.DatabasePath) || Directory.Exists(database.DataDirectory))
+            {
+                throw new InvalidOperationException(
+                    $"GameType 2 regression refuses to reuse an existing ScratchGame data directory: {database.DataDirectory}");
+            }
+
+            ownsDatabaseDirectory = true;
+            database.InitializeAsync().GetAwaiter().GetResult();
+            var ticketId = new ScratchPackImporter(database)
+                .ImportAsync(packagePath)
+                .GetAwaiter()
+                .GetResult();
+
+            var installedTicket = new CatalogService(database)
+                .GetTicketByIdAsync(ticketId)
+                .GetAwaiter()
+                .GetResult();
+            Assert(installedTicket is not null, "Type 2 imported ticket exists in runtime catalog");
+            AssertEqual("2", installedTicket!.RuleId, "Type 2 imported runtime rule id");
+            AssertEqual(loaded.Manifest.PackageId.ToString("D"), installedTicket.SourcePackageId, "Type 2 source package id");
+
+            var resolved = new ScratchPackRuntimeService(database).Load(installedTicket);
+            AssertEqual("2", resolved.Definition.GameType, "Type 2 installed runtime definition");
+            using (var runtimePayload = JsonDocument.Parse(GamePayloadFactory.Create(resolved.Definition, 300)))
+            {
+                var cells = GameType2RenderModel.Build(resolved.Definition, runtimePayload.RootElement);
+                AssertEqual(resolved.Definition.Zones.Count, cells.Count, "Type 2 installed runtime render cell count");
+            }
+
+            Console.WriteLine("PASS: GameType 2 loader / importer / validator / payload / renderer runtime contract");
         }
         finally
         {
+            if (ownsDatabaseDirectory && database is not null && Directory.Exists(database.DataDirectory))
+            {
+                try { Directory.Delete(database.DataDirectory, recursive: true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+
             try { Directory.Delete(root, recursive: true); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -148,12 +180,12 @@ internal static class GameType2Regression
             }
             """);
 
-        var packagePath = Path.Combine(root, "GameType2-Core.scratchpack");
+        var packagePath = Path.Combine(root, "GameType2-Runtime.scratchpack");
         ZipFile.CreateFromDirectory(source, packagePath, CompressionLevel.Optimal, includeBaseDirectory: false);
         return packagePath;
     }
 
-    private static void ValidatePayload(ScratchPackTicketDefinition ticket, long expectedPrize)
+    private static void ValidatePayloadAndRenderModel(ScratchPackTicketDefinition ticket, long expectedPrize)
     {
         using var document = JsonDocument.Parse(GamePayloadFactory.Create(ticket, expectedPrize));
         var root = document.RootElement;
@@ -214,6 +246,36 @@ internal static class GameType2Regression
             AssertEqual(0, actualMatchedPlayIndexes.Length, "losing ticket has zero matches");
         else
             Assert(actualMatchedPlayIndexes.Length > 0, "winning ticket must contain at least one match");
+
+        var cells = GameType2RenderModel.Build(ticket, root);
+        AssertEqual(ticket.Zones.Count, cells.Count, "render model cell count equals zones");
+
+        for (var index = 0; index < winning.Length; index++)
+        {
+            var cell = cells[index];
+            AssertEqual(index, cell.ZoneIndex, $"winning render cell {index} zone index");
+            Assert(cell.IsWinningSide, $"winning render cell {index} side");
+            AssertEqual(ticket.Zones[index], cell.Zone, $"winning render cell {index} zone");
+            AssertEqual(winning[index], cell.Number, $"winning render cell {index} number");
+            AssertEqual<long?>(
+                payoutSource == "winning" ? winningAmounts[index] : null,
+                cell.PrizeAmount,
+                $"winning render cell {index} prize amount");
+        }
+
+        for (var index = 0; index < play.Length; index++)
+        {
+            var zoneIndex = winning.Length + index;
+            var cell = cells[zoneIndex];
+            AssertEqual(zoneIndex, cell.ZoneIndex, $"play render cell {index} zone index");
+            Assert(!cell.IsWinningSide, $"play render cell {index} side");
+            AssertEqual(ticket.Zones[zoneIndex], cell.Zone, $"play render cell {index} zone");
+            AssertEqual(play[index], cell.Number, $"play render cell {index} number");
+            AssertEqual<long?>(
+                payoutSource == "play" ? playAmounts[index] : null,
+                cell.PrizeAmount,
+                $"play render cell {index} prize amount");
+        }
     }
 
     private static void WritePng(string path, int width, int height)

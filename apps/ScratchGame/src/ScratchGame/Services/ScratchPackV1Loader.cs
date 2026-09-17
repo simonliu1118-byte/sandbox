@@ -32,8 +32,7 @@ public sealed class ScratchPackV1Loader
 
     public LoadedScratchPack LoadAndValidate(
         string scratchPackPath,
-        string extractionRoot,
-        bool allowUnrenderedGameTypes = false)
+        string extractionRoot)
     {
         if (!File.Exists(scratchPackPath))
             throw new FileNotFoundException("找不到 ScratchPack。", scratchPackPath);
@@ -54,12 +53,6 @@ public sealed class ScratchPackV1Loader
         var ticketPath = ResolveInside(extractionRoot, manifest.TicketFile);
         var ticketJson = File.ReadAllText(ticketPath);
         var ticket = ParseTicket(ticketJson, extractionRoot);
-
-        if (ticket.GameType == "2" && !allowUnrenderedGameTypes)
-        {
-            throw new InvalidDataException(
-                "GameType 2 核心契約已實作，但正式 Renderer 尚未完成；目前版本不開放安裝 Type 2 ScratchPack。");
-        }
 
         return new LoadedScratchPack(
             manifest,

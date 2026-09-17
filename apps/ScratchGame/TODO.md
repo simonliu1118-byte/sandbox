@@ -7,11 +7,12 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.4 / Build 0**。
+- 目前工作版本：**V0.5.4 Build 1**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2 的完整 Portable automation 已完成，Windows CI Run #189 PASS。
+- V0.5.4 / Build 0 的 GameType 2 core 已在 Windows CI Run #190 PASS。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 已核對為 byte-for-byte 正確，CI 直接由 repo 組完整 Portable Artifact。
-- AITeam Common Rules 已升至 2.5.0；sandbox repo governance 已升至 1.2.1。本 V0.5.4 批次會把長期 ScratchGame branch 對齊該正式治理基準。
+- AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步到長期 ScratchGame branch。
 - V0.5.2 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改仍留待使用者集中實機驗收，目前不回頭逐項修改。
 
 ## 已完成 — V0.5.3 Portable / Automated Regression
@@ -27,33 +28,39 @@
 
 ## V0.5.4 — GameType 2「中獎號碼」
 
-目前第一批核心實作：
+### Build 0 — Core：已通過
 
-- `GAMETYPE_SPEC.md` 已固定 Type 2 zone mapping：前 `winningNumberCount` 個 zone = 中獎號碼；後 `playNumberCount` 個 zone = 你的號碼。
-- 原 `prizeAmountUsage = repeatable | uniquePerTicket` 已改為布林 `allowPrizeAmountRepeat = true | false`。
-- `ScratchPackModels` 已加入 Type 2 欄位。
-- `ScratchPackV1Loader` 已可解析並驗證 Type 2 schema。
-- 新增 `GameType2Rules`：驗證號碼範圍、zone 數量 / 固定模板、顯示獎金、可生成 Prize Tier，並產生精確命中盤面。
-- `GamePayloadFactory` 已支援 Type 2 payload。
-- `payoutSource=play` 與 `payoutSource=winning` 共用同一 GameType。
-- 未中獎票固定 0 命中；正獎票所有命中格獎金總和必須精確等於既定 Prize Tier。
-- 新增獨立 `GameType2Regression`，測正常 / 未中獎、兩種 payoutSource、號碼唯一、禁止獎金重複、不可生成 Prize Tier 等核心契約。
-- Renderer 尚未完成前，正常 `LoadAndValidate` 仍拒絕安裝 Type 2；只有 CI regression 可明確 opt-in 測核心，避免出現可購買但無法呈現的半成品。
+- `GAMETYPE_SPEC.md` 固定 Type 2 zone mapping：前 `winningNumberCount` 個 zone = 中獎號碼；後 `playNumberCount` 個 zone = 你的號碼。
+- `allowPrizeAmountRepeat = true | false` 為正式欄位。
+- `ScratchPackModels` / `ScratchPackV1Loader` / `GameType2Rules` / `GamePayloadFactory` 已支援 Type 2。
+- `payoutSource=play|winning` 共用同一 GameType。
+- 兩組內部號碼各自唯一；跨組相同即命中。
+- 未中獎票固定 0 命中；正獎票所有命中格獎金總和精確等於既定 Prize Tier。
+- PackEditor 直接共用 authoritative `GameType2Rules.cs`，不建立 editor-only 規則副本。
+- Windows CI Run #190：Type 2 core + 原 Type 1 regression + 完整 Portable 全部 PASS。
+
+### Build 1 — Renderer / Runtime：目前批次
+
+已實作於暫存 branch，待一次 final Windows CI：
+
+- 新增 `GameType2RenderModel`，把 payload 嚴格轉成 zone 對應的 render cells。
+- Renderer 依 `scratch.zones` 原座標直接畫動態內容，不新增第二套 geometry。
+- 無獎金一側只顯示大號數字；有獎金一側顯示大號數字 + 小號 `$金額`。
+- winning / play 全部必要 zones 都建立共用 `ScratchSurface`；手動刮、全部刮開、完成計數與自動兌獎沿用既有通用流程。
+- Type 1 的 `ScratchSurface` 建立程式抽成共用 helper，參數與行為不變。
+- `GameType2RenderModel` 再驗證：號碼範圍、同組唯一、獎金來源、禁止重複規則、實際命中獎金總和。
+- `ScratchPackV1Loader` 的 Type 2 臨時安裝 gate 已移除；正常 Loader / Importer 開放 Type 2。
+- `GameType2Regression` 已擴充為：正常 Loader、兩種 payoutSource、payload → render model mapping、正常 Importer 安裝、Runtime Service reload 與 installed payload render 驗證。
+- 未修改 Header / Stage / Footer 寬高、Grid 區域尺寸或整體版面邊界。
 
 本批完成條件：
 
-1. V0.5.4 / Build 0 source + Common Rules 2.5.0 / Governance 1.2.1 同一次推進正式工作 branch。
-2. Windows CI 編譯 ScratchGame / PackEditor / Regression 全部 PASS。
-3. Type 1 既有 regression 不退化，Type 2 core regression PASS。
-4. 完整 Portable 仍能成功產生。
-
-### Type 2 下一批
-
-本批 CI 通過後再做：
-
-`Renderer → Runtime scratch interaction → 完整 Type 2 regression → 開放正常安裝`
-
-不在核心批次提前修改 Header / Stage / Footer 尺寸或整體 UI 邊界。
+1. 正式工作 branch 只接受一個乾淨的 V0.5.4 Build 1 commit，不帶暫存 WIP 歷史。
+2. Windows CI ScratchGame / PackEditor / Regression 全部編譯 PASS。
+3. 原 GameType 1 / finite pool / Wallet / BuiltIn / PackEditor round-trip regression 不退化。
+4. Type 2 loader / importer / validator / payload / renderer runtime regression PASS。
+5. ScratchGame / PackEditor startup smoke PASS。
+6. 完整 Portable 仍可成功產生。
 
 ## GameType 主線
 
@@ -64,8 +71,10 @@
 目前：
 
 - GameType 1：已完成核心 runtime / regression。
-- GameType 2：V0.5.4 進行中。
+- GameType 2：Build 1 Renderer / Runtime 待 final CI；通過後本 GameType 核心實作視為完成。
 - GameType 3～6：規格已定，尚待逐一實作。
+
+Type 2 Build 1 CI 通過後，下一個開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**；若 Type 2 實機驗收另發現問題，依版本規則續增 V0.5.4 Build N，不另升 Patch。
 
 ## PackEditor 正式收尾 — 延後
 
