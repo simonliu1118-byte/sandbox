@@ -34,7 +34,9 @@ jobs:
       - name: Checkout release source
         uses: actions/checkout@v4
 
-      - name: Verify release identity and secret gate
+      - name: Verify release identity and accepted Windows CI
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -45,13 +47,6 @@ jobs:
             echo "Potential secret-like material detected in tracked non-Markdown files."
             exit 1
           fi
-
-      - name: Verify accepted Windows CI run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ACCEPTANCE_RUN_ID}")"
           test "$(jq -r '.conclusion' <<<"${run_json}")" = "success"
           test "$(jq -r '.head_sha' <<<"${run_json}")" = "${ACCEPTANCE_HEAD_SHA}"
@@ -68,7 +63,6 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
             -o "${ARTIFACT_ARCHIVE}"
-
           echo "${ARTIFACT_ARCHIVE_SHA256}  ${ARTIFACT_ARCHIVE}" | sha256sum -c -
           mkdir -p release-dist
           unzip -q "${ARTIFACT_ARCHIVE}" -d release-dist
@@ -81,84 +75,72 @@ jobs:
           unzip -l "release-dist/${RELEASE_ZIP}" | grep -F 'ScratchGame/TestPacks/ThreeStar-Test.scratchpack'
           printf '%s  %s\n' "${RELEASE_ZIP_SHA256}" "${RELEASE_ZIP}" > release-dist/SHA256SUMS.txt
 
-      - name: Recreate clean draft and publish GitHub Release
+      - name: Create real tag and published release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
+          # Draft releases created without a real git ref are represented as untagged-*.
+          # Remove any stale draft first, then create the formal tag explicitly.
           releases_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
-          existing_id="$(jq -r --arg tag "${TAG}" '[.[] | select(.tag_name == $tag)][0].id // empty' <<<"${releases_json}")"
-          if [ -n "${existing_id}" ]; then
-            existing="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${existing_id}")"
-            if [ "$(jq -r '.draft' <<<"${existing}")" = "false" ]; then
-              echo "Release already published; verifying below."
-              release_id="${existing_id}"
-            else
-              echo "Deleting stale draft release ${existing_id}."
-              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${existing_id}"
-              release_id=""
-            fi
+          for draft_id in $(jq -r --arg tag "${TAG}" '.[] | select(.tag_name == $tag and .draft == true) | .id' <<<"${releases_json}"); do
+            echo "Deleting stale draft release ${draft_id}."
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${draft_id}"
+          done
+
+          if tag_json="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null)"; then
+            tag_sha="$(jq -r '.object.sha' <<<"${tag_json}")"
+            test "${tag_sha}" = "${TARGET_SHA}"
+            echo "Formal tag already exists at ${tag_sha}."
           else
-            release_id=""
+            echo "Creating formal tag ${TAG} -> ${TARGET_SHA}."
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${TAG}" \
+              -f sha="${TARGET_SHA}" >/dev/null
           fi
 
-          if [ -z "${release_id}" ]; then
-            body="$(cat apps/ScratchGame/RELEASE_NOTES_V0.5.5_BUILD5.md)"
-            created="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
-              -f tag_name="${TAG}" \
-              -f target_commitish="${TARGET_SHA}" \
-              -f name="${RELEASE_TITLE}" \
-              -f body="${body}" \
-              -F draft=true \
-              -F prerelease=false)"
-            release_id="$(jq -r '.id' <<<"${created}")"
-            echo "Created clean draft release ${release_id}."
-
-            upload_url="https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets"
-
-            echo "Uploading checksum probe."
-            curl --http1.1 --silent --show-error --fail-with-body \
-              --connect-timeout 30 --max-time 120 \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              -H "Content-Type: text/plain" \
-              -H "Expect:" \
-              --data-binary @release-dist/SHA256SUMS.txt \
-              "${upload_url}?name=SHA256SUMS.txt" >/tmp/sums-upload.json
-
-            probe_state="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" --jq '.[] | select(.name == "SHA256SUMS.txt") | .state')"
-            test "${probe_state}" = "uploaded"
-
-            encoded_zip="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["RELEASE_ZIP"]))')"
-            for attempt in 1 2 3; do
-              echo "Uploading formal Portable, attempt ${attempt}/3."
-              if curl --http1.1 --silent --show-error --fail-with-body \
-                --connect-timeout 30 --max-time 1200 \
-                -H "Authorization: Bearer ${GH_TOKEN}" \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                -H "Content-Type: application/octet-stream" \
-                -H "Expect:" \
-                --data-binary "@release-dist/${RELEASE_ZIP}" \
-                "${upload_url}?name=${encoded_zip}" >/tmp/zip-upload.json; then
-                break
-              fi
-
-              current_assets="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100")"
-              completed="$(jq -r --arg n "${RELEASE_ZIP}" '[.[] | select(.name == $n and .state == "uploaded")][0].id // empty' <<<"${current_assets}")"
-              if [ -n "${completed}" ]; then
-                break
-              fi
-              for stale_id in $(jq -r --arg n "${RELEASE_ZIP}" '.[] | select(.name == $n) | .id' <<<"${current_assets}"); do
-                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${stale_id}" || true
-              done
-              test "${attempt}" -lt 3
-              sleep 8
-            done
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Published release already exists."
+          else
+            gh release create "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --verify-tag \
+              --title "${RELEASE_TITLE}" \
+              --notes-file apps/ScratchGame/RELEASE_NOTES_V0.5.5_BUILD5.md
           fi
+
+          published="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          test "$(jq -r '.draft' <<<"${published}")" = "false"
+          test "$(jq -r '.target_commitish' <<<"${published}")" = "${TAG}" -o "$(jq -r '.target_commitish' <<<"${published}")" = "${TARGET_SHA}"
+
+      - name: Upload formal Release assets with GitHub CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 180 gh release upload "${TAG}" \
+            "release-dist/SHA256SUMS.txt" \
+            --clobber \
+            --repo "${GITHUB_REPOSITORY}"
+
+          timeout 1200 gh release upload "${TAG}" \
+            "release-dist/${RELEASE_ZIP}" \
+            --clobber \
+            --repo "${GITHUB_REPOSITORY}"
+
+      - name: Verify published Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          release_id="$(jq -r '.id' <<<"${release_json}")"
+          test "$(jq -r '.draft' <<<"${release_json}")" = "false"
+          test -n "$(jq -r '.published_at // empty' <<<"${release_json}")"
 
           assets_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100")"
           zip_state="$(jq -r --arg n "${RELEASE_ZIP}" '[.[] | select(.name == $n)][0].state // empty' <<<"${assets_json}")"
@@ -171,17 +153,4 @@ jobs:
             test "${zip_digest}" = "sha256:${RELEASE_ZIP_SHA256}"
           fi
           test "${sums_state}" = "uploaded"
-
-          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}")"
-          if [ "$(jq -r '.draft' <<<"${release_json}")" = "true" ]; then
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
-              -f target_commitish="${TARGET_SHA}" \
-              -f name="${RELEASE_TITLE}" \
-              -F draft=false \
-              -F prerelease=false >/dev/null
-          fi
-
-          published="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
-          test "$(jq -r '.draft' <<<"${published}")" = "false"
-          test -n "$(jq -r '.published_at // empty' <<<"${published}")"
-          echo "Release ${TAG} published successfully."
+          echo "Release ${TAG} is published with verified assets."
