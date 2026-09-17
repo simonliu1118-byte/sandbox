@@ -7,10 +7,11 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.4 Build 1**。
+- 目前工作版本：**V0.5.4 Build 2**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2 的完整 Portable automation 已完成，Windows CI Run #189 PASS。
 - V0.5.4 / Build 0 的 GameType 2 core 已在 Windows CI Run #190 PASS。
+- V0.5.4 Build 1 Run #191：ScratchGame / PackEditor / Regression 全部編譯 PASS；Type 2 loader / importer / validator / payload / renderer runtime contract 已 PASS。Run 最後只因 Type 2 regression 建立的 SQLite 測試資料目錄受 connection pool 暫時占用、清理後仍殘留，導致後續既有 regression 的安全檢查拒絕重用 `%LOCALAPPDATA%\ScratchGame`，因此後段 Portable steps 被跳過。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 已核對為 byte-for-byte 正確，CI 直接由 repo 組完整 Portable Artifact。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步到長期 ScratchGame branch。
 - V0.5.2 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改仍留待使用者集中實機驗收，目前不回頭逐項修改。
@@ -39,9 +40,9 @@
 - PackEditor 直接共用 authoritative `GameType2Rules.cs`，不建立 editor-only 規則副本。
 - Windows CI Run #190：Type 2 core + 原 Type 1 regression + 完整 Portable 全部 PASS。
 
-### Build 1 — Renderer / Runtime：目前批次
+### Build 1 — Renderer / Runtime：產品邏輯已驗證，CI 清理失敗
 
-已實作於暫存 branch，待一次 final Windows CI：
+已完成：
 
 - 新增 `GameType2RenderModel`，把 payload 嚴格轉成 zone 對應的 render cells。
 - Renderer 依 `scratch.zones` 原座標直接畫動態內容，不新增第二套 geometry。
@@ -50,17 +51,25 @@
 - Type 1 的 `ScratchSurface` 建立程式抽成共用 helper，參數與行為不變。
 - `GameType2RenderModel` 再驗證：號碼範圍、同組唯一、獎金來源、禁止重複規則、實際命中獎金總和。
 - `ScratchPackV1Loader` 的 Type 2 臨時安裝 gate 已移除；正常 Loader / Importer 開放 Type 2。
-- `GameType2Regression` 已擴充為：正常 Loader、兩種 payoutSource、payload → render model mapping、正常 Importer 安裝、Runtime Service reload 與 installed payload render 驗證。
+- `GameType2Regression` 已驗證正常 Loader、兩種 payoutSource、payload → render model mapping、正常 Importer 安裝、Runtime Service reload 與 installed payload render。
+- Run #191 已實際印出 `PASS: GameType 2 loader / importer / validator / payload / renderer runtime contract`；失敗點是在該測試完成後清理 SQLite 測試目錄，不是產品邏輯。
 - 未修改 Header / Stage / Footer 寬高、Grid 區域尺寸或整體版面邊界。
+
+### Build 2 — Regression isolation cleanup：目前批次
+
+只修測試隔離，不改產品 Renderer / Loader / Runtime：
+
+- Type 2 regression 清理前先執行 `SqliteConnection.ClearAllPools()`。
+- 對 regression 自己建立的 `%LOCALAPPDATA%\ScratchGame` 目錄做有限次刪除重試；仍無法刪除時明確 FAIL，不再靜默吞掉例外。
+- VERSION 維持 0.5.4，BUILD 由 1 → 2，符合同一工作項目驗證返修規則。
 
 本批完成條件：
 
-1. 正式工作 branch 只接受一個乾淨的 V0.5.4 Build 1 commit，不帶暫存 WIP 歷史。
+1. 正式工作 branch 僅增加乾淨的 Build 2 修正 commit，不帶暫存 WIP 歷史。
 2. Windows CI ScratchGame / PackEditor / Regression 全部編譯 PASS。
-3. 原 GameType 1 / finite pool / Wallet / BuiltIn / PackEditor round-trip regression 不退化。
-4. Type 2 loader / importer / validator / payload / renderer runtime regression PASS。
-5. ScratchGame / PackEditor startup smoke PASS。
-6. 完整 Portable 仍可成功產生。
+3. Type 2 loader / importer / validator / payload / renderer runtime regression PASS，且清理後原 GameType 1 / finite pool / Wallet / BuiltIn / PackEditor round-trip regression 能接續 PASS。
+4. ScratchGame / PackEditor startup smoke PASS。
+5. 完整 V0.5.4 Build 2 Portable 成功產生。
 
 ## GameType 主線
 
@@ -71,10 +80,10 @@
 目前：
 
 - GameType 1：已完成核心 runtime / regression。
-- GameType 2：Build 1 Renderer / Runtime 待 final CI；通過後本 GameType 核心實作視為完成。
+- GameType 2：Build 2 等待 corrective final CI；通過後本 GameType 核心實作完成。
 - GameType 3～6：規格已定，尚待逐一實作。
 
-Type 2 Build 1 CI 通過後，下一個開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**；若 Type 2 實機驗收另發現問題，依版本規則續增 V0.5.4 Build N，不另升 Patch。
+Type 2 Build 2 CI 通過後，下一個獨立項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**；若 Type 2 後續實機驗收另發現同一功能問題，依版本規則續增 V0.5.4 Build N。
 
 ## PackEditor 正式收尾 — 延後
 

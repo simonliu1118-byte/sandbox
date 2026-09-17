@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Data.Sqlite;
 using ScratchGame.Data;
 using ScratchGame.Engine;
 using ScratchGame.Models;
@@ -96,17 +97,37 @@ internal static class GameType2Regression
         }
         finally
         {
-            if (ownsDatabaseDirectory && database is not null && Directory.Exists(database.DataDirectory))
-            {
-                try { Directory.Delete(database.DataDirectory, recursive: true); }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-            }
+            if (ownsDatabaseDirectory && database is not null)
+                DeleteOwnedDatabaseDirectory(database.DataDirectory);
 
             try { Directory.Delete(root, recursive: true); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    private static void DeleteOwnedDatabaseDirectory(string path)
+    {
+        if (!Directory.Exists(path))
+            return;
+
+        SqliteConnection.ClearAllPools();
+        Exception? lastError = null;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                lastError = ex;
+                Thread.Sleep(100 * (attempt + 1));
+            }
+        }
+
+        throw new IOException($"Unable to remove owned GameType 2 regression data directory: {path}", lastError);
     }
 
     private static void RequireDedicatedCiEnvironment()
