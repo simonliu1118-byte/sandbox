@@ -13,15 +13,19 @@
 - 整體工作交接：`WORK_HANDOFF.md`
 - Portable：`RUNTIME_PACKAGE.md`
 
-## 目前版本線
+## 目前正式版本線
 
 ```text
 V0.5.5 Build 5
-branch: scratchgame/feature-scratchpack-v1-runtime
-previous verified source: d48aab14c8c4c37c23a1caa72328f60247165148
-previous Windows CI: Run #199 PASS
-current Build 5: UI polish + simple player deletion, awaiting final Windows CI / user verification
+formal baseline: main
+tag: ScratchGame-v0.5.5-build5
+acceptance source: 556aaa1152ed5939bd15b67aa581cf8d1029c2a9
+Windows CI: Run #200 PASS
+user real-machine acceptance: PASS
+next independent work: GameType 3
 ```
+
+Build 5 已結束 V0.5.5 UI 驗收線；後續不再把它視為待返修狀態。新的 GameType 工作應由最新 `main` 建立新 branch。
 
 ## ScratchPack V1 runtime
 
@@ -84,6 +88,6 @@ SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
 
 - GameType 1：完成。
 - GameType 2：完成。
-- V0.5.5 Build 5：UI 驗收返修中。
-- V0.5.5 UI 驗收完成後再進 GameType 3。
+- V0.5.5 Build 5：正式發布基準。
+- 下一個獨立項目：GameType 3。
 - GameType 3～6 完成後，再回 PackEditor 做正式 UI / preview / validation UX 收尾。
