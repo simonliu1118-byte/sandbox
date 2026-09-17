@@ -10,11 +10,13 @@ ScratchGame V0.5.5 Build 5：
 
 ```text
 Tag: ScratchGame-v0.5.5-build5
+Tag target: 0926e2c69c500340d38f33f09f390e0e7ce24b63
 File: ScratchGame-V0.5.5-Build5-win-x64.zip
 Size: 142755863 bytes
 SHA-256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
 Acceptance CI: Run #200 PASS
 User real-machine acceptance: PASS
+Release asset verification: Run #7 PASS
 ```
 
 GitHub Actions 原始 Artifact archive：
@@ -26,6 +28,20 @@ Archive SHA-256: 4b96f75733e48c23b3e2e0657f683c9ee6eaa7a1dc4a97f1719f561a0f622e3
 ```
 
 正式 GitHub Release 掛載的是 Artifact 內已通過 post-package verification 的 `ScratchGame-V0.5.5-Build5-win-x64.zip`，不是 Actions 外層 Artifact archive。
+
+正式 Release assets：
+
+```text
+ScratchGame-V0.5.5-Build5-win-x64.zip
+  state: uploaded
+  size: 142755863 bytes
+  digest: sha256:eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
+
+SHA256SUMS.txt
+  state: uploaded
+```
+
+Release asset verification 已由 Run #7 完成；正式 Tag ref 直接指向 `0926e2c69c500340d38f33f09f390e0e7ce24b63`。一次性 Release recovery workflow 完成後已移除。
 
 ## Canonical runtime assets
 

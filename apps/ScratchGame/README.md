@@ -13,13 +13,15 @@ Windows 單機刮刮樂娛樂程式。
 **ScratchGame V0.5.5 Build 5** — 2026/09/18
 
 - Tag：`ScratchGame-v0.5.5-build5`
+- Tag target：`0926e2c69c500340d38f33f09f390e0e7ce24b63`
 - Portable：`ScratchGame-V0.5.5-Build5-win-x64.zip`
 - SHA-256：`eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459`
 - 使用者實機驗收：PASS
 - Windows CI：Run #200 PASS
+- 正式 Release asset verification：Run #7 PASS
 - 發布說明：`RELEASE_NOTES_V0.5.5_BUILD5.md`
 
-Build 5 是目前正式基準；下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 GameType 3。
+Build 5 是目前正式基準；正式 GitHub Release 已發布，Portable ZIP 與 `SHA256SUMS.txt` 均完成 asset 驗證。下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 GameType 3。
 
 ## 核心方向
 

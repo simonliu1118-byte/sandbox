@@ -35,12 +35,16 @@ V0.5.5 Build 5 已完成實機驗收與正式 Release；下一個獨立工作是
 ```text
 Version: V0.5.5 Build 5
 Tag: ScratchGame-v0.5.5-build5
+Tag target: 0926e2c69c500340d38f33f09f390e0e7ce24b63
 Release date: 2026/09/18
 Portable: ScratchGame-V0.5.5-Build5-win-x64.zip
 SHA-256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
 Acceptance CI: Run #200 PASS
 User real-machine acceptance: PASS
+Release asset verification: Run #7 PASS
 ```
+
+正式 GitHub Release 已公開發布；Portable ZIP 與 `SHA256SUMS.txt` 均已上傳，GitHub asset 回報的 ZIP size / SHA-256 與正式基準完全一致。一次性 Release recovery workflow 已在完成後移除，不作為後續開發流程的一部分。
 
 正式發布說明：`RELEASE_NOTES_V0.5.5_BUILD5.md`。
 
@@ -53,6 +57,7 @@ User real-machine acceptance: PASS
 - 目前正在使用的玩家、最後一位玩家、仍有 Pending Ticket 的玩家不可刪除。
 - DB 刪除使用 transaction；刪除會永久移除該玩家 Wallet 與累積統計。
 - Run #200：ScratchGame / PackEditor / Regression、GameType 1 / 2 regression、Windows icons、兩個 EXE startup smoke、完整 Portable 全部 PASS。
+- Release Run #7：正式 Tag ref、已發布 Release、Portable ZIP / checksum assets 與 ZIP digest 驗證全部 PASS。
 
 ---
 
@@ -67,7 +72,7 @@ User real-machine acceptance: PASS
 - V0.5.5 Build 2：中獎結果 transition target 與 resume pill 同步；設定清單固定列 + 資訊 Popup；Run #196 PASS。
 - V0.5.5 Build 3：設定清單操作欄合併、資料列化與文件校正；Run #197 PASS。
 - V0.5.5 Build 4：設定清單右側對齊與中央資訊 Modal；Run #199 PASS。
-- V0.5.5 Build 5：UI 收尾 + 簡易玩家刪除；Run #200 PASS；2026/09/18 使用者驗收 PASS。
+- V0.5.5 Build 5：UI 收尾 + 簡易玩家刪除；Run #200 PASS；2026/09/18 使用者驗收 PASS；正式 Release asset verification Run #7 PASS。
 
 Canonical TestPack：
 
