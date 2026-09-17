@@ -8,7 +8,7 @@ Repository：`simonliu1118-byte/sandbox`
 
 主開發分支：`scratchgame/feature-scratchpack-v1-runtime`
 
-目前工作版本線：**V0.5.5 / Build 4**
+目前工作版本線：**V0.5.5 / Build 5**
 
 ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame 附屬 EXE，不是獨立產品。
 
@@ -36,6 +36,7 @@ ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是 ScratchGame �
 - V0.5.5 Build 1：玩家初次 layout、結果 resume pill 下移、PackEditor 正確 ICON master；Run #194 PASS。
 - V0.5.5 Build 2：中獎結果 transition target 與 resume pill 同步；設定清單固定列 + 資訊 Popup；Run #196 PASS。
 - V0.5.5 Build 3：設定清單操作欄合併、資料列化與文件校正；Run #197 PASS。
+- V0.5.5 Build 4：設定清單右側對齊與中央資訊 Modal；Run #199 PASS。
 
 Canonical TestPack：
 
@@ -59,52 +60,46 @@ visual: 紅色彩券 + 金槌
 
 ---
 
-# 2. V0.5.5 Build 4 — 設定頁第三次實機返修
+# 2. V0.5.5 Build 5 — UI 收尾 + 簡易玩家刪除
 
-本批仍屬 V0.5.5 同一條 UI 驗收線，不開新 Patch；VERSION 維持 `0.5.5`，BUILD 升為 `4`。
+本批仍屬 V0.5.5 同一條實機驗收線，不開新 Patch；VERSION 維持 `0.5.5`，BUILD 升為 `5`。
 
-## A. 清單右側對齊
+## A. 設定清單表頭
 
-使用者實機確認 Build 3 後，仍可看出：
+- Build 4 實機可見表頭色塊在上方圓角仍露出方角。
+- Build 5 將表頭背景本身設為與外層清單一致的上方圓角，避免色塊突出圓角外框。
+- 不改欄寬、操作欄或資料列結構。
 
-- 表頭色塊右側有一條較深色區域。
-- 資料列底部分隔線沒有延伸到清單最右側。
-- 表頭 / 資料內容 / ScrollBar 的右側保留寬度沒有完全統一。
+## B. 選擇玩家錢包標示
 
-Build 4：
+- 玩家卡右側「錢包」由 11px 輔助字提升為 16px Bold。
+- 字色提升為接近 Footer 玩家名片主文字的亮色。
+- Wallet 金額仍維持 20px 金色粗體。
 
-- ScrollBar 不再使用固定 18px / dark gutter 欄；只有內容超出時才以 overlay 方式顯示窄 ScrollBar。
-- 表頭色塊本身完整填滿外框。
-- 表頭與資料欄位內容共用相同右側安全距離，操作欄位置維持一致。
-- 每張資料列的 Border 直接跨整個可用寬度，因此分隔線延伸到最右側。
-- 操作欄仍固定：**資訊 → 發行下一批 → 隱藏**。
+## C. 簡易刪除玩家
 
-## B. 中央資訊 Modal
+使用者要求先做功能版，之後再重新設計玩家管理介面。
 
-資訊不再使用 anchored Popup。
+- 每張玩家卡右上角新增小型紅色 `×`。
+- 刪除前用 ScratchGame 自訂 Confirm Modal 二次確認。
+- 確認內容明示：該玩家錢包與累積統計會永久刪除，無法復原。
+- 目前正在使用的玩家不可直接刪除；先切換到別的玩家後才能刪除。
+- 至少保留一個玩家。
+- 有未完成 Pending Ticket 的玩家不可刪除。
+- DB 刪除使用 transaction；成功後立即從 UserDialog 清單移除。
+- 若被刪除列原本是目前選取列，清單回到現行玩家或第一個可用玩家。
 
-新介面：
+## D. 本批驗證要求
 
-- 半透明背景遮罩覆蓋整個設定頁，底層暫停互動。
-- 資訊卡在視窗正中央，以 opacity + 垂直位移做短動畫，不以 Viewbox / fractional scale 縮放文字。
-- 標題與 Pack 來源 / 玩法 / 批次置中。
-- 面額、中獎率、剩餘張數、總發行、每本、總本數使用六個置中資訊格。
-- 獎池分配完整展開，不使用內層 ScrollBar。
-- 右上角：**小型紅色「解除安裝」**，只對 Imported Pack 顯示。
-- 移除右上角 `X`。
-- 移除「解除安裝」旁說明小字。
-- 底部正中央：一般 **「關閉」** 按鈕。
-- 解除安裝與關閉分處右上 / 底部中央，避免誤按。
-- 解除安裝的確認流程與 Pending Ticket 保護維持不變。
-
-## C. 本批驗證要求
-
-1. VERSION `0.5.5` / BUILD `4`。
+1. VERSION `0.5.5` / BUILD `5`。
 2. ScratchGame / PackEditor / Regression build PASS。
 3. GameType 1 / 2 regression PASS。
 4. shell icon / startup smoke PASS。
 5. complete Portable PASS。
-6. 使用者實機確認清單右側對齊、中央資訊卡、完整獎池與兩個按鈕配置。
+6. 使用者實機確認：
+   - 設定清單表頭上圓角乾淨。
+   - UserDialog「錢包」標示辨識度。
+   - 右上刪除 `×` 位置、確認流程、目前玩家 / 最後一位 / Pending 保護。
 
 ---
 
@@ -130,7 +125,7 @@ PackEditor 是 create-only：不開啟、修改、覆寫既有 `.scratchpack`；
 
 # 5. 後續順序
 
-1. 完成 V0.5.5 Build 4 實機驗收。
+1. 完成 V0.5.5 Build 5 實機驗收。
 2. 下一個獨立項目依 `GAMETYPE_SPEC.md` 進 GameType 3。
 3. 再逐一完成 GameType 4～6。
 4. 基本 GameType 全部完成後回 PackEditor 正式 UI / preview / validation UX 收尾。

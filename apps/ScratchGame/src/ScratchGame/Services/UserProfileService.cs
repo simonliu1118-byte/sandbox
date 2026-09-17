@@ -27,6 +27,43 @@ public sealed class UserProfileService(AppDatabase database)
         return await ReadProfileAsync(connection, userId, cancellationToken);
     }
 
+    public async Task DeleteAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await database.OpenConnectionAsync(cancellationToken);
+        await using var transaction = connection.BeginTransaction();
+
+        var exists = connection.CreateCommand();
+        exists.Transaction = transaction;
+        exists.CommandText = "SELECT COUNT(*) FROM users WHERE id = $id;";
+        exists.Parameters.AddWithValue("$id", userId);
+        if (Convert.ToInt64(await exists.ExecuteScalarAsync(cancellationToken)) != 1)
+            throw new InvalidOperationException("找不到要刪除的玩家。");
+
+        var count = connection.CreateCommand();
+        count.Transaction = transaction;
+        count.CommandText = "SELECT COUNT(*) FROM users;";
+        if (Convert.ToInt64(await count.ExecuteScalarAsync(cancellationToken)) <= 1)
+            throw new InvalidOperationException("至少必須保留一個玩家。");
+
+        var pending = connection.CreateCommand();
+        pending.Transaction = transaction;
+        pending.CommandText = "SELECT 1 FROM pending_tickets WHERE user_id = $id LIMIT 1;";
+        pending.Parameters.AddWithValue("$id", userId);
+        if (await pending.ExecuteScalarAsync(cancellationToken) is not null)
+            throw new InvalidOperationException("這位玩家還有未完成的彩券，請先完成或處理該張彩券後再刪除。");
+
+        var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = "DELETE FROM users WHERE id = $id;";
+        delete.Parameters.AddWithValue("$id", userId);
+        if (await delete.ExecuteNonQueryAsync(cancellationToken) != 1)
+            throw new InvalidOperationException("刪除玩家失敗，請再試一次。");
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<UserProfile> GrantWalletFundsAsync(
         string userId,
         long amount = AppDatabase.DefaultWalletGrantAmount,

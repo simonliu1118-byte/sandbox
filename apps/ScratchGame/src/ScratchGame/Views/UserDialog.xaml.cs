@@ -135,6 +135,52 @@ public partial class UserDialog : Window
         }
     }
 
+    private async void DeleteUser_OnClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.DataContext is not UserRow row)
+            return;
+
+        if (row.Id == _currentUserId)
+        {
+            GameModal.Warning(this, "刪除玩家", "目前正在使用這位玩家。請先切換到其他玩家，再回來刪除。");
+            return;
+        }
+
+        if (_users.Count <= 1)
+        {
+            GameModal.Warning(this, "刪除玩家", "至少必須保留一個玩家。");
+            return;
+        }
+
+        if (!GameModal.Confirm(
+                this,
+                "刪除玩家",
+                $"確定要刪除「{row.DisplayName}」嗎？\n\n這位玩家的錢包與累積統計會一併永久刪除，無法復原。",
+                "刪除",
+                "取消"))
+        {
+            return;
+        }
+
+        try
+        {
+            var wasSelected = ReferenceEquals(UserListBox.SelectedItem, row);
+            await _profiles.DeleteAsync(row.Id);
+            _users.Remove(row);
+
+            if (wasSelected || UserListBox.SelectedItem is null)
+            {
+                UserListBox.SelectedItem = _users.FirstOrDefault(user => user.Id == _currentUserId)
+                    ?? _users.FirstOrDefault();
+            }
+        }
+        catch (Exception ex)
+        {
+            GameModal.Warning(this, "刪除玩家", ex.Message);
+        }
+    }
+
     private void UpdateOwnerSummaryIfCurrent(UserProfile profile)
     {
         if (profile.Id != _currentUserId || Owner is not MainWindow owner)

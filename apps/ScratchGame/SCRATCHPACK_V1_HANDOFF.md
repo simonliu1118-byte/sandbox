@@ -16,11 +16,11 @@
 ## 目前版本線
 
 ```text
-V0.5.5 Build 4
+V0.5.5 Build 5
 branch: scratchgame/feature-scratchpack-v1-runtime
-previous verified source: 7713013c74a7c2798137b304aa4e95f7513211fe
-previous Windows CI: Run #197 PASS
-current Build 4: settings alignment + centered info modal acceptance repair, awaiting final Windows CI / user verification
+previous verified source: d48aab14c8c4c37c23a1caa72328f60247165148
+previous Windows CI: Run #199 PASS
+current Build 5: UI polish + simple player deletion, awaiting final Windows CI / user verification
 ```
 
 ## ScratchPack V1 runtime
@@ -84,6 +84,6 @@ SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
 
 - GameType 1：完成。
 - GameType 2：完成。
-- V0.5.5 Build 4：設定頁 UI 驗收返修中。
+- V0.5.5 Build 5：UI 驗收返修中。
 - V0.5.5 UI 驗收完成後再進 GameType 3。
 - GameType 3～6 完成後，再回 PackEditor 做正式 UI / preview / validation UX 收尾。

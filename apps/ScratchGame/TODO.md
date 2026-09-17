@@ -7,7 +7,7 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前工作版本：**V0.5.5 / Build 4**。
+- 目前工作版本：**V0.5.5 / Build 5**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2：完整 Portable automation 完成，Run #189 PASS。
 - V0.5.4 Build 2：GameType 2「中獎號碼」完成，Run #192 PASS。
@@ -15,6 +15,7 @@
 - V0.5.5 Build 1：玩家初次 layout、結果按鈕位置、PackEditor ICON master 修正完成，Run #194 PASS。
 - V0.5.5 Build 2：動畫 target 與設定資訊 Popup 完成，Run #196 PASS。
 - V0.5.5 Build 3：設定清單操作欄合併、資料列化與文件同步完成，Run #197 PASS。
+- V0.5.5 Build 4：設定清單右側對齊、中央資訊 Modal 完成，Run #199 PASS。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 由 CI 直接組完整 Portable。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步。
 
@@ -55,37 +56,44 @@
 - 清單改成平面資料列 + 底部分隔線，移除整列 hover / click 視覺。
 - Run #197 PASS。
 
-### Build 4 — 本批
+### Build 4
 
-1. **設定清單右側對齊**
-   - ScrollBar 改為需要時才顯示，並以 overlay 方式放在清單右側，不再保留固定深色色塊 gutter。
-   - 表頭背景維持完整填滿外框；表頭內容與資料欄位統一保留相同右側安全距離。
-   - 資料列底部分隔線由整列 Border 負責，必須延伸到清單最右側外框。
-   - 右側操作欄維持「資訊 / 發行下一批 / 隱藏」。
+- ScrollBar 改為需要時才顯示的 overlay，移除固定深色色帶。
+- 表頭 / 資料欄位右側安全距離統一，資料列分隔線延伸至最右側。
+- 彩券資訊改為中央 Modal；背景遮罩、資訊置中、完整獎池、右上解除安裝、底部中央關閉。
+- Run #199 PASS。
 
-2. **彩券資訊改為中央 Modal**
-   - 不再使用貼著資訊按鈕的 anchored Popup。
-   - 按「資訊」後，設定頁背景加半透明遮罩；資訊卡由畫面中央淡入並輕微上移到位。
-   - 資訊卡標題、來源 / 玩法 / 批次與六個摘要數值採偏置中排版。
-   - 獎池分配完整顯示，不使用內層 ScrollBar；空間不足時由資訊卡本身向下擴充。
-   - 右上角只保留小型紅色「解除安裝」；Built-in Pack 不顯示此按鈕。
-   - 移除原右上角 `X` 與解除安裝旁說明小字。
-   - 底部正中央放一般「關閉」按鈕，與解除安裝位置明確分離，降低誤按風險。
-   - Imported Pack 解除安裝仍保留二次確認與 Pending Ticket 保護。
+### Build 5 — 本批
+
+1. **設定清單表頭圓角收邊**
+   - 使用者實機確認 Build 4 後，表頭色塊仍會在外層圓角頂端露出方角。
+   - 表頭背景改為與外層清單一致的上方圓角，避免色塊突出圓角外框。
+   - 不改欄寬、操作按鈕或資料列結構。
+
+2. **選擇玩家錢包標示**
+   - UserDialog 玩家卡右側「錢包」由 11px 輔助字提升為 16px Bold。
+   - 字色改為與 Footer 玩家名片主要文字接近的亮色。
+   - Wallet 金額維持既有 20px 金色粗體。
+
+3. **簡易刪除玩家**
+   - 每張玩家卡右上角放小型紅色 `×` 刪除按鈕；先以功能清楚為主，後續再重新設計玩家管理介面。
+   - 刪除前必須使用 ScratchGame 自訂 Confirm Modal 二次確認，並明確提示錢包與累積統計會永久刪除。
+   - 目前正在使用的玩家不可直接刪除，必須先切換到其他玩家。
+   - 至少保留一個玩家。
+   - 有未完成 Pending Ticket 的玩家不可刪除。
+   - 成功刪除後立即從 UserDialog 清單移除並回到目前玩家或第一位可用玩家。
 
 本批完成條件：
 
-1. VERSION 維持 `0.5.5`，BUILD `4`。
+1. VERSION 維持 `0.5.5`，BUILD `5`。
 2. ScratchGame / PackEditor / Regression build PASS。
 3. GameType 1 / 2 regression 不退化。
 4. ScratchGame / PackEditor startup smoke PASS。
-5. 完整 V0.5.5 Build 4 Portable 成功產生。
+5. 完整 V0.5.5 Build 5 Portable 成功產生。
 6. 使用者實機確認：
-   - 表頭色塊與外框貼齊，右側無固定深色色帶。
-   - 每列分隔線延伸至最右側。
-   - 資訊卡位於畫面中央，背景被遮罩且底層不可誤操作。
-   - 獎池完整顯示且無 ScrollBar。
-   - 右上解除安裝與底部中央關閉按鈕位置、大小與操作符合預期。
+   - 設定清單表頭色塊不再突出上方圓角。
+   - 選擇玩家中的「錢包」標示大小與辨識度符合預期。
+   - 玩家卡右上刪除按鈕、確認流程與刪除限制正常。
 
 ## GameType 主線
 
