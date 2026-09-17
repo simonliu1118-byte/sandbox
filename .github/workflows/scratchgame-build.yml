@@ -6,6 +6,9 @@ on:
     paths:
       - 'apps/ScratchGame/src/**'
       - 'apps/ScratchGame/tools/**'
+      - 'apps/ScratchGame/RuntimeAssets/Live/**'
+      - 'apps/ScratchGame/reference-packs/ThreeStar-Test/**'
+      - 'apps/ScratchGame/runtime-assets.json'
       - 'apps/ScratchGame/VERSION'
       - 'apps/ScratchGame/BUILD'
       - '.github/workflows/scratchgame-build.yml'
@@ -44,8 +47,10 @@ jobs:
           "build=$build" >> $env:GITHUB_OUTPUT
           if ($build -eq '0') {
             "display=V$version" >> $env:GITHUB_OUTPUT
+            "slug=V$version" >> $env:GITHUB_OUTPUT
           } else {
             "display=V$version Build $build" >> $env:GITHUB_OUTPUT
+            "slug=V$version-Build$build" >> $env:GITHUB_OUTPUT
           }
 
       - name: Verify PackEditor product identity
@@ -148,7 +153,7 @@ jobs:
         run: |
           $testPack = 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack'
           python 'apps/ScratchGame/tools/build_reference_testpack.py' --output $testPack
-          if (-not (Test-Path $testPack)) {
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testPack)) {
             Write-Error 'Canonical ThreeStar-Test.scratchpack was not created.'
             exit 1
           }
@@ -377,11 +382,69 @@ jobs:
             $env:LOCALAPPDATA = $previousLocalAppData
           }
 
-      - name: Upload executable artifact
+      - name: Stage repository runtime assets
+        run: |
+          $assetRoot = 'apps/ScratchGame/.ci/PortableAssets'
+          if (Test-Path $assetRoot) {
+            Remove-Item $assetRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $assetRoot | Out-Null
+
+          $liveRoot = 'apps/ScratchGame/RuntimeAssets/Live'
+          foreach ($folder in @('Themes', 'BuiltInAssets', 'UI', 'Audio')) {
+            $source = Join-Path $liveRoot $folder
+            if (-not (Test-Path $source)) {
+              Write-Error "Required runtime asset folder is missing from repository: $source"
+              exit 1
+            }
+            Copy-Item $source -Destination $assetRoot -Recurse -Force
+          }
+
+          $testPackDir = Join-Path $assetRoot 'TestPacks'
+          New-Item -ItemType Directory -Force -Path $testPackDir | Out-Null
+          Copy-Item `
+            'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack' `
+            (Join-Path $testPackDir 'ThreeStar-Test.scratchpack') `
+            -Force
+
+      - name: Build and verify complete portable package
+        id: package
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $build = '${{ steps.version.outputs.build }}'
+          $slug = '${{ steps.version.outputs.slug }}'
+          $portableName = "ScratchGame-$slug-win-x64.zip"
+          $portablePath = Join-Path 'apps/ScratchGame/dist' $portableName
+
+          python 'apps/ScratchGame/tools/package_portable.py' `
+            --exe 'apps/ScratchGame/dist/ScratchGame/ScratchGame.exe' `
+            --pack-editor-exe 'apps/ScratchGame/dist/PackEditor/PackEditor.exe' `
+            --assets 'apps/ScratchGame/.ci/PortableAssets' `
+            --asset-manifest 'apps/ScratchGame/runtime-assets.json' `
+            --output $portablePath `
+            --folder-name 'ScratchGame' `
+            --version $version `
+            --build $build
+
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $portablePath)) {
+            Write-Error 'Complete portable package was not created.'
+            exit 1
+          }
+
+          $item = Get-Item $portablePath
+          $sha = (Get-FileHash $portablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Portable package: $($item.Name)"
+          Write-Host "Portable size: $($item.Length) bytes"
+          Write-Host "Portable SHA-256: $sha"
+          "path=$portablePath" >> $env:GITHUB_OUTPUT
+          "filename=$portableName" >> $env:GITHUB_OUTPUT
+          "sha256=$sha" >> $env:GITHUB_OUTPUT
+
+      - name: Upload complete portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ScratchGame-${{ steps.version.outputs.display }}-executables-win-x64
-          path: |
-            apps/ScratchGame/dist/ScratchGame/ScratchGame.exe
-            apps/ScratchGame/dist/PackEditor/PackEditor.exe
+          name: ScratchGame-${{ steps.version.outputs.slug }}-portable-win-x64
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 14
