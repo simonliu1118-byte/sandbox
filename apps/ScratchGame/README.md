@@ -8,6 +8,19 @@ Windows 單機刮刮樂娛樂程式。
 - 版本來源：`VERSION` / `BUILD`
 - 附屬工具：`PackEditor.exe`，與 ScratchGame 共用同一產品版本線
 
+## 最新正式版本
+
+**ScratchGame V0.5.5 Build 5** — 2026/09/18
+
+- Tag：`ScratchGame-v0.5.5-build5`
+- Portable：`ScratchGame-V0.5.5-Build5-win-x64.zip`
+- SHA-256：`eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459`
+- 使用者實機驗收：PASS
+- Windows CI：Run #200 PASS
+- 發布說明：`RELEASE_NOTES_V0.5.5_BUILD5.md`
+
+Build 5 是目前正式基準；下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 GameType 3。
+
 ## 核心方向
 
 ScratchGame 使用有限票池、批次、Pending Ticket、Wallet 與 ScratchPack V1。主畫面以彩券為核心；Header 負責程式功能，Footer 顯示 Player Card、遊戲操作與唯一 StatusText。
@@ -23,6 +36,7 @@ ScratchGame 使用有限票池、批次、Pending Ticket、Wallet 與 ScratchPac
 - Built-in / Imported ScratchPack 共用相同 schema 與 runtime pipeline。
 - Imported Pack 可隱藏／取消隱藏／解除安裝；有 Pending Ticket 時不得解除安裝。
 - SQLite 本機資料與自動備份。
+- 玩家可新增、改名與刪除；目前使用中、最後一位或仍有 Pending Ticket 的玩家不可刪除。
 
 ## PackEditor
 
@@ -47,4 +61,6 @@ PackEditor **只建立新的 `.scratchpack`**：
 - Roadmap / TODO：`TODO.md`
 - 目前工作交接：`WORK_HANDOFF.md`
 - ScratchPack 狀態索引：`SCRATCHPACK_V1_HANDOFF.md`
+- Portable / Release 包裝：`RUNTIME_PACKAGE.md`
+- V0.5.5 Build 5 發布說明：`RELEASE_NOTES_V0.5.5_BUILD5.md`
 - `REQUIREMENTS.md` 是早期 V0.1 歷史需求基線，不是目前規則來源。
