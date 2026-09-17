@@ -11,6 +11,8 @@ ScratchPack schema / ResourceRef / Built-in registry 的唯一權威為 `SCRATCH
 - `ScratchGame.exe` 是玩家主程式；`PackEditor.exe` 是 ScratchGame 的附屬製作工具，source 必須位於 `apps/ScratchGame/` 底下，不建立另一個產品專案。
 - ScratchGame 與 PackEditor 共用同一份 `apps/ScratchGame/VERSION` / `BUILD`；PackEditor 不得另建自己的 VERSION、BUILD、PROJECT_RULES、TODO 或另一條產品版號。
 - 可替換 UI / Ticket / Audio / Theme 等美術資源維持 EXE 外部資源，不強制嵌死在 EXE。
+- **ScratchGame 正式 runtime PNG / WAV 美術資源是本專案對根 `REPOSITORY_RULES.md` 一般 binary 禁止規則的明確例外。** 只有 `runtime-assets.json` 正式列管、供 portable/runtime 使用的產品資源，才可依 runtime 相對路徑提交於 `apps/ScratchGame/RuntimeAssets/Live/`。此例外不包含 EXE、DLL、ZIP、7z、MSI、log、cache、使用者資料或 `.scratchpack`；不得把完整測試包、發行包或重複素材副本當作 runtime asset 提交。
+- `RuntimeAssets/Live` 內正式素材新增或替換時，必須同步更新 `runtime-assets.json` 的 size / SHA-256，且 portable 組包必須以 manifest 驗證通過後才能視為有效；同一正式素材只保留一個 canonical runtime 路徑。
 - Windows 主視窗標題預設為「刮刮樂」。
 
 ## 2. UI 與視覺責任邊界
