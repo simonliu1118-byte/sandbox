@@ -16,11 +16,11 @@
 ## 目前版本線
 
 ```text
-V0.5.5 Build 3
+V0.5.5 Build 4
 branch: scratchgame/feature-scratchpack-v1-runtime
-previous verified source: 2157ac19d63b6d7da94154a468a06d1d38de7123
-previous Windows CI: Run #196 PASS
-current Build 3: settings-list acceptance repair, awaiting final Windows CI / user verification
+previous verified source: 7713013c74a7c2798137b304aa4e95f7513211fe
+previous Windows CI: Run #197 PASS
+current Build 4: settings alignment + centered info modal acceptance repair, awaiting final Windows CI / user verification
 ```
 
 ## ScratchPack V1 runtime
@@ -71,47 +71,19 @@ reference-packs/ThreeStar-Test/ticket.json
 TestPacks/ThreeStar-Test.scratchpack
 ```
 
-目前 canonical fixture（自 V0.5.3 Build 1 packaging baseline 起未變）：
+目前 canonical fixture：
 
 ```text
 size: 800 bytes
 SHA-256: 2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a
 ```
 
-目前固定要求：
+`TestPacks/` 必須保留到 V1.0.0 正式驗收完成；到 release gate 主動提醒使用者，再由使用者決定是否移除。
 
-- 開發 / 測試 portable **必須包含 TestPacks**。
-- TestPack 納入 `runtime-assets.json` `testPacks` 區段與 size / SHA-256 integrity verification。
-- TestPack 缺失、hash 不符都必須 FAIL；正確檔案必須進輸出 ZIP。
-- 未宣告 TestPack 不得因來源 ZIP / folder 中存在就被繼承。
-- 一直保留到 V1.0.0 正式驗收完成。
-- 到 V1.0.0 release gate 再主動提醒使用者，確認後才移除；不得提前移除。
+## 目前接續點
 
-ThreeStar-Test 已接受的 Canvas 1 / GameType 1 geometry：
-
-```text
-zone size: 191 × 138
-X: 219, 444, 669
-Y: 256, 422, 588
-horizontal gap: 34
-vertical gap: 28
-priceDisplayArea: x=852 y=43 width=201 height=82
-serialDisplayArea: x=364 y=774 width=350 height=59
-```
-
-## Portable / automation 關係
-
-目前已完成並納入 Windows CI：
-
-1. ScratchGame / PackEditor Windows x64 build。
-2. deterministic ThreeStar-Test builder。
-3. complete Portable packager + manifest size / SHA-256 + post-ZIP verification。
-4. ScratchGame domain regression：Pack load / Import / finite pool / buy / pending / swap / scratch / redeem / Wallet / stats。
-5. PackEditor → `.scratchpack` → ScratchGame Loader / Importer round-trip regression。
-6. generated Windows icon / associated shell icon verification。
-7. ScratchGame / PackEditor startup smoke。
-8. complete Portable Artifact 上傳。
-
-Run #196 已全部 PASS。Build 3 只延續設定清單 UI 實機返修，不改 ScratchPack schema / GameType 契約；完成 final Windows CI 後再更新此處驗證基準。
-
-下一個獨立功能項目：V0.5.5 UI 驗收完成後，依 `GAMETYPE_SPEC.md` 進入 GameType 3；基本 GameType 全部完成後再回 PackEditor 正式收尾。
+- GameType 1：完成。
+- GameType 2：完成。
+- V0.5.5 Build 4：設定頁 UI 驗收返修中。
+- V0.5.5 UI 驗收完成後再進 GameType 3。
+- GameType 3～6 完成後，再回 PackEditor 做正式 UI / preview / validation UX 收尾。
