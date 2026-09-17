@@ -13,12 +13,13 @@ jobs:
   release:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'release(ScratchGame): V0.5.5 Build 5'
+      contains(github.event.head_commit.message, '[release-retry ScratchGame V0.5.5 Build 5]')
     runs-on: ubuntu-latest
 
     env:
       TAG: ScratchGame-v0.5.5-build5
       RELEASE_TITLE: ScratchGame V0.5.5 Build 5
+      TARGET_SHA: '0926e2c69c500340d38f33f09f390e0e7ce24b63'
       ACCEPTANCE_RUN_ID: '35271132305'
       ACCEPTANCE_HEAD_SHA: '556aaa1152ed5939bd15b67aa581cf8d1029c2a9'
       ARTIFACT_ID: '10519115830'
@@ -100,6 +101,6 @@ jobs:
             "release-dist/${RELEASE_ZIP}" \
             "release-dist/SHA256SUMS.txt" \
             --repo "${GITHUB_REPOSITORY}" \
-            --target "${GITHUB_SHA}" \
+            --target "${TARGET_SHA}" \
             --title "${RELEASE_TITLE}" \
             --notes-file apps/ScratchGame/RELEASE_NOTES_V0.5.5_BUILD5.md
