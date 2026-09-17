@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using ScratchGame.Engine;
 using ScratchGame.Models;
 
 namespace ScratchGame.Services;
@@ -29,7 +30,10 @@ public sealed class ScratchPackV1Loader
         }
     };
 
-    public LoadedScratchPack LoadAndValidate(string scratchPackPath, string extractionRoot)
+    public LoadedScratchPack LoadAndValidate(
+        string scratchPackPath,
+        string extractionRoot,
+        bool allowUnrenderedGameTypes = false)
     {
         if (!File.Exists(scratchPackPath))
             throw new FileNotFoundException("找不到 ScratchPack。", scratchPackPath);
@@ -50,6 +54,12 @@ public sealed class ScratchPackV1Loader
         var ticketPath = ResolveInside(extractionRoot, manifest.TicketFile);
         var ticketJson = File.ReadAllText(ticketPath);
         var ticket = ParseTicket(ticketJson, extractionRoot);
+
+        if (ticket.GameType == "2" && !allowUnrenderedGameTypes)
+        {
+            throw new InvalidDataException(
+                "GameType 2 核心契約已實作，但正式 Renderer 尚未完成；目前版本不開放安裝 Type 2 ScratchPack。");
+        }
 
         return new LoadedScratchPack(
             manifest,
@@ -190,7 +200,7 @@ public sealed class ScratchPackV1Loader
             throw new InvalidDataException("priceDisplay 只允許 0 或 1。");
         if (issueSize <= 0 || ticketsPerBook <= 0 || issueSize % ticketsPerBook != 0)
             throw new InvalidDataException("issueSize / ticketsPerBook 無效或無法整除。");
-        if (gameType != "1")
+        if (gameType is not "1" and not "2")
             throw new InvalidDataException($"目前版本尚未實作 GameType：{gameType}");
 
         ScratchPackRect? priceArea = null;
@@ -227,22 +237,60 @@ public sealed class ScratchPackV1Loader
             .Select((element, index) => ParseZone(element, index))
             .ToArray();
 
-        var game = RequiredProperty(root, "game");
-        EnsureObject(game, "game");
-        EnsureOnlyProperties(game, "game", "gridSize", "allowNearMiss");
-        var gridSize = RequiredInt32(game, "gridSize");
-        if (gridSize is not 3 and not 4 and not 5)
-            throw new InvalidDataException("GameType 1 的 gridSize 目前只支援 3、4、5。");
-        var allowNearMiss = game.TryGetProperty("allowNearMiss", out var nearMiss)
-            ? RequiredBoolean(nearMiss, "game.allowNearMiss")
-            : false;
-        ValidateGameType1Zones(zones, gridSize);
-
         if (!root.TryGetProperty("prizes", out var prizesElement) || prizesElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("prizes 必須是 array。");
-        var prizes = ParsePrizes(prizesElement, issueSize, gridSize);
+        var prizes = ParsePrizes(prizesElement, issueSize);
 
-        return new ScratchPackTicketDefinition(
+        var game = RequiredProperty(root, "game");
+        EnsureObject(game, "game");
+
+        if (gameType == "1")
+        {
+            EnsureOnlyProperties(game, "game", "gridSize", "allowNearMiss");
+            var gridSize = RequiredInt32(game, "gridSize");
+            if (gridSize is not 3 and not 4 and not 5)
+                throw new InvalidDataException("GameType 1 的 gridSize 目前只支援 3、4、5。");
+            var allowNearMiss = game.TryGetProperty("allowNearMiss", out var nearMiss)
+                ? RequiredBoolean(nearMiss, "game.allowNearMiss")
+                : false;
+            ValidateGameType1Zones(zones, gridSize);
+            ValidateGameType1Prizes(prizes, gridSize);
+
+            return new ScratchPackTicketDefinition(
+                name,
+                price,
+                canvas,
+                priceDisplay == 1,
+                priceArea,
+                gameType,
+                issueSize,
+                ticketsPerBook,
+                ticketArt,
+                serialArea,
+                foil,
+                zones,
+                gridSize,
+                allowNearMiss,
+                prizes,
+                json);
+        }
+
+        EnsureOnlyProperties(game, "game",
+            "winningNumberCount", "playNumberCount", "numberMin", "numberMax",
+            "payoutSource", "displayPrizeAmounts", "allowPrizeAmountRepeat");
+
+        var winningNumberCount = RequiredInt32(game, "winningNumberCount");
+        var playNumberCount = RequiredInt32(game, "playNumberCount");
+        var numberMin = RequiredInt32(game, "numberMin");
+        var numberMax = RequiredInt32(game, "numberMax");
+        var payoutSource = RequiredString(game, "payoutSource");
+        var allowPrizeAmountRepeat = RequiredBoolean(
+            RequiredProperty(game, "allowPrizeAmountRepeat"),
+            "game.allowPrizeAmountRepeat");
+        var displayPrizeAmounts = ParseDisplayPrizeAmounts(
+            RequiredProperty(game, "displayPrizeAmounts"));
+
+        var ticket = new ScratchPackTicketDefinition(
             name,
             price,
             canvas,
@@ -255,10 +303,20 @@ public sealed class ScratchPackV1Loader
             serialArea,
             foil,
             zones,
-            gridSize,
-            allowNearMiss,
+            GridSize: 0,
+            AllowNearMiss: false,
             prizes,
-            json);
+            json,
+            winningNumberCount,
+            playNumberCount,
+            numberMin,
+            numberMax,
+            payoutSource,
+            displayPrizeAmounts,
+            allowPrizeAmountRepeat);
+
+        GameType2Rules.ValidateDefinition(ticket);
+        return ticket;
     }
 
     private static ScratchPackResourceRef ParseResourceRef(JsonElement element, string label)
@@ -310,7 +368,7 @@ public sealed class ScratchPackV1Loader
         return zone;
     }
 
-    private static IReadOnlyList<ScratchPackPrize> ParsePrizes(JsonElement prizesElement, long issueSize, int gridSize)
+    private static IReadOnlyList<ScratchPackPrize> ParsePrizes(JsonElement prizesElement, long issueSize)
     {
         var prizes = new List<ScratchPackPrize>();
         var amounts = new HashSet<long>();
@@ -331,15 +389,33 @@ public sealed class ScratchPackV1Loader
             prizes.Add(new ScratchPackPrize(amount, count));
         }
 
-        var expectedTierCount = 2 * gridSize + 1;
-        if (prizes.Count != expectedTierCount)
-            throw new InvalidDataException($"GameType 1 / {gridSize}x{gridSize} 必須精確包含 {expectedTierCount} 個正獎 Tier。");
-
-        var ordered = prizes.OrderBy(p => p.Amount).ToArray();
-        var winningCount = ordered.Sum(p => p.Count);
+        var ordered = prizes.OrderBy(prize => prize.Amount).ToArray();
+        var winningCount = ordered.Sum(prize => prize.Count);
         if (winningCount > issueSize)
             throw new InvalidDataException("Prize count 加總不可超過 issueSize。");
         return ordered;
+    }
+
+    private static IReadOnlyList<long> ParseDisplayPrizeAmounts(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException("game.displayPrizeAmounts 必須是 array。");
+
+        var result = new List<long>();
+        foreach (var item in element.EnumerateArray())
+        {
+            if (!item.TryGetInt64(out var value))
+                throw new InvalidDataException("game.displayPrizeAmounts 必須全部是整數。");
+            result.Add(value);
+        }
+        return result;
+    }
+
+    private static void ValidateGameType1Prizes(IReadOnlyList<ScratchPackPrize> prizes, int gridSize)
+    {
+        var expectedTierCount = 2 * gridSize + 1;
+        if (prizes.Count != expectedTierCount)
+            throw new InvalidDataException($"GameType 1 / {gridSize}x{gridSize} 必須精確包含 {expectedTierCount} 個正獎 Tier。");
     }
 
     private static void ValidateGameType1Zones(IReadOnlyList<ScratchPackZone> zones, int gridSize)
@@ -373,7 +449,11 @@ public sealed class ScratchPackV1Loader
             throw new InvalidDataException("GameType 1 scratch.zones 順序必須為 row-major。");
     }
 
-    private static void ValidateTicketResource(ScratchPackResourceRef resource, string gameType, int canvas, string packageRoot)
+    private static void ValidateTicketResource(
+        ScratchPackResourceRef resource,
+        string gameType,
+        int canvas,
+        string packageRoot)
     {
         if (resource.Source == "builtin")
         {

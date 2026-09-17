@@ -159,9 +159,28 @@ gameType = "2"
 
 一組「中獎號碼」與一組「你的號碼」進行比對。每個你的號碼若命中任一中獎號碼，即形成一次命中；所有命中項目的獎金累加為本張最終獎金。
 
-兩組號碼各自不得重複；兩組之間可以相同，這就是命中。
+兩組號碼各自不得重複；兩組之間可以相同，這就是命中。未中獎票必須是 **0 個命中**，不得以「命中但金額為 0」表示未中獎。
 
 中獎號碼與你的號碼全部都是刮區，玩家必須刮開全部玩法刮區才算手動完成。
+
+### Scratch Zone mapping
+
+GameType 2 直接使用 `ticket.json.scratch.zones`，不另設 `winningZones`、`playZones` 或其他平行 geometry / mapping 欄位。
+
+`scratch.zones` 的陣列順序對 GameType 2 具有玩法語意：
+
+```text
+前 winningNumberCount 個 zone = 中獎號碼
+後 playNumberCount 個 zone    = 你的號碼
+```
+
+因此 zone 總數必須精確等於：
+
+```text
+winningNumberCount + playNumberCount
+```
+
+所有 Type 2 zone 必須使用相同 `width`、`height`、`shape`；若為 `roundedRectangle`，`cornerRadius` 也必須一致，以符合固定 Renderer 模板。zone 的 x / y 由 PackEditor 依票面配置，但不得加入額外裝飾刮區。
 
 ### payoutSource
 
@@ -172,7 +191,7 @@ play      獎金跟著「你的號碼」
 winning   獎金跟著「中獎號碼」
 ```
 
-不拆成額外 GameType 變體。
+不拆成額外 GameType 變體。因兩組內部各自唯一，每次命中都是一個中獎號碼與一個你的號碼的一對一交集；依 `payoutSource` 決定該次命中讀取哪一側格內獎金。
 
 ### 數量與數字範圍
 
@@ -185,21 +204,40 @@ numberMin
 numberMax
 ```
 
-PackEditor 必須依實際 Prize Tier、可用命中數、是否存在未中獎票等條件直接驗證數字範圍是否足以產生合法盤面，不以過度簡化的固定公式代替實際驗證。
+`winningNumberCount`、`playNumberCount` 必須大於 0，且 `numberMin < numberMax`。
+
+PackEditor / Importer 必須依實際 Prize Tier、可用命中數、是否存在未中獎票等條件直接驗證數字範圍是否足以產生合法盤面，不以過度簡化的固定公式代替實際驗證。若存在未中獎票，範圍必須足以生成兩組完全不重疊且各自唯一的號碼。
 
 ### 格內金額
 
 ```text
 displayPrizeAmounts
-prizeAmountUsage = repeatable | uniquePerTicket
+allowPrizeAmountRepeat = true | false
 ```
 
-- `repeatable`：同一金額可在同一張票的獎金格重複出現。
-- `uniquePerTicket`：同一金額在同一張票的獎金格最多使用一次。
+- `displayPrizeAmounts`：盤面可使用的正整數顯示金額；清單本身不得包含重複值。它不是最終 Prize Pool。
+- `allowPrizeAmountRepeat = true`：同一張票的不同獎金格可以重複使用相同金額。
+- `allowPrizeAmountRepeat = false`：同一張票所有有獎金的一側，每個顯示金額最多使用一次；因此可用金額種類數必須足以填滿該側全部獎金格。
 
-`displayPrizeAmounts` 是盤面可用金額，不是最終 Prize Pool。
+不論該格是否真的命中，有獎金的一側每個格都會顯示一個 `displayPrizeAmounts` 中的金額；只有真正命中的格才計入本張獎金。
 
-主程式先取得本張最終 Prize Tier，再尋找符合 `payoutSource`、命中數上限及 `prizeAmountUsage` 的合法組合；若無法精確組成，PackEditor 必須在封裝前報錯。
+主程式先取得本張最終 Prize Tier，再尋找符合 `payoutSource`、可用命中數、數字範圍與 `allowPrizeAmountRepeat` 的合法命中金額組合。所有命中格金額總和必須**精確等於**本張最終 Prize Tier；不得四捨五入、截斷、補差額或建立隱藏獎金。
+
+PackEditor / Importer 必須事前確認每個正式正獎 Prize Tier 都能精確生成；若 `issueSize - Σ prizes.count > 0`，也必須確認能生成 0 命中的未中獎盤面。
+
+### `ticket.json.game` 範例
+
+```json
+{
+  "winningNumberCount": 3,
+  "playNumberCount": 12,
+  "numberMin": 1,
+  "numberMax": 30,
+  "payoutSource": "play",
+  "displayPrizeAmounts": [100, 200, 500, 1000],
+  "allowPrizeAmountRepeat": true
+}
+```
 
 ### 固定 Renderer
 

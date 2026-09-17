@@ -48,7 +48,14 @@ public sealed record ScratchPackTicketDefinition(
     int GridSize,
     bool AllowNearMiss,
     IReadOnlyList<ScratchPackPrize> Prizes,
-    string RawJson);
+    string RawJson,
+    int? WinningNumberCount = null,
+    int? PlayNumberCount = null,
+    int? NumberMin = null,
+    int? NumberMax = null,
+    string? PayoutSource = null,
+    IReadOnlyList<long>? DisplayPrizeAmounts = null,
+    bool? AllowPrizeAmountRepeat = null);
 
 public sealed record LoadedScratchPack(
     ScratchPackManifestDefinition Manifest,

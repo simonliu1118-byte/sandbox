@@ -4,5 +4,8 @@ internal static class StaEntryPoint
 {
     [STAThread]
     public static Task<int> Main(string[] args)
-        => Program.Main(args);
+    {
+        GameType2Regression.Run();
+        return Program.Main(args);
+    }
 }

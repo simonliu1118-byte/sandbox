@@ -7,115 +7,69 @@
 ## 目前基準
 
 - Branch：`scratchgame/feature-scratchpack-v1-runtime`
-- 目前版本：**V0.5.3 Build 2**
+- 目前工作版本：**V0.5.4 / Build 0**。
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
-- Build 2 automated regression 已完成；Windows CI Run #185 PASS。
-- 正式 runtime PNG / WAV 已回復到 `apps/ScratchGame/RuntimeAssets/Live/`，15 個 required assets 已重新核對為 byte-for-byte 正確。
-- 本階段正在把 repository runtime assets 接到完整 Portable CI；完成條件以最新 Windows workflow run PASS 與完整 Portable Artifact 產生成功為準。
-- V0.5.2 Build 1 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改仍留待使用者集中實機驗收，目前不回頭逐項修改。
+- V0.5.3 Build 2 的完整 Portable automation 已完成，Windows CI Run #189 PASS。
+- 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 已核對為 byte-for-byte 正確，CI 直接由 repo 組完整 Portable Artifact。
+- AITeam Common Rules 已升至 2.5.0；sandbox repo governance 已升至 1.2.1。本 V0.5.4 批次會把長期 ScratchGame branch 對齊該正式治理基準。
+- V0.5.2 的 UI / 玩家 / 遊玩紀錄 / 刮獎效果修改仍留待使用者集中實機驗收，目前不回頭逐項修改。
 
-## 已完成但待集中實機驗收 — V0.5.2
+## 已完成 — V0.5.3 Portable / Automated Regression
 
-- Header「使用者」改為「選擇玩家」。
-- 新增玩家：按新增 → Modal → 輸入 → 確認才建立。
-- 遊玩紀錄入口位於 Footer 右側；卷軸式 Modal 由 Footer 飛入中央、關閉飛回。
-- 遊玩紀錄標題、玩家名稱、目前錢包置中；移除餘額說明小字。
-- 「顯示中獎結果」位於 Stage 底邊中央。
-- 刮銀膜加入碎屑粒子與不規則刮痕邊緣。
-- 選擇玩家內的玩家卡底框裁切已修正。
-- Header / Stage / Footer 尺寸屬固定版面契約，未經使用者明確要求不得調整。
+- `tools/package_portable.py` 以 `runtime-assets.json` 鎖定 path / byte size / SHA-256。
+- CI 由 repo `RuntimeAssets/Live/` + deterministic TestPack + 當次 publish 的 `ScratchGame.exe` / `PackEditor.exe` 組完整 Portable。
+- required asset 缺檔、size mismatch、SHA mismatch、未宣告檔案或 package post-check 不符都會 FAIL。
+- canonical `ThreeStar-Test.scratchpack`：800 bytes；SHA-256 `2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a`。
+- `ScratchGame.Regression` 已涵蓋 GameType 1、Imported / BuiltIn install、有限票池、購票、Pending、換票、scratch gate、兌獎、Wallet / statistics、PackEditor round-trip。
+- Windows CI Run #189 已成功產生完整 Portable Artifact。
 
-## V0.5.3 Build 0～1 — Portable Packager
+**TestPacks 必須保留到 V1.0.0 正式驗收完成。到 V1.0.0 release gate 必須主動提醒使用者，再由使用者決定是否移除；不可提前移除。**
 
-已完成：
+## V0.5.4 — GameType 2「中獎號碼」
 
-- `tools/package_portable.py` 要求 `ScratchGame.exe` + `PackEditor.exe`。
-- 支援 `--assets <dir>` 與 `--assets-zip <approved package / asset bundle>`。
-- `runtime-assets.json` 以 path / byte size / SHA-256 鎖定正式 runtime assets。
-- required asset 缺檔、size mismatch、SHA mismatch 都會 FAIL。
-- 輸出 ZIP 建立後重新開啟驗證檔案集合與 source bytes identity。
-- 不繼承舊 package 的 EXE 或未宣告檔案。
-- `TestPacks/ThreeStar-Test.scratchpack` 已列入 `testPacks` manifest。
-- canonical TestPack 由 `tools/build_reference_testpack.py` deterministic 建立。
-- canonical baseline：800 bytes / `2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a`。
-- Build 1 packager unit tests 7/7 PASS；Windows CI Run #181 PASS。
+目前第一批核心實作：
 
-**TestPacks 保留到 V1.0.0 正式驗收完成。到 V1.0.0 release gate 必須主動提醒使用者，再由使用者決定是否移除；不可提前移除。**
+- `GAMETYPE_SPEC.md` 已固定 Type 2 zone mapping：前 `winningNumberCount` 個 zone = 中獎號碼；後 `playNumberCount` 個 zone = 你的號碼。
+- 原 `prizeAmountUsage = repeatable | uniquePerTicket` 已改為布林 `allowPrizeAmountRepeat = true | false`。
+- `ScratchPackModels` 已加入 Type 2 欄位。
+- `ScratchPackV1Loader` 已可解析並驗證 Type 2 schema。
+- 新增 `GameType2Rules`：驗證號碼範圍、zone 數量 / 固定模板、顯示獎金、可生成 Prize Tier，並產生精確命中盤面。
+- `GamePayloadFactory` 已支援 Type 2 payload。
+- `payoutSource=play` 與 `payoutSource=winning` 共用同一 GameType。
+- 未中獎票固定 0 命中；正獎票所有命中格獎金總和必須精確等於既定 Prize Tier。
+- 新增獨立 `GameType2Regression`，測正常 / 未中獎、兩種 payoutSource、號碼唯一、禁止獎金重複、不可生成 Prize Tier 等核心契約。
+- Renderer 尚未完成前，正常 `LoadAndValidate` 仍拒絕安裝 Type 2；只有 CI regression 可明確 opt-in 測核心，避免出現可購買但無法呈現的半成品。
 
-## V0.5.3 Build 2 — Automated Regression
+本批完成條件：
 
-Build 2 把自動驗證建立在穩定的產品規則上，不綁 UI 位置或畫面操作。UI 改版或內部重整若不改產品規則，不應要求重寫這套測試。
+1. V0.5.4 / Build 0 source + Common Rules 2.5.0 / Governance 1.2.1 同一次推進正式工作 branch。
+2. Windows CI 編譯 ScratchGame / PackEditor / Regression 全部 PASS。
+3. Type 1 既有 regression 不退化，Type 2 core regression PASS。
+4. 完整 Portable 仍能成功產生。
 
-`ScratchGame.Regression` 自動驗證：
+### Type 2 下一批
 
-1. canonical `ThreeStar-Test.scratchpack` 能通過正式 `ScratchPackV1Loader`。
-2. Imported Pack 正常安裝並建立有限票池。
-3. 一位玩家同時只能有一張 Pending Ticket。
-4. 購票扣 Wallet / `total_spent`，並立即從 Remaining 扣一張。
-5. 尚未開始刮獎可以換票；換票不重複扣款、Remaining 總數不變。
-6. 一旦開始刮獎就禁止換票。
-7. GameType 1 每張 payload 的實際連線數必須等於該張既定獎項對應的目標連線數。
-8. ThreeStar-Test 全批 8 張完成後，精確得到 7 張中獎 + 1 張未中獎，所有票池歸零。
-9. 固定核對：`completed=8`、`wins=7`、`spent=4,000`、`redeemed=119,100`、`maxPrize=100,000`、`wallet=215,100`。
-10. BuiltIn installation source 與相同內容重裝的 idempotent 行為。
-11. PackEditor 真實輸出 `.scratchpack` → 正式 Loader → ScratchGame Importer round-trip。
-12. workflow 同時跑 packager Python static/unit tests，並重新建立 canonical TestPack。
+本批 CI 通過後再做：
 
-Regression runner 只允許在 GitHub Actions 專用測試環境執行，且使用該次 runner 的暫存資料；不拿使用者正式玩家資料做測試。
+`Renderer → Runtime scratch interaction → 完整 Type 2 regression → 開放正常安裝`
 
-## Portable / automation 收尾
-
-正式 runtime asset source 已改為 repository：
-
-```text
-apps/ScratchGame/RuntimeAssets/Live/
-```
-
-目前 15 個 required production assets 已回復並與 `runtime-assets.json` 15/15 完全一致。
-
-Windows workflow 的完整 Portable gate 要求：
-
-```text
-Repo Live assets
-+ 當次 deterministic TestPack
-+ 當次 publish ScratchGame.exe
-+ 當次 publish PackEditor.exe
-→ package_portable.py
-→ size / SHA integrity gate
-→ post-package verification
-→ complete Portable Artifact
-```
-
-不再依賴外部 asset bundle、Dropbox、Google Drive 或 ChatGPT Library。
-
-## Automated Regression 後的治理工作
-
-Portable automation 完成後立即整理 ICON binary SOP，透過 `simonliu1118-byte/AITeam` governance branch 升為 repository 共通規則：
-
-- intended PNG 人工目視。
-- 記錄 byte size / SHA-256 / dimensions。
-- binary-safe upload。
-- repo read-back SHA identity。
-- source gate 通過後才產 multi-size ICO。
-- EXE associated icon / Windows Explorer / taskbar / window 實機驗收。
-
-不得在 ScratchGame 另建平行永久治理文件。
+不在核心批次提前修改 Header / Stage / Footer 尺寸或整體 UI 邊界。
 
 ## GameType 主線
 
-完成 portable + automation + ICON governance 後，逐一完善基本 GameType。
-
-每個 GameType 必須一起完成：
+基本 GameType 依序完成，每個 GameType 原則上走：
 
 `Spec → Generator → Validator → Renderer → Runtime → regression`
 
-PackEditor 在這段只做 GameType 開發必要的最低限度修改，不做正式 UI 收尾。
+目前：
+
+- GameType 1：已完成核心 runtime / regression。
+- GameType 2：V0.5.4 進行中。
+- GameType 3～6：規格已定，尚待逐一實作。
 
 ## PackEditor 正式收尾 — 延後
 
-**等基本 GameType 全部完善後再回來一次完成。**
-
-屆時集中做所有 GameType 的完整編輯 UI、preview、geometry 操作、錯誤導向、正式 UX 與最終 round-trip 使用者驗收。
+基本 GameType 全部完善後，再集中完成所有 GameType 的完整編輯 UI、preview、geometry 操作、錯誤導向、正式 UX 與最終 round-trip 使用者驗收。
 
 目前正式流程仍為：
 

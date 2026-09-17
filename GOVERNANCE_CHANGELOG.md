@@ -1,13 +1,10 @@
 # Sandbox Governance Changelog
 
-## 1.3.0 — 2026/09/16
+## 1.2.1 — 2026/09/17
 
-- 更新 `apps/ScratchGame/PROJECT_RULES.md`，正式同步目前已實作的 Wallet／累積統計模型，移除「無初始資金／保存逐張歷史」等舊規則。
-- 固定 ScratchGame 與附屬 `PackEditor.exe` 共用同一 `apps/ScratchGame/VERSION` / `BUILD`；PackEditor 不建立第二個產品專案、平行版號或另一套 PROJECT_RULES / TODO。
-- 固定 PackEditor 為 **create-only**：只建立新的 `.scratchpack`，每次新增自動產生新的 UUID v4 packageId；不提供開啟、修改、覆寫或另存既有 Pack。
-- 固定 `packageId` 為 Pack 永久唯一身分；0.x 單機版不把相同 packageId 當更新入口，也不建立 Pack update / replace framework。
-- 把 ScratchPack schema / Built-in registry 與 GameType 詳細契約的權威重新收斂到 `SCRATCHPACK_SPEC.md` / `GAMETYPE_SPEC.md`，`PROJECT_RULES.md` 不再平行複製完整玩法 schema。
-- 同步 Header / Footer / StatusText、文字清晰度、Wallet grant presentation、Imported Pack lifecycle 等目前穩定產品原則。
+- 修正 Governance Check 對共通母本同步的判定：`REPOSITORY_RULES.md`、`COMMON_RULES_VERSION`、`COMMON_RULES_CHANGELOG.md` 的 AITeam common-rules sync 與 sandbox 自己的 repo/project governance 變更分開驗證。
+- 共通母本同步仍必須使用 `governance/*` 並一次同步三個 common files，但不再錯誤要求為單純同步升 sandbox `GOVERNANCE_VERSION`；真正修改 `REPO_POLICY.md`、`PROJECT_RULES.md`、Governance workflow 等本地治理時，仍必須同步更新 `GOVERNANCE_VERSION` 與 `GOVERNANCE_CHANGELOG.md`。
+- 同步 AITeam Common Rules 2.5.0；新增 binary asset source integrity / derived resource SOP。
 
 ## 1.2.0 — 2026/09/14
 
