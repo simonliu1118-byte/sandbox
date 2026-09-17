@@ -10,14 +10,14 @@ This folder archives the visual concepts produced while defining the first Scrat
   - scratch foil is a runtime layer;
   - dynamic game content remains renderer-owned.
 - ScratchPack resource schema and Built-in ref registry are owned only by `SCRATCHPACK_SPEC.md`.
-- Reusable master assets live in ChatGPT Library under `/ScratchGame/Asset-Library/`; this handoff folder only preserves historical visual references.
+- Production runtime masters are stored in the repository under `RuntimeAssets/Live/`; this handoff folder only preserves historical visual references.
 
 ## GameType 1 built-in ticket masters
 
-Library location:
+Canonical repository location:
 
 ```text
-/ScratchGame/Asset-Library/BuiltInTickets/gameType1/
+apps/ScratchGame/RuntimeAssets/Live/BuiltInAssets/Tickets/gameType1/
 ```
 
 Current masters:
@@ -43,10 +43,10 @@ ThreeStar-Test currently selects:
 
 ## Built-in foil masters
 
-Library location:
+Canonical repository location:
 
 ```text
-/ScratchGame/Asset-Library/Foils/
+apps/ScratchGame/RuntimeAssets/Live/BuiltInAssets/Foils/
 ```
 
 ThreeStar-Test currently selects the global built-in foil:
@@ -58,7 +58,7 @@ ThreeStar-Test currently selects the global built-in foil:
 }
 ```
 
-A future optional full-canvas foil-overlay mode is tracked in `TODO.md`; it must extend the same foil system rather than introduce a second mask / foil pipeline.
+No separate full-canvas mask / foil pipeline is currently part of the accepted V1 reference implementation. Any future foil presentation change must continue to respect `scratch.foil` + `scratch.zones` as the single ownership path unless the formal spec is explicitly revised.
 
 ## Historical artwork references
 
