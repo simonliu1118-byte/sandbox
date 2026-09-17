@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  actions: write
 
 jobs:
   release:
@@ -22,6 +22,7 @@ jobs:
       TAG: ScratchGame-v0.5.5-build5
       RELEASE_TITLE: ScratchGame V0.5.5 Build 5
       TARGET_SHA: '0926e2c69c500340d38f33f09f390e0e7ce24b63'
+      STALLED_RUN_ID: '35272957266'
       ACCEPTANCE_RUN_ID: '35271132305'
       ACCEPTANCE_HEAD_SHA: '556aaa1152ed5939bd15b67aa581cf8d1029c2a9'
       ARTIFACT_ID: '10519115830'
@@ -34,6 +35,29 @@ jobs:
     steps:
       - name: Checkout release source
         uses: actions/checkout@v4
+
+      - name: Cancel stale release upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stalled_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${STALLED_RUN_ID}")"
+          stalled_status="$(jq -r '.status' <<<"${stalled_json}")"
+          if [ "${stalled_status}" = "queued" ] || [ "${stalled_status}" = "in_progress" ]; then
+            echo "Cancelling stale release run ${STALLED_RUN_ID} (${stalled_status})."
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${STALLED_RUN_ID}/cancel" >/dev/null
+            for _ in $(seq 1 30); do
+              sleep 2
+              stalled_status="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${STALLED_RUN_ID}" --jq '.status')"
+              if [ "${stalled_status}" != "queued" ] && [ "${stalled_status}" != "in_progress" ]; then
+                break
+              fi
+            done
+          fi
+          echo "Stale release run status: ${stalled_status}"
+          test "${stalled_status}" != "queued"
+          test "${stalled_status}" != "in_progress"
 
       - name: Verify version identity
         shell: bash
