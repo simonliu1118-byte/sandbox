@@ -6,6 +6,7 @@ internal static class StaEntryPoint
     public static Task<int> Main(string[] args)
     {
         GameType2Regression.Run();
+        GameType3Regression.Run();
         return Program.Main(args);
     }
 }
