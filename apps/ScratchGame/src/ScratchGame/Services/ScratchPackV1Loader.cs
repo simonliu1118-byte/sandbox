@@ -193,7 +193,7 @@ public sealed class ScratchPackV1Loader
             throw new InvalidDataException("priceDisplay 只允許 0 或 1。");
         if (issueSize <= 0 || ticketsPerBook <= 0 || issueSize % ticketsPerBook != 0)
             throw new InvalidDataException("issueSize / ticketsPerBook 無效或無法整除。");
-        if (gameType is not "1" and not "2")
+        if (gameType is not "1" and not "2" and not "3")
             throw new InvalidDataException($"目前版本尚未實作 GameType：{gameType}");
 
         ScratchPackRect? priceArea = null;
@@ -268,22 +268,71 @@ public sealed class ScratchPackV1Loader
                 json);
         }
 
+        if (gameType == "2")
+        {
+            EnsureOnlyProperties(game, "game",
+                "winningNumberCount", "playNumberCount", "numberMin", "numberMax",
+                "payoutSource", "displayPrizeAmounts", "allowPrizeAmountRepeat");
+
+            var winningNumberCount = RequiredInt32(game, "winningNumberCount");
+            var playNumberCount = RequiredInt32(game, "playNumberCount");
+            var numberMin = RequiredInt32(game, "numberMin");
+            var numberMax = RequiredInt32(game, "numberMax");
+            var payoutSource = RequiredString(game, "payoutSource");
+            var allowPrizeAmountRepeat = RequiredBoolean(
+                RequiredProperty(game, "allowPrizeAmountRepeat"),
+                "game.allowPrizeAmountRepeat");
+            var displayPrizeAmounts = ParseDisplayPrizeAmounts(
+                RequiredProperty(game, "displayPrizeAmounts"));
+
+            var ticket = new ScratchPackTicketDefinition(
+                name,
+                price,
+                canvas,
+                priceDisplay == 1,
+                priceArea,
+                gameType,
+                issueSize,
+                ticketsPerBook,
+                ticketArt,
+                serialArea,
+                foil,
+                zones,
+                GridSize: 0,
+                AllowNearMiss: false,
+                prizes,
+                json,
+                winningNumberCount,
+                playNumberCount,
+                numberMin,
+                numberMax,
+                payoutSource,
+                displayPrizeAmounts,
+                allowPrizeAmountRepeat);
+
+            GameType2Rules.ValidateDefinition(ticket);
+            return ticket;
+        }
+
         EnsureOnlyProperties(game, "game",
-            "winningNumberCount", "playNumberCount", "numberMin", "numberMax",
-            "payoutSource", "displayPrizeAmounts", "allowPrizeAmountRepeat");
+            "zoneCount", "useCustomDecoyAmounts", "decoyAmounts",
+            "nearMissPairProbability", "nearMissPairCount");
 
-        var winningNumberCount = RequiredInt32(game, "winningNumberCount");
-        var playNumberCount = RequiredInt32(game, "playNumberCount");
-        var numberMin = RequiredInt32(game, "numberMin");
-        var numberMax = RequiredInt32(game, "numberMax");
-        var payoutSource = RequiredString(game, "payoutSource");
-        var allowPrizeAmountRepeat = RequiredBoolean(
-            RequiredProperty(game, "allowPrizeAmountRepeat"),
-            "game.allowPrizeAmountRepeat");
-        var displayPrizeAmounts = ParseDisplayPrizeAmounts(
-            RequiredProperty(game, "displayPrizeAmounts"));
+        var zoneCount = RequiredInt32(game, "zoneCount");
+        var useCustomDecoyAmounts = game.TryGetProperty("useCustomDecoyAmounts", out var customDecoys)
+            ? RequiredBoolean(customDecoys, "game.useCustomDecoyAmounts")
+            : false;
+        IReadOnlyList<long>? decoyAmounts = null;
+        if (game.TryGetProperty("decoyAmounts", out var decoysElement))
+            decoyAmounts = ParseLongArray(decoysElement, "game.decoyAmounts");
+        var nearMissPairProbability = game.TryGetProperty("nearMissPairProbability", out var probabilityElement)
+            ? RequiredInt32(game, "nearMissPairProbability")
+            : GameType3Rules.DefaultNearMissPairProbability;
+        var nearMissPairCount = game.TryGetProperty("nearMissPairCount", out var pairCountElement)
+            ? RequiredInt32(game, "nearMissPairCount")
+            : GameType3Rules.DefaultNearMissPairCount;
 
-        var ticket = new ScratchPackTicketDefinition(
+        var type3Ticket = new ScratchPackTicketDefinition(
             name,
             price,
             canvas,
@@ -300,16 +349,14 @@ public sealed class ScratchPackV1Loader
             AllowNearMiss: false,
             prizes,
             json,
-            winningNumberCount,
-            playNumberCount,
-            numberMin,
-            numberMax,
-            payoutSource,
-            displayPrizeAmounts,
-            allowPrizeAmountRepeat);
+            ZoneCount: zoneCount,
+            UseCustomDecoyAmounts: useCustomDecoyAmounts,
+            DecoyAmounts: decoyAmounts,
+            NearMissPairProbability: nearMissPairProbability,
+            NearMissPairCount: nearMissPairCount);
 
-        GameType2Rules.ValidateDefinition(ticket);
-        return ticket;
+        GameType3Rules.ValidateDefinition(type3Ticket);
+        return type3Ticket;
     }
 
     private static ScratchPackResourceRef ParseResourceRef(JsonElement element, string label)
@@ -390,15 +437,18 @@ public sealed class ScratchPackV1Loader
     }
 
     private static IReadOnlyList<long> ParseDisplayPrizeAmounts(JsonElement element)
+        => ParseLongArray(element, "game.displayPrizeAmounts");
+
+    private static IReadOnlyList<long> ParseLongArray(JsonElement element, string label)
     {
         if (element.ValueKind != JsonValueKind.Array)
-            throw new InvalidDataException("game.displayPrizeAmounts 必須是 array。");
+            throw new InvalidDataException($"{label} 必須是 array。");
 
         var result = new List<long>();
         foreach (var item in element.EnumerateArray())
         {
             if (!item.TryGetInt64(out var value))
-                throw new InvalidDataException("game.displayPrizeAmounts 必須全部是整數。");
+                throw new InvalidDataException($"{label} 必須全部是整數。");
             result.Add(value);
         }
         return result;
