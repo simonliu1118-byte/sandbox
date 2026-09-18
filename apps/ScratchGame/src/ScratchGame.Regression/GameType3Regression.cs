@@ -44,7 +44,7 @@ internal static class GameType3Regression
             foreach (var amount in new long[] { 0, 100, 500, 1_000 })
             {
                 for (var attempt = 0; attempt < 30; attempt++)
-                    ValidatePayload(forcedNearMiss, amount, minimumNearMissPairs: 2);
+                    ValidatePayloadAndRenderModel(forcedNearMiss, amount, minimumNearMissPairs: 2);
             }
 
             var overlappingDecoy = loaded.Ticket with
@@ -77,7 +77,7 @@ internal static class GameType3Regression
                 () => GameType3Rules.ValidateDefinition(insufficientAmounts),
                 "available official prize amounts must be sufficient to fill every Type 3 outcome");
 
-            Console.WriteLine("PASS: GameType 3 loader / validator / generator contract");
+            Console.WriteLine("PASS: GameType 3 loader / validator / generator / renderer contract");
         }
         finally
         {
@@ -121,15 +121,15 @@ internal static class GameType3Regression
               "scratch": {
                 "foil": { "source": "package", "ref": "assets/foil.png" },
                 "zones": [
-                  { "id": "amount-01", "x": 120, "y": 180, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-02", "x": 330, "y": 180, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-03", "x": 540, "y": 180, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-04", "x": 120, "y": 320, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-05", "x": 330, "y": 320, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-06", "x": 540, "y": 320, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-07", "x": 120, "y": 460, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-08", "x": 330, "y": 460, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
-                  { "id": "amount-09", "x": 540, "y": 460, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 }
+                  { "id": "amount-01", "x": 100, "y": 160, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-02", "x": 310, "y": 160, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-03", "x": 520, "y": 160, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-04", "x": 100, "y": 300, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-05", "x": 310, "y": 300, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-06", "x": 520, "y": 300, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-07", "x": 100, "y": 440, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-08", "x": 310, "y": 440, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 },
+                  { "id": "amount-09", "x": 520, "y": 440, "width": 180, "height": 100, "shape": "roundedRectangle", "cornerRadius": 12 }
                 ]
               },
               "game": {
@@ -150,7 +150,7 @@ internal static class GameType3Regression
         return packagePath;
     }
 
-    private static void ValidatePayload(
+    private static void ValidatePayloadAndRenderModel(
         ScratchPackTicketDefinition ticket,
         long expectedPrize,
         int minimumNearMissPairs)
@@ -182,6 +182,15 @@ internal static class GameType3Regression
         var pairCount = groups.Count(pair => pair.Key != expectedPrize && pair.Value == 2);
         Assert(pairCount >= minimumNearMissPairs,
             $"near miss mode must guarantee at least {minimumNearMissPairs} non-winning pairs");
+
+        var cells = GameType3RenderModel.Build(ticket, root);
+        AssertEqual(ticket.Zones.Count, cells.Count, "Type 3 render cell count equals zones");
+        for (var index = 0; index < cells.Count; index++)
+        {
+            AssertEqual(index, cells[index].ZoneIndex, $"Type 3 render cell {index} zone index");
+            AssertEqual(ticket.Zones[index], cells[index].Zone, $"Type 3 render cell {index} zone");
+            AssertEqual(amounts[index], cells[index].Amount, $"Type 3 render cell {index} amount");
+        }
     }
 
     private static void WritePng(string path, int width, int height)
