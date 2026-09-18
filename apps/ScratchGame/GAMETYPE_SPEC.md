@@ -265,11 +265,28 @@ gameType = "3"
 同一個金額恰好出現三次，即得該金額；不是三倍金額。
 
 - `matchCount` 固定為 3，不作 ScratchPack 設定。
-- `zoneCount` 由開發者在 PackEditor 支援範圍內自由設定。
-- 本張若中 `$500`，引擎必須恰好生成三個 `$500`。
+- `zoneCount` 合法範圍固定為 **3～25**。
+- `scratch.zones` 數量必須精確等於 `zoneCount`；每個 zone 與產生的 `amounts[]` 依陣列索引一對一對應。
+- Type 3 不要求標準網格；zone 的 x / y 可由 PackEditor 依票面配置。
+- 所有 Type 3 zone 的 `width`、`height`、`shape` 必須一致；若為 `roundedRectangle`，`cornerRadius` 也必須一致。
+- 本張若中 `$500`，引擎必須恰好生成三個 `$500`，最終獎金仍為 `$500`。
 - 其他任何金額最多出現兩次。
 - 未中獎票所有金額都最多出現兩次。
 - 一張票只允許一組真正成立的「三個相同」，不做多組累加。
+
+### `ticket.json.game`
+
+```json
+{
+  "zoneCount": 9,
+  "useCustomDecoyAmounts": true,
+  "decoyAmounts": [50, 200, 750, 2000],
+  "nearMissPairProbability": 75,
+  "nearMissPairCount": 1
+}
+```
+
+`zoneCount` 必填；其他 Type 3 欄位依下列規則處理。
 
 ### 非中獎金額
 
@@ -277,15 +294,49 @@ gameType = "3"
 useCustomDecoyAmounts = false   預設
 ```
 
-預設 false 時，其他格由正式獎池中可用的其他正獎金額填充。
+預設 false 時，其他格只能由目前正式 `prizes` 中 **`count > 0`** 的其他正獎金額填充；`count = 0` 的 Prize Tier 不會被偷偷拿來當盤面干擾金額。
 
-開啟 true 時，開發者可額外提供 `decoyAmounts`，作為非中獎位置的補充顯示金額。`decoyAmounts` 不建立新的 Prize Tier，也不能改變本張真正中獎金額恰好出現三次的規則。
+開啟 true 時，開發者可額外提供 `decoyAmounts`，作為非中獎位置的**補充**顯示金額，不會取代正式 Prize Tier 可用金額。
 
-PackEditor 必須確認目前可用金額種類足以填滿 `zoneCount` 而不意外形成第二組三個相同。
+`decoyAmounts` 固定規則：
+
+- 每個值必須為正整數。
+- 清單內不得重複。
+- 不得與任何 `prizes.amount` 重複，包括 `count = 0` 的 Prize Tier。
+- 不建立新的 Prize Tier，不影響中獎率、Prize Pool、EV 或 RTP。
+- `useCustomDecoyAmounts=false` 時不得提供 `decoyAmounts`。
+- `useCustomDecoyAmounts=true` 時至少必須提供一個 `decoyAmounts`。
+
+PackEditor / Importer 必須對未中獎票及每個 `count > 0` 的正式 Prize Tier 分別驗證可生成性。扣掉真正中獎金額的三格後，所有剩餘金額每種最多只能使用兩次；若目前可用金額種類不足以填滿 `zoneCount`，直接驗證失敗，不得等到玩家購票時才降級或報錯。
+
+### Near Miss／差一個成獎
+
+Type 3 支援進階盤面刺激選項：
+
+```text
+nearMissPairProbability = 75   預設，合法範圍 0～100
+nearMissPairCount = 1          預設，必須 > 0
+```
+
+Near Miss Pair 指**非本張真正中獎金額**的某個金額刻意出現兩次，例如 `$100、$100`，形成「差一個就三個相同」的視覺效果。
+
+規則：
+
+- `nearMissPairProbability` 是產生器**刻意安排** Near Miss 的機率百分比。
+- 觸發時，引擎必須至少安排 `nearMissPairCount` 組不同的非中獎金額各出現兩次。
+- 真正中獎票可同時存在 Near Miss Pair；真正中獎的三個相同金額不計入 Near Miss Pair。
+- 未中獎票也可存在 Near Miss Pair。
+- Near Miss 金額永遠最多兩個，絕對不能因 Near Miss 形成第二組三個相同。
+- Near Miss 只改變盤面呈現，不改變本張已抽中的 Prize Tier、中獎率、Prize Pool 或兌獎結果。
+- 未觸發 Near Miss 時，其他合法填充金額仍受「每種最多兩個」限制；若可用金額種類本身不足，盤面可能自然出現成對金額，因此 `nearMissPairProbability` 定義的是**刻意保證 Pair 的機率**，不是「盤面出現任何 Pair 的絕對機率」。
+- `nearMissPairProbability > 0` 時，PackEditor / Importer 必須確認未中獎票以及每個 `count > 0` Prize Tier 都實際容得下指定 `nearMissPairCount`，且有足夠不同金額建立這些 Pair；不允許 runtime 靜默降低 Pair 數量。
+- 若 `zoneCount` 太小而無法在某個中獎盤面放入設定的 Near Miss Pair，該 ScratchPack 驗證失敗。開發者可降低 Pair 數、將機率設為 0，或增加 `zoneCount`。
 
 ### Renderer
 
-每格只顯示金額；同一張票所有格尺寸與金額字級固定，不因金額長短個別縮放。PackEditor 事前檢查最長金額是否可完整顯示。
+每格只顯示金額，標準格式為 `$1,000`。同一張票所有格尺寸與金額字級固定，不因金額長短個別縮放。PackEditor 必須事前以所有可能顯示的正式獎金與 `decoyAmounts` 檢查最長金額是否可完整顯示。
+
+第一版 Type 3 不另外加入三個中獎格的專屬高亮、閃爍或框線；中獎結果沿用 ScratchGame 共通結果流程。專屬視覺效果留待後續 Decoration / 整體遊戲體驗階段處理。
 
 ---
 

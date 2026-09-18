@@ -55,7 +55,12 @@ public sealed record ScratchPackTicketDefinition(
     int? NumberMax = null,
     string? PayoutSource = null,
     IReadOnlyList<long>? DisplayPrizeAmounts = null,
-    bool? AllowPrizeAmountRepeat = null);
+    bool? AllowPrizeAmountRepeat = null,
+    int? ZoneCount = null,
+    bool? UseCustomDecoyAmounts = null,
+    IReadOnlyList<long>? DecoyAmounts = null,
+    int? NearMissPairProbability = null,
+    int? NearMissPairCount = null);
 
 public sealed record LoadedScratchPack(
     ScratchPackManifestDefinition Manifest,

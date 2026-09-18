@@ -12,12 +12,7 @@
 - ScratchGame 與 PackEditor 共用 VERSION / BUILD；PackEditor 是附屬 EXE。
 - V0.5.3 Build 2：完整 Portable automation 完成，Run #189 PASS。
 - V0.5.4 Build 2：GameType 2「中獎號碼」完成，Run #192 PASS。
-- V0.5.5 Build 0：彩券小舖卡片排版完成，Run #193 PASS。
-- V0.5.5 Build 1：玩家初次 layout、結果按鈕位置、PackEditor ICON master 修正完成，Run #194 PASS。
-- V0.5.5 Build 2：動畫 target 與設定資訊 Popup 完成，Run #196 PASS。
-- V0.5.5 Build 3：設定清單操作欄合併、資料列化與文件同步完成，Run #197 PASS。
-- V0.5.5 Build 4：設定清單右側對齊、中央資訊 Modal 完成，Run #199 PASS。
-- V0.5.5 Build 5：表頭圓角、玩家錢包標示、簡易玩家刪除完成，Run #200 PASS，使用者實機驗收 PASS。
+- V0.5.5 Build 0～5：UI 驗收線完成；Build 5 Run #200 PASS，使用者實機驗收 PASS，正式 Release 已發布。
 - 正式 runtime PNG / WAV 位於 `apps/ScratchGame/RuntimeAssets/Live/`；15 個 required assets 由 CI 組完整 Portable。
 - AITeam Common Rules 2.5.0 / sandbox Governance 1.2.1 已同步。
 
@@ -39,59 +34,32 @@ SHA-256: eaef6282150652ab6a726919ba5d89105c8c626559b9c3c549e23b42ef650459
 
 ### GameType 2「中獎號碼」
 
-- `scratch.zones` 前 `winningNumberCount` 格 = 中獎號碼；後 `playNumberCount` 格 = 你的號碼。
-- `allowPrizeAmountRepeat = true | false`。
-- `payoutSource=play|winning`。
-- 未中獎票固定 0 命中；正獎命中格獎金總和精確等於 Prize Tier。
 - Loader / Model / Validator / Generator / Renderer / Runtime / Importer 全部完成。
 - Windows CI Run #192：Type 2 + 原 GameType 1 regression、兩個 EXE build / smoke、完整 Portable 全部 PASS。
 
-## V0.5.5 UI 驗收線 — 已完成
+## V0.5.6 Build 0 — GameType 3「三個相同」
 
-### Build 0
-- 彩券小舖卡片重新排版；Run #193 PASS。
+Active branch：`scratchgame/feature-gametype3`  
+Draft PR：#9
 
-### Build 1
-- UserDialog 初次 layout、結果 resume pill 下移、PackEditor ICON master 修正；Run #194 PASS。
+GameType 核心契約仍只以 `GAMETYPE_SPEC.md` 為權威，本段只記錄實作狀態。
 
-### Build 2
-- `GetResultTransitionTarget()` 與 resume pill 位置同步。
-- 設定清單移除 accordion，改成固定高度 row card + 資訊 Popup。
-- Run #196 PASS。
+已完成：
 
-### Build 3
-- 「顯示 / 批次操作 / 資訊」合併為單一「操作」欄。
-- 操作順序：資訊 / 發行下一批 / 隱藏。
-- 清單改成平面資料列 + 底部分隔線，移除整列 hover / click 視覺。
-- Run #197 PASS。
+- V0.5.6 / Build 0 開發線建立。
+- Type 3 Model / Loader / Validator / Generator。
+- `zoneCount`、custom decoy amounts 與 Near Miss 進階設定支援。
+- Near Miss 預設 75% / 1 組 Pair；只影響盤面生成，不改 Prize Tier / 中獎率 / 兌獎結果。
+- PackEditor 與主程式共用 authoritative Type 3 validation source。
+- 第一階段 Windows CI Run #202：build / regression / startup smoke / complete Portable 全部 PASS。
+- Type 3 RenderModel 與玩家端 Runtime renderer 已接入目前 Draft PR；每格只顯示固定格式金額，不加入專屬中獎高亮。
+- GameType 3 regression 已擴充到 Generator → RenderModel 對應驗證。
 
-### Build 4
-- ScrollBar 改為需要時才顯示的 overlay，移除固定深色色帶。
-- 表頭 / 資料欄位右側安全距離統一，資料列分隔線延伸至最右側。
-- 彩券資訊改為中央 Modal；背景遮罩、資訊置中、完整獎池、右上解除安裝、底部中央關閉。
-- Run #199 PASS。
+目前驗收 gate：
 
-### Build 5 — 已驗收
-- 設定清單表頭圓角收邊完成。
-- UserDialog「錢包」標示提升辨識度。
-- 每張玩家卡右上角加入簡易刪除 `×`。
-- 刪除玩家具二次確認；目前玩家、最後一位玩家與 Pending Ticket 皆有保護。
-- Run #200 全部 PASS。
-- 2026/09/18 使用者實機驗收 PASS，核可正式 Release。
-
-## 下一個獨立工作：GameType 3
-
-基本 GameType 原則：
-
-`Spec → Generator → Validator → Renderer → Runtime → regression`
-
-目前：
-
-- GameType 1：完成。
-- GameType 2：完成。
-- GameType 3～6：規格已定，尚待逐一實作。
-
-V0.5.5 Build 5 已完成並發布；下一個獨立開發項目依 `GAMETYPE_SPEC.md` 進入 **GameType 3**。新工作應由最新 `main` 建立新的 ScratchGame 開發 branch，不再把 Build 5 驗收返修線當作未完成工作延續。
+- Draft PR #9 的最新 Windows CI 必須維持全部 PASS。
+- CI PASS 後提供 V0.5.6 Build 0 Portable + Type 3 測試 ScratchPack 做實機刮除／Near Miss 驗收。
+- 使用者實機驗收前不 merge、不建立正式 Release / Tag。
 
 ## PackEditor 正式收尾 — 延後
 
@@ -99,7 +67,8 @@ V0.5.5 Build 5 已完成並發布；下一個獨立開發項目依 `GAMETYPE_SPE
 
 ## 後續產品階段
 
-- GameType 3～6。
+- 完成 GameType 3 實機驗收。
+- GameType 4～6。
 - PackEditor 正式收尾。
 - Decoration Shop / cosmetic 收藏與裝備。
 - 中獎 / 大獎 / 頭獎演出、音效 slot、角色與整體遊戲體驗。

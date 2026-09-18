@@ -20,6 +20,7 @@
     <None Include="Assets\PackEditor-icon-source.png" />
     <Compile Include="..\ScratchGame\Models\ScratchPackModels.cs" Link="Shared\ScratchPackModels.cs" />
     <Compile Include="..\ScratchGame\Engine\GameType2Rules.cs" Link="Shared\GameType2Rules.cs" />
+    <Compile Include="..\ScratchGame\Engine\GameType3Rules.cs" Link="Shared\GameType3Rules.cs" />
     <Compile Include="..\ScratchGame\Services\ScratchPackV1Loader.cs" Link="Shared\ScratchPackV1Loader.cs" />
   </ItemGroup>
 
