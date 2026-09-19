@@ -101,6 +101,16 @@
       "path": "TestPacks/ThreeStar-Test.scratchpack",
       "size": 800,
       "sha256": "2e1b00c03588af9380fb48f25b7475cdd74affdcb1f4d7f6ed23ddd00efcd42a"
+    },
+    {
+      "path": "TestPacks/GameType2-Test.scratchpack",
+      "size": 2668,
+      "sha256": "9705daecf5ac6bb57157a7d98a6df429cf05caa519620bcf93293a9e41723c6f"
+    },
+    {
+      "path": "TestPacks/GameType3-Test.scratchpack",
+      "size": 2336,
+      "sha256": "58a6cd148d6e5245e30718e70d614dd0b7b37d6453d7fe5dbf26de5f8851618f"
     }
   ]
 }
