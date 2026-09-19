@@ -146,16 +146,32 @@ jobs:
       - name: Verify portable packager tests
         working-directory: apps/ScratchGame/tools
         run: |
-          python -m py_compile package_portable.py build_reference_testpack.py test_package_portable.py
+          python -m py_compile package_portable.py build_reference_testpack.py build_fixed_testpacks.py test_package_portable.py
           python -m unittest -v test_package_portable.py
 
-      - name: Build canonical ThreeStar TestPack
+      - name: Build canonical TestPacks
         run: |
-          $testPack = 'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack'
-          python 'apps/ScratchGame/tools/build_reference_testpack.py' --output $testPack
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testPack)) {
+          $testPackDir = 'apps/ScratchGame/.ci/TestPacks'
+          New-Item -ItemType Directory -Force -Path $testPackDir | Out-Null
+
+          $threeStar = Join-Path $testPackDir 'ThreeStar-Test.scratchpack'
+          python 'apps/ScratchGame/tools/build_reference_testpack.py' --output $threeStar
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $threeStar)) {
             Write-Error 'Canonical ThreeStar-Test.scratchpack was not created.'
             exit 1
+          }
+
+          python 'apps/ScratchGame/tools/build_fixed_testpacks.py' --output-dir $testPackDir
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error 'Fixed GameType 2/3 TestPacks were not created.'
+            exit 1
+          }
+
+          foreach ($name in @('ThreeStar-Test.scratchpack', 'GameType2-Test.scratchpack', 'GameType3-Test.scratchpack')) {
+            if (-not (Test-Path (Join-Path $testPackDir $name))) {
+              Write-Error "Missing canonical TestPack: $name"
+              exit 1
+            }
           }
 
       - name: Restore ScratchGame Windows x64 runtime packs
@@ -402,10 +418,7 @@ jobs:
 
           $testPackDir = Join-Path $assetRoot 'TestPacks'
           New-Item -ItemType Directory -Force -Path $testPackDir | Out-Null
-          Copy-Item `
-            'apps/ScratchGame/.ci/TestPacks/ThreeStar-Test.scratchpack' `
-            (Join-Path $testPackDir 'ThreeStar-Test.scratchpack') `
-            -Force
+          Copy-Item 'apps/ScratchGame/.ci/TestPacks/*.scratchpack' $testPackDir -Force
 
       - name: Build and verify complete portable package
         id: package
