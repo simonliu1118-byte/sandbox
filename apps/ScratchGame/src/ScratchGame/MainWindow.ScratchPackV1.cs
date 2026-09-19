@@ -47,6 +47,9 @@ public partial class MainWindow
             case "3":
                 RenderScratchPackGameType3(payload.RootElement, resolved);
                 return true;
+            case "4":
+                RenderScratchPackGameType4(payload.RootElement, resolved);
+                return true;
             default:
                 TicketBackgroundImage.Visibility = Visibility.Collapsed;
                 TicketPlaceholderPanel.Visibility = Visibility.Visible;
@@ -146,6 +149,46 @@ public partial class MainWindow
             Canvas.SetLeft(amount, cell.Zone.X);
             Canvas.SetTop(amount, cell.Zone.Y);
             TicketOverlayCanvas.Children.Add(amount);
+
+            AddScratchSurface(cell.Zone, resolved.FoilImagePath);
+        }
+    }
+
+    private void RenderScratchPackGameType4(
+        JsonElement payload,
+        ResolvedScratchPackTicket resolved)
+    {
+        var cells = GameType4RenderModel.Build(resolved.Definition, payload);
+        if (cells.Count == 0)
+            throw new InvalidDataException("GameType 4 Renderer 沒有可顯示的刮區。");
+
+        var firstZone = cells[0].Zone;
+        var symbolFontSize = Math.Clamp(
+            Math.Min(firstZone.Height * 0.52, firstZone.Width * 0.36),
+            22,
+            54);
+        var symbolBrush = new SolidColorBrush(Color.FromRgb(66, 48, 35));
+
+        foreach (var cell in cells)
+        {
+            var symbol = new TextBlock
+            {
+                Width = cell.Zone.Width,
+                Height = cell.Zone.Height,
+                Text = cell.Symbol,
+                TextAlignment = TextAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontFamily = new FontFamily("Microsoft JhengHei UI"),
+                FontSize = symbolFontSize,
+                FontWeight = FontWeights.Bold,
+                Foreground = symbolBrush,
+                Padding = new Thickness(4, Math.Max(2, cell.Zone.Height * 0.14), 4, 0),
+                TextWrapping = TextWrapping.NoWrap,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(symbol, cell.Zone.X);
+            Canvas.SetTop(symbol, cell.Zone.Y);
+            TicketOverlayCanvas.Children.Add(symbol);
 
             AddScratchSurface(cell.Zone, resolved.FoilImagePath);
         }
