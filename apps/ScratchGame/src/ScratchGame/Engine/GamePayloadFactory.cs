@@ -46,6 +46,7 @@ public static class GamePayloadFactory
             "1" => CreateStarLineFromPack(ticket, prizeAmount),
             "2" => GameType2Rules.CreatePayload(ticket, prizeAmount),
             "3" => GameType3Rules.CreatePayload(ticket, prizeAmount),
+            "4" => GameType4Rules.CreatePayload(ticket, prizeAmount),
             _ => throw new NotSupportedException($"ScratchPack 尚未實作 GameType：{ticket.GameType}")
         };
         return JsonSerializer.Serialize(payload, JsonOptions);
