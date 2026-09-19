@@ -57,12 +57,26 @@ def build_type3(path):
     with zipfile.ZipFile(path,"w") as z:
         put(z,"manifest.json",canonical(manifest)); put(z,"ticket.json",canonical(ticket)); put(z,"assets/ticket.png",ticket_png); put(z,"assets/foil.png",foil_png)
 
+def build_type4(path):
+    manifest={"formatVersion":"1.0","packageId":"95e7ee6d-5234-4a3b-a6c0-b1299b942436","author":"ScratchGame Test","minimumAppVersion":"0.5.7","ticketFile":"ticket.json"}
+    zones=[]; idx=1
+    for y in (190,325,460):
+        for x in (105,325,545,765):
+            zones.append({"id":f"symbol-{idx:02d}","x":x,"y":y,"width":175,"height":100,"shape":"roundedRectangle","cornerRadius":14}); idx+=1
+    ticket={"name":"符號計數（測試）","price":100,"canvas":1,"priceDisplay":1,"priceDisplayArea":{"x":850,"y":40,"width":180,"height":72},"gameType":"4","issueSize":8,"ticketsPerBook":8,"art":{"ticket":{"source":"package","ref":"assets/ticket.png"}},"serialDisplayArea":{"x":365,"y":810,"width":350,"height":50},"scratch":{"foil":{"source":"package","ref":"assets/foil.png"},"zones":zones},"game":{"mode":"multiSymbolFixedCount","zoneCount":12,"matchCount":3,"symbolPrizes":[{"symbol":"★","amount":100},{"symbol":"○","amount":300},{"symbol":"◆","amount":700}],"allowMultipleWins":True,"useCustomDecoySymbols":True,"decoySymbols":["●","▲","■","♥"]},"prizes":[{"amount":100,"count":1},{"amount":300,"count":1},{"amount":400,"count":1},{"amount":700,"count":1},{"amount":800,"count":1},{"amount":1000,"count":1},{"amount":1100,"count":1}]}
+    rects=[(70,80,940,690,(37,73,58)),(70,80,940,70,(50,94,74)),(840,30,200,95,(50,94,74)),(350,795,380,75,(25,50,40))]
+    for y in (190,325,460):
+        for x in (105,325,545,765): rects.append((x-8,y-8,191,116,(232,238,220)))
+    ticket_png=make_png(1080,882,(20,45,35),rects); foil_png=make_png(32,32,(196,201,193),[])
+    with zipfile.ZipFile(path,"w") as z:
+        put(z,"manifest.json",canonical(manifest)); put(z,"ticket.json",canonical(ticket)); put(z,"assets/ticket.png",ticket_png); put(z,"assets/foil.png",foil_png)
+
 def digest(path):
     data=path.read_bytes(); return len(data),hashlib.sha256(data).hexdigest()
 
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--output-dir',required=True,type=Path); a=p.parse_args(); a.output_dir.mkdir(parents=True,exist_ok=True)
-    outputs=[('GameType2-Test.scratchpack',build_type2),('GameType3-Test.scratchpack',build_type3)]
+    outputs=[('GameType2-Test.scratchpack',build_type2),('GameType3-Test.scratchpack',build_type3),('GameType4-Test.scratchpack',build_type4)]
     for name,fn in outputs:
         path=a.output_dir/name; fn(path); size,sha=digest(path); print(f'{name}\t{size}\t{sha}')
 if __name__=='__main__': main()
