@@ -11,14 +11,19 @@ internal sealed class ScannerForm : Form
     private readonly List<VideoSourceCandidate> _candidates = new();
     private readonly string _fileId;
     private readonly TimeSpan _collectWindow;
+    private readonly Action<string>? _log;
     private readonly TaskCompletionSource<bool> _readySignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private DevToolsSession? _dts;
+    private int _totalRequestCount;
+    private readonly HashSet<string> _seenHosts = new();
+    private readonly List<string> _nearMissUrls = new();
 
-    public ScannerForm(string fileId, TimeSpan collectWindow)
+    public ScannerForm(string fileId, TimeSpan collectWindow, Action<string>? log = null)
     {
         _fileId = fileId;
         _collectWindow = collectWindow;
+        _log = log;
 
         Text = "正在分析影片畫質...";
         Width = 900;
@@ -96,8 +101,31 @@ internal sealed class ScannerForm : Form
         try
         {
             var url = e.Request.Uri;
+
+            _totalRequestCount++;
+            if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
+            {
+                lock (_seenHosts)
+                {
+                    _seenHosts.Add(parsed.Host);
+                }
+            }
+
             if (!url.Contains("videoplayback", StringComparison.OrdinalIgnoreCase))
             {
+                if (url.Contains("playback", StringComparison.OrdinalIgnoreCase) ||
+                    url.Contains("videodownload", StringComparison.OrdinalIgnoreCase) ||
+                    url.Contains(".googlevideo.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    lock (_nearMissUrls)
+                    {
+                        if (_nearMissUrls.Count < 10)
+                        {
+                            _nearMissUrls.Add(url);
+                        }
+                    }
+                }
+
                 return;
             }
 
@@ -108,6 +136,14 @@ internal sealed class ScannerForm : Form
 
             if (info.Kind == StreamKind.Unknown)
             {
+                lock (_nearMissUrls)
+                {
+                    if (_nearMissUrls.Count < 10)
+                    {
+                        _nearMissUrls.Add($"[itag 無法辨識] {url}");
+                    }
+                }
+
                 return;
             }
 
@@ -189,6 +225,18 @@ internal sealed class ScannerForm : Form
         }
 
         _webView.CoreWebView2.WebResourceRequested -= OnWebResourceRequested;
+
+        var hostSample = string.Join(", ", _seenHosts.Take(15));
+        _log?.Invoke($"[診斷] 共攔截到 {_totalRequestCount} 筆請求，涉及 {_seenHosts.Count} 個 host：{hostSample}");
+        if (_nearMissUrls.Count > 0)
+        {
+            _log?.Invoke($"[診斷] 疑似相關但未辨識的網址（最多列 10 筆）：");
+            foreach (var nearMiss in _nearMissUrls)
+            {
+                _log?.Invoke($"[診斷]   {nearMiss}");
+            }
+        }
+
         _readySignal.TrySetResult(true);
 
         if (!IsDisposed)

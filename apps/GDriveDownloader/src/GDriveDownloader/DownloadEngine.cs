@@ -40,7 +40,7 @@ internal static class DownloadEngine
         List<VideoSourceCandidate> candidates;
         string title;
 
-        using (var scanner = new ScannerForm(fileId, ScanWindow))
+        using (var scanner = new ScannerForm(fileId, ScanWindow, log))
         {
             scanner.Show();
             await scanner.WaitUntilDoneAsync();
