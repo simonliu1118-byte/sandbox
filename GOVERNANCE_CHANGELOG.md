@@ -1,5 +1,10 @@
 # Sandbox Governance Changelog
 
+## 1.2.2 — 2026/09/22
+
+- 新增專案 `apps/GDriveDownloader`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0），與 `apps/ScratchGame` 各自獨立計版、彼此不共用資源。
+- 依共通規則，新增 `apps/*/PROJECT_RULES.md` 屬 repository governance 變更，經 `governance/*` branch 提交本次治理紀錄。
+
 ## 1.2.1 — 2026/09/17
 
 - 修正 Governance Check 對共通母本同步的判定：`REPOSITORY_RULES.md`、`COMMON_RULES_VERSION`、`COMMON_RULES_CHANGELOG.md` 的 AITeam common-rules sync 與 sandbox 自己的 repo/project governance 變更分開驗證。
