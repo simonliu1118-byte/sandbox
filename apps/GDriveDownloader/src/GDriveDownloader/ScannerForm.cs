@@ -14,7 +14,6 @@ internal sealed class ScannerForm : Form
     private readonly TaskCompletionSource<bool> _readySignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private DevToolsSession? _dts;
-    private IDisposable? _subscription;
 
     public ScannerForm(string fileId, TimeSpan collectWindow)
     {
@@ -42,8 +41,13 @@ internal sealed class ScannerForm : Form
         await _webView.EnsureCoreWebView2Async(env);
 
         _dts = new DevToolsSession(_webView.CoreWebView2);
-        await _dts.SendAsync("Network.enable");
-        _subscription = _dts.Subscribe("Network.responseReceived", OnResponseReceived);
+
+        // WebResourceRequested is a native WebView2 hook that covers the whole page
+        // including cross-origin iframes/workers (Google Drive's video player runs
+        // inside an embedded, possibly cross-origin iframe). A raw CDP Network
+        // session on the top-level target alone does not reliably see that traffic.
+        _webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+        _webView.CoreWebView2.WebResourceRequested += OnWebResourceRequested;
 
         _webView.CoreWebView2.NavigationCompleted += async (_, e) =>
         {
@@ -70,7 +74,7 @@ internal sealed class ScannerForm : Form
         }
         catch
         {
-            // Fall through to the synthetic click below.
+            // Fall through to the synthetic click below (the video may live in a cross-origin iframe).
         }
 
         try
@@ -87,22 +91,20 @@ internal sealed class ScannerForm : Form
         }
     }
 
-    private void OnResponseReceived(JsonElement evt)
+    private void OnWebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
     {
         try
         {
-            var response = evt.GetProperty("response");
-            var url = response.GetProperty("url").GetString() ?? string.Empty;
+            var url = e.Request.Uri;
             if (!url.Contains("videoplayback", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            var mimeType = response.TryGetProperty("mimeType", out var mimeProp) ? mimeProp.GetString() : null;
             var itag = ExtractItag(url);
             var info = itag.HasValue
-                ? ItagCatalog.Resolve(itag.Value, mimeType)
-                : new ItagInfo(ItagCatalog.GuessKindFromMime(mimeType), null, mimeType ?? "未知來源");
+                ? ItagCatalog.Resolve(itag.Value, null)
+                : new ItagInfo(StreamKind.Unknown, null, "未知來源");
 
             if (info.Kind == StreamKind.Unknown)
             {
@@ -125,13 +127,13 @@ internal sealed class ScannerForm : Form
                     Height = info.Height,
                     Label = info.Label,
                     Itag = itag ?? 0,
-                    MimeType = mimeType,
+                    MimeType = null,
                 });
             }
         }
         catch
         {
-            // Malformed/unexpected event payload; skip this one.
+            // Malformed/unexpected request; skip this one.
         }
     }
 
@@ -186,7 +188,7 @@ internal sealed class ScannerForm : Form
             // Title stays null; caller falls back to the file id.
         }
 
-        _subscription?.Dispose();
+        _webView.CoreWebView2.WebResourceRequested -= OnWebResourceRequested;
         _readySignal.TrySetResult(true);
 
         if (!IsDisposed)
