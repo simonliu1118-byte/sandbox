@@ -18,6 +18,8 @@ internal sealed class ScannerForm : Form
     private int _totalRequestCount;
     private readonly HashSet<string> _seenHosts = new();
     private readonly List<string> _nearMissUrls = new();
+    private readonly Dictionary<string, string> _pendingBodyRequests = new();
+    private readonly List<string> _capturedBodies = new();
 
     public ScannerForm(string fileId, TimeSpan collectWindow, Action<string>? log = null)
     {
@@ -53,6 +55,13 @@ internal sealed class ScannerForm : Form
         // session on the top-level target alone does not reliably see that traffic.
         _webView.CoreWebView2.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
         _webView.CoreWebView2.WebResourceRequested += OnWebResourceRequested;
+
+        // Also capture response BODIES for requests that look like Drive's newer
+        // "workspacevideo" playback-info API, since that endpoint returns metadata
+        // (likely containing the real media URLs) rather than being the media itself.
+        await _dts.SendAsync("Network.enable");
+        _dts.Subscribe("Network.responseReceived", OnNetworkResponseReceived);
+        _dts.Subscribe("Network.loadingFinished", OnNetworkLoadingFinished);
 
         _webView.CoreWebView2.NavigationCompleted += async (_, e) =>
         {
@@ -94,6 +103,81 @@ internal sealed class ScannerForm : Form
         {
             // Best effort; some pages autoplay without needing this.
         }
+    }
+
+    private void OnNetworkResponseReceived(JsonElement evt)
+    {
+        try
+        {
+            var response = evt.GetProperty("response");
+            var url = response.GetProperty("url").GetString() ?? string.Empty;
+
+            if (!LooksLikePlaybackApi(url))
+            {
+                return;
+            }
+
+            var requestId = evt.GetProperty("requestId").GetString();
+            if (requestId is null)
+            {
+                return;
+            }
+
+            lock (_pendingBodyRequests)
+            {
+                _pendingBodyRequests[requestId] = url;
+            }
+        }
+        catch
+        {
+            // Malformed/unexpected event payload; skip this one.
+        }
+    }
+
+    private async void OnNetworkLoadingFinished(JsonElement evt)
+    {
+        try
+        {
+            var requestId = evt.TryGetProperty("requestId", out var idProp) ? idProp.GetString() : null;
+            if (requestId is null)
+            {
+                return;
+            }
+
+            string? url;
+            lock (_pendingBodyRequests)
+            {
+                if (!_pendingBodyRequests.Remove(requestId, out url))
+                {
+                    return;
+                }
+            }
+
+            var bodyResult = await _dts!.SendAsync("Network.getResponseBody", new { requestId });
+            var base64Encoded = bodyResult.TryGetProperty("base64Encoded", out var b64Prop) && b64Prop.GetBoolean();
+            var rawBody = bodyResult.TryGetProperty("body", out var bodyProp) ? bodyProp.GetString() ?? string.Empty : string.Empty;
+            var body = base64Encoded ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(rawBody)) : rawBody;
+
+            var truncated = body.Length > 4000 ? body[..4000] + "...(截斷)" : body;
+
+            lock (_capturedBodies)
+            {
+                _capturedBodies.Add($"URL: {url}\n內容：{truncated}");
+            }
+        }
+        catch (Exception ex)
+        {
+            lock (_capturedBodies)
+            {
+                _capturedBodies.Add($"（讀取回應內容失敗：{ex.Message}）");
+            }
+        }
+    }
+
+    private static bool LooksLikePlaybackApi(string url)
+    {
+        return url.Contains("workspacevideo", StringComparison.OrdinalIgnoreCase) ||
+               (url.Contains("clients6.google.com", StringComparison.OrdinalIgnoreCase) && url.Contains("playback", StringComparison.OrdinalIgnoreCase));
     }
 
     private void OnWebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
@@ -226,6 +310,9 @@ internal sealed class ScannerForm : Form
 
         _webView.CoreWebView2.WebResourceRequested -= OnWebResourceRequested;
 
+        // Give any in-flight Network.loadingFinished -> getResponseBody calls a moment to land.
+        await Task.Delay(1500);
+
         var hostSample = string.Join(", ", _seenHosts.Take(15));
         _log?.Invoke($"[診斷] 共攔截到 {_totalRequestCount} 筆請求，涉及 {_seenHosts.Count} 個 host：{hostSample}");
         if (_nearMissUrls.Count > 0)
@@ -234,6 +321,15 @@ internal sealed class ScannerForm : Form
             foreach (var nearMiss in _nearMissUrls)
             {
                 _log?.Invoke($"[診斷]   {nearMiss}");
+            }
+        }
+
+        if (_capturedBodies.Count > 0)
+        {
+            _log?.Invoke($"[診斷] 抓到 {_capturedBodies.Count} 筆疑似播放 API 的回應內容：");
+            foreach (var body in _capturedBodies)
+            {
+                _log?.Invoke($"[診斷回應內容] {body}");
             }
         }
 
