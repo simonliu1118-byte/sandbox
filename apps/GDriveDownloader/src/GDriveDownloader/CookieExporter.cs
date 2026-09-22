@@ -48,7 +48,8 @@ internal static class CookieExporter
 
                 var includeSubdomains = cookie.Domain.StartsWith('.') ? "TRUE" : "FALSE";
                 var secure = cookie.IsSecure ? "TRUE" : "FALSE";
-                var expires = cookie.IsSession ? 0L : (long)cookie.Expires;
+                var expiresUtc = DateTime.SpecifyKind(cookie.Expires, DateTimeKind.Utc);
+                var expires = cookie.IsSession ? 0L : new DateTimeOffset(expiresUtc).ToUnixTimeSeconds();
 
                 sb.AppendLine(string.Join(
                     '\t',
