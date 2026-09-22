@@ -1,7 +1,7 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace GDriveDownloader;
+namespace GDownloader;
 
 internal sealed class GoogleLoginForm : Form
 {
@@ -14,6 +14,9 @@ internal sealed class GoogleLoginForm : Form
         Width = 900;
         Height = 700;
         StartPosition = FormStartPosition.CenterParent;
+
+        Theme.ApplyForm(this);
+        Theme.StylePrimaryButton(_doneButton);
 
         Controls.Add(_webView);
         Controls.Add(_doneButton);

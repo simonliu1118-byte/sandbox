@@ -1,4 +1,4 @@
-# GDriveDownloader
+# GDownloader
 
 個人用 Google Drive 影片下載自動化工具，取代原本手動開瀏覽器、確認畫質、按下載的流程。
 
@@ -10,13 +10,13 @@
 
 ## 使用方式
 
-1. 開啟 `GDriveDownloader.exe`。
+1. 開啟 `GDownloader.exe`。
 2. 若要下載私人影片，先按「登入 Google 帳號」，在跳出的視窗完成 Google 登入，再按「完成登入，儲存登入狀態」。
-3. 選擇下載資料夾（預設為 `Downloads\GDriveDownloader`）。
+3. 選擇下載資料夾（預設為 `Downloads\GDownloader`）。
 4. 貼上單一 Google Drive 影片連結，按「加入佇列」；可重複貼上多個連結，逐一加入。
 5. 按「開始下載佇列」，程式會依加入順序逐一自動下載。
 
-首次執行時，程式會自動下載 `yt-dlp.exe` 與 `ffmpeg.exe` 至本機 `%LOCALAPPDATA%\GDriveDownloader\tools`，需要網路連線。
+首次執行時，程式會自動下載 `yt-dlp.exe` 與 `ffmpeg.exe` 至本機 `%LOCALAPPDATA%\GDownloader\tools`，需要網路連線。
 
 ## 系統需求
 
@@ -27,5 +27,5 @@
 ## 開發
 
 - 技術線：C# / .NET 8 / WinForms + WebView2。
-- Source：`src/GDriveDownloader/`。
+- Source：`src/GDownloader/`。
 - 詳細專案規則見 `PROJECT_RULES.md`；共通版本與 CI 規則見根目錄 `REPOSITORY_RULES.md`。

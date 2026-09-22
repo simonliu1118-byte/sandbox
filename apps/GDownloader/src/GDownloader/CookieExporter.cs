@@ -1,7 +1,7 @@
 using System.Text;
 using Microsoft.Web.WebView2.Core;
 
-namespace GDriveDownloader;
+namespace GDownloader;
 
 internal static class CookieExporter
 {

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 
-namespace GDriveDownloader;
+namespace GDownloader;
 
 internal sealed class MainForm : Form
 {
@@ -42,10 +42,22 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Google Drive 影片下載器";
+        Text = "GDownloader - Google Drive 影片下載器";
         Width = 980;
         Height = 650;
         StartPosition = FormStartPosition.CenterScreen;
+
+        Theme.ApplyForm(this);
+        Theme.StyleTextBox(_urlBox);
+        Theme.StyleTextBox(_outputDirBox);
+        Theme.StyleTextBox(_logBox);
+        Theme.StyleListView(_queueList);
+        Theme.StyleLabel(_loginStatusLabel, secondary: true);
+        Theme.StylePrimaryButton(_enqueueButton);
+        Theme.StylePrimaryButton(_loginButton);
+        Theme.StyleSecondaryButton(_browseButton);
+        Theme.StylePrimaryButton(_startButton);
+        Theme.StyleDangerButton(_stopButton);
 
         _queueList.Columns.Add("連結", 480);
         _queueList.Columns.Add("狀態", 100);
