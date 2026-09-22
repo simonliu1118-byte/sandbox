@@ -165,6 +165,8 @@ internal sealed class ScannerForm : Form
             {
                 _capturedBodies.Add($"URL: {url}\n內容：{truncated}");
             }
+
+            ParsePlaybackApiResponse(body);
         }
         catch (Exception ex)
         {
@@ -179,6 +181,107 @@ internal sealed class ScannerForm : Form
     {
         return url.Contains("workspacevideo", StringComparison.OrdinalIgnoreCase) ||
                (url.Contains("clients6.google.com", StringComparison.OrdinalIgnoreCase) && url.Contains("playback", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Drive's "workspacevideo" playback API responds with
+    /// {"mediaStreamingData":{"serializedHouseBrandPlayerResponse":"&lt;JSON string&gt;"}}
+    /// where the inner JSON string has the classic YouTube-shaped
+    /// streamingData.formats / streamingData.adaptiveFormats arrays, each entry
+    /// carrying an itag and a real videoplayback URL. Parse that directly instead
+    /// of waiting to passively see individual videoplayback network requests.
+    /// </summary>
+    private void ParsePlaybackApiResponse(string body)
+    {
+        try
+        {
+            using var outerDoc = JsonDocument.Parse(body);
+            if (!outerDoc.RootElement.TryGetProperty("mediaStreamingData", out var mediaStreamingData))
+            {
+                return;
+            }
+
+            if (!mediaStreamingData.TryGetProperty("serializedHouseBrandPlayerResponse", out var serializedProp))
+            {
+                return;
+            }
+
+            var serialized = serializedProp.GetString();
+            if (string.IsNullOrEmpty(serialized))
+            {
+                return;
+            }
+
+            using var innerDoc = JsonDocument.Parse(serialized);
+            if (!innerDoc.RootElement.TryGetProperty("streamingData", out var streamingData))
+            {
+                return;
+            }
+
+            AddFormatsFromArray(streamingData, "formats");
+            AddFormatsFromArray(streamingData, "adaptiveFormats");
+        }
+        catch
+        {
+            // Response body didn't match the expected schema; leave candidates as-is.
+        }
+    }
+
+    private void AddFormatsFromArray(JsonElement streamingData, string propertyName)
+    {
+        if (!streamingData.TryGetProperty(propertyName, out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var entry in array.EnumerateArray())
+        {
+            try
+            {
+                if (!entry.TryGetProperty("itag", out var itagProp) || !entry.TryGetProperty("url", out var urlProp))
+                {
+                    continue;
+                }
+
+                var itag = itagProp.GetInt32();
+                var url = urlProp.GetString();
+                if (string.IsNullOrEmpty(url))
+                {
+                    continue;
+                }
+
+                var mimeType = entry.TryGetProperty("mimeType", out var mimeProp) ? mimeProp.GetString() : null;
+                var info = ItagCatalog.Resolve(itag, mimeType);
+                if (info.Kind == StreamKind.Unknown)
+                {
+                    continue;
+                }
+
+                var cleanedUrl = CleanUrl(url);
+
+                lock (_candidates)
+                {
+                    if (_candidates.Any(c => c.Url == cleanedUrl))
+                    {
+                        continue;
+                    }
+
+                    _candidates.Add(new VideoSourceCandidate
+                    {
+                        Url = cleanedUrl,
+                        Kind = info.Kind,
+                        Height = info.Height,
+                        Label = info.Label,
+                        Itag = itag,
+                        MimeType = mimeType,
+                    });
+                }
+            }
+            catch
+            {
+                // Skip malformed entries.
+            }
+        }
     }
 
     private void OnWebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)

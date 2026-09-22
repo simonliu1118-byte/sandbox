@@ -20,7 +20,7 @@ internal static class DownloadEngine
 {
     private const int MinAcceptableBytesPerSecond = 50 * 1024;
     private static readonly TimeSpan WarmupBeforeSpeedCheck = TimeSpan.FromSeconds(8);
-    private static readonly TimeSpan ScanWindow = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ScanWindow = TimeSpan.FromSeconds(15);
 
     public static async Task<DownloadEngineResult> RunAsync(
         string driveUrl,

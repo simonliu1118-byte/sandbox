@@ -12,8 +12,9 @@
 ## 2. 畫質策略
 
 - **畫質解析權威固定為「實際播放 + 真實網路請求分析」，不得回頭改用 `yt-dlp` 或其他靜態猜測畫質清單的做法。** 這是為了修正舊版「無法正確辨識畫質」的根本病灶：單純複製 cookie 給外部 HTTP client（含 `yt-dlp --cookies`）在 Google Drive 的 `videoplayback` 端點上會被判定為非瀏覽器連線，實測回應 HTTP 403。
-- 正確流程固定為：用 WebView2 開啟 Drive 播放頁、觸發播放、被動監聽播放器實際產生的 `videoplayback` 請求，依網址 `itag` 參數分類音訊／視訊與畫質；不得自行呼叫 Drive 內部 API 猜測畫質清單。
-- 畫質偵測（監聽請求）固定使用 WebView2 原生的 `WebResourceRequested`（搭配 `AddWebResourceRequestedFilter`），不得使用 CDP `Network` domain 做這件事：實測 Google Drive 播放器可能在跨來源 iframe／worker 內發出 `videoplayback` 請求，CDP 對單一 top-level target 的 `Network.enable` 監聽不到這類請求，`WebResourceRequested` 是涵蓋整頁（含 iframe）的原生瀏覽器層級 hook，才能可靠偵測到。
+- 正確流程固定為：用 WebView2（偽裝一般桌面版 Chrome User-Agent，見第 3 節）開啟 Drive 播放頁、觸發播放，Drive 會呼叫其 `workspacevideo-pa.clients6.google.com/v1/drive/media/<id>/playback` API；用 CDP `Network.getResponseBody` 讀出該次回應內容，解析 `mediaStreamingData.serializedHouseBrandPlayerResponse`（本身又是一段 JSON 字串）裡的 `streamingData.formats`（合併音視訊）與 `streamingData.adaptiveFormats`（分離音視訊）兩個陣列，每筆依 `itag` 分類畫質，直接取得真正的 `videoplayback` 網址；不得自行呼叫 Drive 內部 API 猜測畫質清單或另外實作一套 URL 猜測邏輯。
+- 上述 playback API 回應解析是畫質清單的主要來源；`WebResourceRequested`（搭配 `AddWebResourceRequestedFilter`）被動監聽播放器實際產生的 `videoplayback` 請求維持作為輔助／備援偵測機制，不得移除：Google 這個 API 端點未來可能再變動，被動監聽是萬一 playback API 格式改變時的降級手段。
+- WebView2 預設 User-Agent 帶有 `Edg/` 等識別字元，Google Drive 會因此判定為嵌入式瀏覽器而改走 `workspacevideo` API；經實測改用一般桌面版 Chrome User-Agent 字串（見第 3 節）不影響 `workspacevideo` API 的使用，此 API 本身即為目前的正式資料來源，不得因為改了 UA 就重新假設「一定會拿到舊版 `videoplayback` 直接請求」。
 - 下載一律「自動選擇偵測到的最高可用畫質」；同一畫質若偵測到多個候選來源，下載速度過慢（預設 < 50 KB/s，暖機期預設 8 秒）時依序改試下一個候選，全部候選都慢速時改用第一個候選以慢速下載到底，不得因為慢速就整體失敗。
 - 實際下載一律使用同一個已登入的 WebView2 瀏覽器 session，透過 CDP 的 `Fetch` domain 在 Response 階段攔截目標 `videoplayback` 請求並用 `IO.read` 串流寫檔；不得另外用複製出來的 cookie／URL 交給外部 HTTP client（`HttpClient`、`yt-dlp` 等）發送請求，避免重新踩到 403 的坑。
 - 候選來源網址只需移除 `range` 與 `ump` 這兩個查詢參數即可取得完整串流網址；其餘參數（含 `rn`、`rbuf` 等）維持原樣，不得額外增刪。
@@ -21,6 +22,7 @@
 ## 3. Google 登入與私人影片授權
 
 - 私人影片授權採「內嵌 WebView2 開啟獨立登入視窗」模式，不使用讀取使用者主要瀏覽器（Chrome/Edge 等）既有 cookie 的方式。
+- 所有會實際導覽 Google 頁面的 WebView2 執行個體（登入視窗、畫質分析視窗、下載用視窗）一律統一套用 `BrowserIdentity.DesktopChromeUserAgent`（一般桌面版 Chrome User-Agent 字串），維持同一個 session 的瀏覽器身分一致；不得只在部分視窗套用。
 - WebView2 使用固定的持久化 profile 目錄（本機 `%LOCALAPPDATA%\GDriveDownloader\WebView2Profile`），登入狀態預期可跨程式重啟保留，使用者不需每次重新登入。
 - 登入狀態一律即時查詢該持久化 profile 目前是否存在 Google 登入 session cookie（domain 為 google.com、cookie 名稱包含 `SID`／`LSID` 等關鍵字，不得限縮成少數幾個固定 cookie 名稱的白名單），不得依賴另外匯出到磁碟的 cookie 檔案作為登入狀態的唯一依據。
 - 登入 session 過期或失效時，由使用者手動重新點擊「登入 Google 帳號」更新登入狀態；程式不主動明碼保存帳號密碼，也不需要另外匯出、保存 cookie 檔案。
