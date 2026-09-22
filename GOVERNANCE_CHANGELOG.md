@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.4 — 2026/09/22
+
+- `apps/GDriveDownloader/PROJECT_RULES.md` 改寫畫質策略與登入狀態判斷權威：不得再使用 `yt-dlp` 或其他靜態猜測畫質清單、複製 cookie 給外部 HTTP client 的做法（實測會被 Google 判定非瀏覽器連線並回應 403）；改為固定用 WebView2 的 Chrome DevTools Protocol 實際播放並監聽 `videoplayback` 請求分類畫質，下載也透過同一個已登入瀏覽器 session 的 CDP `Fetch`/`IO` 串流完成。
+- 登入狀態判斷不得再限縮成少數固定 cookie 名稱白名單，改為即時查詢持久化 profile 是否存在 google.com 網域、名稱含 `SID`/`LSID` 的 session cookie。
+- 新增 `apps/GDriveDownloader/legacy/`：舊版（Bun + 受控 Chrome/Edge CDP）發行包可還原原始碼快照，僅供追溯，不屬於正式技術線。
+
 ## 1.2.3 — 2026/09/22
 
 - `REPO_POLICY.md` 新增 repo-level 預設：本 repo 開發測試包 Actions Artifact 的 `retention-days` 統一預設為 3 天（覆蓋共通母本 14 天的一般預設），適用所有 `apps/<Project>` Build workflow；個別專案需要更長保留時間須在自己的 `PROJECT_RULES.md` 明確例外。

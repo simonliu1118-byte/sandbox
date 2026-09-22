@@ -6,7 +6,7 @@ namespace GDriveDownloader;
 internal sealed class GoogleLoginForm : Form
 {
     private readonly WebView2 _webView = new() { Dock = DockStyle.Fill };
-    private readonly Button _doneButton = new() { Text = "完成登入，儲存登入狀態", Dock = DockStyle.Bottom, Height = 40 };
+    private readonly Button _doneButton = new() { Text = "完成登入", Dock = DockStyle.Bottom, Height = 40 };
 
     public GoogleLoginForm()
     {
@@ -21,7 +21,12 @@ internal sealed class GoogleLoginForm : Form
         Controls.Add(_webView);
         Controls.Add(_doneButton);
 
-        _doneButton.Click += async (_, _) => await ExportAndCloseAsync();
+        _doneButton.Click += (_, _) =>
+        {
+            DialogResult = DialogResult.OK;
+            Close();
+        };
+
         Load += async (_, _) => await InitializeAsync();
     }
 
@@ -29,29 +34,7 @@ internal sealed class GoogleLoginForm : Form
     {
         var env = await CoreWebView2Environment.CreateAsync(userDataFolder: AppPaths.WebView2ProfileDir);
         await _webView.EnsureCoreWebView2Async(env);
+        _webView.CoreWebView2.Settings.UserAgent = BrowserIdentity.DesktopChromeUserAgent;
         _webView.CoreWebView2.Navigate("https://drive.google.com/");
-    }
-
-    private async Task ExportAndCloseAsync()
-    {
-        if (_webView.CoreWebView2 == null)
-        {
-            return;
-        }
-
-        var success = await CookieExporter.ExportAsync(_webView.CoreWebView2, AppPaths.CookiesFile);
-        if (!success)
-        {
-            MessageBox.Show(
-                this,
-                "尚未偵測到有效的 Google 登入狀態，請先在上方視窗完成登入後再按下此按鈕。",
-                "尚未登入",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
-        DialogResult = DialogResult.OK;
-        Close();
     }
 }
