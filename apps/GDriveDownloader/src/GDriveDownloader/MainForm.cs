@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace GDriveDownloader;
 
 internal sealed class MainForm : Form
@@ -34,11 +36,26 @@ internal sealed class MainForm : Form
         ScrollBars = ScrollBars.Vertical,
     };
 
+    private readonly Button _openLogButton = new() { Text = "開啟 Log 資料夾", Left = 270, Top = 356, Width = 140 };
+
     private readonly List<QueueItem> _queue = new();
     private CancellationTokenSource? _cts;
+    private readonly StreamWriter? _logFileWriter;
+    private readonly string _logFilePath;
 
     public MainForm()
     {
+        Directory.CreateDirectory(AppPaths.LogsDir);
+        _logFilePath = Path.Combine(AppPaths.LogsDir, $"GDriveDownloader-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+        try
+        {
+            _logFileWriter = new StreamWriter(_logFilePath, append: true) { AutoFlush = true };
+        }
+        catch
+        {
+            _logFileWriter = null;
+        }
+
         Text = "GDriveDownloader - Google Drive 影片下載器";
         Width = 980;
         Height = 650;
@@ -55,6 +72,7 @@ internal sealed class MainForm : Form
         Theme.StyleSecondaryButton(_browseButton);
         Theme.StylePrimaryButton(_startButton);
         Theme.StyleDangerButton(_stopButton);
+        Theme.StyleSecondaryButton(_openLogButton);
 
         _queueList.Columns.Add("連結", 480);
         _queueList.Columns.Add("狀態", 100);
@@ -73,6 +91,7 @@ internal sealed class MainForm : Form
             _queueList,
             _startButton,
             _stopButton,
+            _openLogButton,
             _logBox,
         });
 
@@ -81,8 +100,15 @@ internal sealed class MainForm : Form
         _browseButton.Click += (_, _) => BrowseOutputDir();
         _startButton.Click += async (_, _) => await StartQueueAsync();
         _stopButton.Click += (_, _) => StopQueue();
+        _openLogButton.Click += (_, _) => OpenLogFolder();
 
-        Load += async (_, _) => await RefreshLoginStatusAsync();
+        FormClosed += (_, _) => _logFileWriter?.Dispose();
+
+        Load += async (_, _) =>
+        {
+            Log($"Log 檔案：{_logFilePath}（測試時可直接把這個檔案傳給開發者）");
+            await RefreshLoginStatusAsync();
+        };
     }
 
     private void Log(string message)
@@ -93,7 +119,29 @@ internal sealed class MainForm : Form
             return;
         }
 
-        _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+        _logBox.AppendText(line + Environment.NewLine);
+
+        try
+        {
+            _logFileWriter?.WriteLine(line);
+        }
+        catch
+        {
+            // Best effort; the on-screen log box remains the primary record.
+        }
+    }
+
+    private void OpenLogFolder()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{AppPaths.LogsDir}\"") { UseShellExecute = true });
+        }
+        catch
+        {
+            MessageBox.Show(this, $"Log 資料夾：{AppPaths.LogsDir}", "開啟失敗", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
     }
 
     private async Task RefreshLoginStatusAsync()

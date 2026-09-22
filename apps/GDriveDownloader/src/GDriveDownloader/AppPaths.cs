@@ -8,6 +8,8 @@ internal static class AppPaths
 
     public static string ToolsDir { get; } = Path.Combine(RootDir, "tools");
 
+    public static string LogsDir { get; } = Path.Combine(RootDir, "logs");
+
     public static string WebView2ProfileDir { get; } = Path.Combine(RootDir, "WebView2Profile");
 
     public static string DefaultDownloadDir { get; } = Path.Combine(
@@ -24,6 +26,7 @@ internal static class AppPaths
     {
         Directory.CreateDirectory(RootDir);
         Directory.CreateDirectory(ToolsDir);
+        Directory.CreateDirectory(LogsDir);
         Directory.CreateDirectory(WebView2ProfileDir);
         Directory.CreateDirectory(DefaultDownloadDir);
     }

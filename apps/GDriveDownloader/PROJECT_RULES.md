@@ -40,7 +40,7 @@
 
 ## 6. Runtime 資料與隱私
 
-- WebView2 profile 目錄、下載佇列狀態與任何登入相關資料屬使用者 runtime 個資，一律保存於本機 `%LOCALAPPDATA%\GDriveDownloader`，不得提交至 Git、記錄於 log 範例或作為測試 fixture。
+- WebView2 profile 目錄、下載佇列狀態、log 檔案與任何登入相關資料屬使用者 runtime 個資，一律保存於本機 `%LOCALAPPDATA%\GDriveDownloader`（log 存於 `logs` 子目錄，每次啟動一個新檔），不得提交至 Git、記錄於 log 範例或作為測試 fixture。
 - 下載完成的影片檔案預設輸出至使用者本機資料夾（預設 `Downloads\GDriveDownloader`），不隨程式或 Git 一併保存。
 
 ## 7. 視覺風格
