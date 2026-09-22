@@ -8,6 +8,8 @@
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <AssemblyName>GDriveDownloader</AssemblyName>
     <RootNamespace>GDriveDownloader</RootNamespace>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\..\..\VERSION').Trim())</Version>

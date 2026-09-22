@@ -16,13 +16,12 @@
 4. 貼上單一 Google Drive 影片連結，按「加入佇列」；可重複貼上多個連結，逐一加入。
 5. 按「開始下載佇列」，程式會依加入順序逐一自動下載：先開一個分析視窗實際播放影片並偵測畫質，再背景下載視訊／音訊並合併。
 
-首次執行時，程式會自動下載 `ffmpeg.exe`（用於合併視訊與音訊）至本機 `%LOCALAPPDATA%\GDriveDownloader\tools`，需要網路連線。
+正式發行的壓縮檔解壓後只有 `GDriveDownloader.exe` 與 `ffmpeg.exe`（用於合併視訊與音訊）兩個檔案，不需要額外下載或安裝。
 
 ## 系統需求
 
 - Windows 10/11 x64。
 - Microsoft Edge WebView2 Runtime（新版 Windows 通常已內建）。
-- 首次執行需要網路連線以下載 `ffmpeg`。
 
 ## 開發
 

@@ -9,6 +9,11 @@ internal static class ToolManager
 
     public static async Task<string?> EnsureFfmpegAsync(Action<string> log)
     {
+        if (File.Exists(AppPaths.BundledFfmpegExe) && new FileInfo(AppPaths.BundledFfmpegExe).Length > 0)
+        {
+            return AppPaths.BundledFfmpegExe;
+        }
+
         if (File.Exists(AppPaths.FfmpegExe) && new FileInfo(AppPaths.FfmpegExe).Length > 0)
         {
             return AppPaths.FfmpegExe;

@@ -17,6 +17,9 @@ internal static class AppPaths
 
     public static string FfmpegExe { get; } = Path.Combine(ToolsDir, "ffmpeg.exe");
 
+    /// <summary>ffmpeg.exe shipped alongside GDriveDownloader.exe by the release build.</summary>
+    public static string BundledFfmpegExe { get; } = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
+
     public static void EnsureDirectories()
     {
         Directory.CreateDirectory(RootDir);

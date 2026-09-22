@@ -5,7 +5,7 @@
 ## 1. 產品、平台與版本線
 
 - 正式技術線：C# / .NET 8 / WinForms + WebView2；目標平台 Windows x64。
-- 正式發行以 self-contained portable folder 為目標，不要求使用者另外安裝 .NET runtime。
+- 正式發行以 self-contained single-file（`PublishSingleFile` + `IncludeNativeLibrariesForSelfExtract`）為目標，不要求使用者另外安裝 .NET runtime；發行資料夾只保留 `GDriveDownloader.exe` 與 `ffmpeg.exe` 兩個檔案，不得讓使用者面對成堆散落的 DLL。
 - `GDriveDownloader.exe` 是本專案唯一產品識別，不建立第二個平行專案或另一條版號。
 - 本專案為個人用途的下載自動化工具，不代表任何公司或組織。
 
@@ -31,9 +31,10 @@
 
 ## 5. 第三方工具依賴
 
-- `ffmpeg.exe` 屬執行期依賴（僅用於將分開下載的視訊／音訊合併為單一 mp4），於程式第一次需要時自動下載至本機 `%LOCALAPPDATA%\GDriveDownloader\tools`，不隨 Git 提交，也不內嵌於本專案 build 產物中。
+- `ffmpeg.exe`（僅用於將分開下載的視訊／音訊合併為單一 mp4）由 CI 在 Windows runner 上下載並與 `GDriveDownloader.exe` 一起放進正式發行 ZIP，使用者不需另外等待程式首次執行時才下載；不隨 Git 提交，也不內嵌於 `GDriveDownloader.exe` 本身（維持獨立 exe，方便單獨更新）。
+- 程式啟動時優先使用與 `GDriveDownloader.exe` 同層的 `ffmpeg.exe`；找不到時才退回本機 `%LOCALAPPDATA%\GDriveDownloader\tools` 執行期下載作為保底（例如開發時直接執行未封裝的 build），不得反過來把执行期下載當成正式發行的主要取得方式。
 - 畫質偵測與實際媒體下載不依賴任何第三方下載工具（不使用 `yt-dlp` 或其他外部下載器），一律透過 WebView2 自身的 Chrome DevTools Protocol 完成，見第 2 節。
-- 上述執行期自動下載的第三方工具二進位檔，不屬於根 `REPOSITORY_RULES.md` 第 5.1 節「Binary asset source integrity SOP」規範對象；該節僅規範提交進 Git、影響產品輸出的專案自有 binary source。
+- 上述 CI 下載或執行期保底下載的第三方工具二進位檔，不屬於根 `REPOSITORY_RULES.md` 第 5.1 節「Binary asset source integrity SOP」規範對象；該節僅規範提交進 Git、影響產品輸出的專案自有 binary source。
 - 若上游下載來源失效，屬已知風險並應於下次維護時檢視，不視為需要把第三方工具二進位檔改為提交進 Git 的理由。
 
 ## 6. Runtime 資料與隱私
