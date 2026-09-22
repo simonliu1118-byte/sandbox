@@ -393,6 +393,14 @@ internal sealed class ScannerForm : Form
         return keptParams.Count > 0 ? $"{baseUrl}?{string.Join('&', keptParams)}" : baseUrl;
     }
 
+    /// <summary>
+    /// Signals initial readiness after the first collection window, but does NOT
+    /// close the window or stop listening: the video keeps playing muted in the
+    /// background for the rest of the download session, which naturally produces
+    /// more (and sometimes differently-edge-routed) videoplayback requests over
+    /// time. The caller re-reads <see cref="Candidates"/> later to pick up
+    /// anything new instead of re-opening a fresh scan from scratch.
+    /// </summary>
     private async Task RunCollectionWindowAsync()
     {
         await Task.Delay(_collectWindow);
@@ -411,11 +419,6 @@ internal sealed class ScannerForm : Form
         {
             // Title stays null; caller falls back to the file id.
         }
-
-        _webView.CoreWebView2.WebResourceRequested -= OnWebResourceRequested;
-
-        // Give any in-flight Network.loadingFinished -> getResponseBody calls a moment to land.
-        await Task.Delay(1500);
 
         var hostSample = string.Join(", ", _seenHosts.Take(15));
         _log?.Invoke($"[診斷] 共攔截到 {_totalRequestCount} 筆請求，涉及 {_seenHosts.Count} 個 host：{hostSample}");
@@ -437,11 +440,11 @@ internal sealed class ScannerForm : Form
             }
         }
 
-        _readySignal.TrySetResult(true);
-
         if (!IsDisposed)
         {
-            BeginInvoke(new Action(Close));
+            BeginInvoke(new Action(() => Text = "背景播放中（協助尋找下載來源，下載完成後會自動關閉）"));
         }
+
+        _readySignal.TrySetResult(true);
     }
 }

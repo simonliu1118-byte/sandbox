@@ -19,10 +19,10 @@ internal sealed class DownloadEngineResult
 internal static class DownloadEngine
 {
     private const int MinAcceptableBytesPerSecond = 50 * 1024;
-    private const int MaxRescans = 2;
     private static readonly TimeSpan WarmupBeforeSpeedCheck = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan ScanWindow = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan RescanWindow = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan MaxPollWithoutNewCandidate = TimeSpan.FromSeconds(60);
 
     public static async Task<DownloadEngineResult> RunAsync(
         string driveUrl,
@@ -39,28 +39,30 @@ internal static class DownloadEngine
 
         log("正在開啟 Google Drive 播放頁面並分析可用畫質...");
 
-        List<VideoSourceCandidate> candidates;
-        string title;
-
-        using (var scanner = new ScannerForm(fileId, ScanWindow, log))
-        {
-            scanner.Show();
-            await scanner.WaitUntilDoneAsync();
-            candidates = scanner.Candidates.ToList();
-            title = string.IsNullOrWhiteSpace(scanner.VideoTitle) ? fileId : scanner.VideoTitle!;
-        }
+        // The scanner stays open and keeps playing (muted) in the background for
+        // the whole download session instead of closing after the initial window:
+        // continued playback naturally produces more videoplayback requests over
+        // time (sometimes routed to a different edge server), which is a much
+        // cheaper way to find an alternate download point for a slow source than
+        // closing and re-navigating from scratch.
+        using var scanner = new ScannerForm(fileId, ScanWindow, log);
+        scanner.Show();
+        await scanner.WaitUntilDoneAsync();
 
         if (token.IsCancellationRequested)
         {
             return DownloadEngineResult.Failed("已取消");
         }
 
-        if (candidates.Count == 0)
+        var initialCandidates = scanner.Candidates.ToList();
+        var title = string.IsNullOrWhiteSpace(scanner.VideoTitle) ? fileId : scanner.VideoTitle!;
+
+        if (initialCandidates.Count == 0)
         {
             return DownloadEngineResult.Failed("沒有偵測到任何 videoplayback 來源，可能尚未登入、沒有權限，或影片無法播放。");
         }
 
-        var videoGroups = candidates
+        var videoGroups = initialCandidates
             .Where(c => c.Kind == StreamKind.Video)
             .GroupBy(c => c.Height ?? 0)
             .OrderByDescending(g => g.Key)
@@ -73,9 +75,9 @@ internal static class DownloadEngine
 
         var bestVideoGroup = videoGroups[0].ToList();
         var targetHeight = bestVideoGroup[0].Height;
-        var audioCandidates = candidates.Where(c => c.Kind == StreamKind.Audio).ToList();
+        var initialAudioCandidates = initialCandidates.Where(c => c.Kind == StreamKind.Audio).ToList();
 
-        log($"偵測到最高畫質：{bestVideoGroup[0].Label}（{bestVideoGroup.Count} 個候選來源，另有 {audioCandidates.Count} 個音訊來源）。");
+        log($"偵測到最高畫質：{bestVideoGroup[0].Label}（{bestVideoGroup.Count} 個候選來源，另有 {initialAudioCandidates.Count} 個音訊來源）。");
 
         var safeTitle = SanitizeFileName(title);
         var videoTempPath = Path.Combine(outputDirectory, $"{safeTitle}.video.tmp");
@@ -84,16 +86,13 @@ internal static class DownloadEngine
         using var fetcher = new StreamFetcher();
         await fetcher.InitializeAsync();
 
-        Task<List<VideoSourceCandidate>> RescanAsync(CancellationToken ct) => RescanForCandidatesAsync(fileId, log, ct);
-
         var videoOutcome = await DownloadWithFallbackAsync(
             fetcher,
             bestVideoGroup,
             videoTempPath,
             "視訊",
             log,
-            RescanAsync,
-            c => c.Kind == StreamKind.Video && c.Height == targetHeight,
+            () => scanner.Candidates.Where(c => c.Kind == StreamKind.Video && c.Height == targetHeight).ToList(),
             token);
         if (videoOutcome.Result is not (FetchResult.Success or FetchResult.SlowAborted))
         {
@@ -102,16 +101,15 @@ internal static class DownloadEngine
         }
 
         string? finalAudioPath = null;
-        if (audioCandidates.Count > 0)
+        if (initialAudioCandidates.Count > 0)
         {
             var audioOutcome = await DownloadWithFallbackAsync(
                 fetcher,
-                audioCandidates,
+                initialAudioCandidates,
                 audioTempPath,
                 "音訊",
                 log,
-                RescanAsync,
-                c => c.Kind == StreamKind.Audio,
+                () => scanner.Candidates.Where(c => c.Kind == StreamKind.Audio).ToList(),
                 token);
             if (audioOutcome.Result is FetchResult.Success or FetchResult.SlowAborted)
             {
@@ -157,10 +155,11 @@ internal static class DownloadEngine
 
     /// <summary>
     /// Tries each known candidate for a quality tier; when the pool is exhausted
-    /// and the most recent attempt was too slow, re-scans (a fresh playback API
-    /// call, which Google may route to a different edge server) for more
-    /// candidates of the same kind/quality, up to <see cref="MaxRescans"/> times,
-    /// before finally accepting the last candidate at whatever speed it gets.
+    /// and the most recent attempt was too slow, polls <paramref name="getLiveCandidates"/>
+    /// (the still-playing scanner's growing candidate list) for anything new,
+    /// up to <see cref="MaxPollWithoutNewCandidate"/> of waiting with no new
+    /// candidate appearing, before finally accepting the last candidate at
+    /// whatever speed it gets.
     /// </summary>
     private static async Task<FetchOutcome> DownloadWithFallbackAsync(
         StreamFetcher fetcher,
@@ -168,13 +167,12 @@ internal static class DownloadEngine
         string destinationPath,
         string kindLabel,
         Action<string> log,
-        Func<CancellationToken, Task<List<VideoSourceCandidate>>> rescan,
-        Func<VideoSourceCandidate, bool> matches,
+        Func<List<VideoSourceCandidate>> getLiveCandidates,
         CancellationToken token)
     {
         var candidates = new List<VideoSourceCandidate>(initialCandidates);
         var triedUrls = new HashSet<string>();
-        var rescanCount = 0;
+        var waitedWithoutNew = TimeSpan.Zero;
         VideoSourceCandidate? lastCandidate = null;
 
         while (true)
@@ -183,37 +181,44 @@ internal static class DownloadEngine
 
             if (next is null)
             {
-                if (rescanCount < MaxRescans)
+                var fresh = getLiveCandidates();
+                var newOnes = fresh.Where(c => candidates.All(existing => existing.Url != c.Url)).ToList();
+
+                if (newOnes.Count > 0)
                 {
-                    rescanCount++;
-                    log($"{kindLabel}目前候選來源都太慢，重新分析尋找其他下載點（第 {rescanCount}/{MaxRescans} 次）...");
-                    var fresh = await rescan(token);
-                    var newOnes = fresh.Where(matches).Where(c => candidates.All(existing => existing.Url != c.Url)).ToList();
-
-                    if (newOnes.Count > 0)
-                    {
-                        log($"{kindLabel}找到 {newOnes.Count} 個新的候選來源。");
-                        candidates.AddRange(newOnes);
-                    }
-                    else
-                    {
-                        log($"{kindLabel}重新分析沒有找到新的來源。");
-                    }
-
+                    log($"{kindLabel}背景播放產生了 {newOnes.Count} 個新的候選來源，繼續嘗試...");
+                    candidates.AddRange(newOnes);
+                    waitedWithoutNew = TimeSpan.Zero;
                     continue;
                 }
 
-                if (lastCandidate is null)
+                if (waitedWithoutNew >= MaxPollWithoutNewCandidate)
                 {
-                    return new FetchOutcome { Result = FetchResult.HttpError, ErrorMessage = "沒有可用來源" };
+                    if (lastCandidate is null)
+                    {
+                        return new FetchOutcome { Result = FetchResult.HttpError, ErrorMessage = "沒有可用來源" };
+                    }
+
+                    log($"{kindLabel}沒有找到較快的來源，改用慢速來源完整下載...");
+                    return await fetcher.DownloadAsync(lastCandidate.Url, destinationPath, null, minAcceptableBytesPerSecond: 0, WarmupBeforeSpeedCheck, token);
                 }
 
-                log($"{kindLabel}沒有找到較快的來源，改用慢速來源完整下載...");
-                return await fetcher.DownloadAsync(lastCandidate.Url, destinationPath, null, minAcceptableBytesPerSecond: 0, WarmupBeforeSpeedCheck, token);
+                try
+                {
+                    await Task.Delay(PollInterval, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return new FetchOutcome { Result = FetchResult.Cancelled };
+                }
+
+                waitedWithoutNew += PollInterval;
+                continue;
             }
 
             triedUrls.Add(next.Url);
             lastCandidate = next;
+            waitedWithoutNew = TimeSpan.Zero;
 
             log($"正在下載{kindLabel}來源（{next.Label}）...");
 
@@ -244,19 +249,6 @@ internal static class DownloadEngine
                 ? $"{kindLabel}來源速度過慢，嘗試下一個來源..."
                 : $"{kindLabel}來源失敗（{outcome.ErrorMessage}），嘗試下一個來源...");
         }
-    }
-
-    private static async Task<List<VideoSourceCandidate>> RescanForCandidatesAsync(string fileId, Action<string> log, CancellationToken token)
-    {
-        if (token.IsCancellationRequested)
-        {
-            return new List<VideoSourceCandidate>();
-        }
-
-        using var scanner = new ScannerForm(fileId, RescanWindow, log);
-        scanner.Show();
-        await scanner.WaitUntilDoneAsync();
-        return scanner.Candidates.ToList();
     }
 
     private static async Task<bool> MuxAsync(string ffmpegPath, string videoPath, string audioPath, string outputPath, CancellationToken token)
