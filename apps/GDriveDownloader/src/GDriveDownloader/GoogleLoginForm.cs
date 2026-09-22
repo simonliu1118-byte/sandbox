@@ -34,6 +34,7 @@ internal sealed class GoogleLoginForm : Form
     {
         var env = await CoreWebView2Environment.CreateAsync(userDataFolder: AppPaths.WebView2ProfileDir);
         await _webView.EnsureCoreWebView2Async(env);
+        _webView.CoreWebView2.Settings.UserAgent = BrowserIdentity.DesktopChromeUserAgent;
         _webView.CoreWebView2.Navigate("https://drive.google.com/");
     }
 }
