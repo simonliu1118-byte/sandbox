@@ -29,3 +29,7 @@
 - 技術線：C# / .NET 8 / WinForms + WebView2。
 - Source：`src/GDriveDownloader/`。
 - 詳細專案規則見 `PROJECT_RULES.md`；共通版本與 CI 規則見根目錄 `REPOSITORY_RULES.md`。
+
+## 歷史版本
+
+舊版實作的可還原原始碼快照保存在 [`legacy/`](legacy/)。Legacy 內容僅供追溯，不屬於目前正式技術線。
