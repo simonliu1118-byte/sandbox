@@ -36,6 +36,7 @@
 - 採共通 Local-first / GitHub-final verification 原則；不要把 GitHub Actions 當每個微小修改的即時試錯編譯器。
 - Windows-specific 專案完成一輪合理修改後，仍須依共通規則使用真正 Windows runner 做必要驗收。
 - 開發測試包使用短期 Actions Artifact；正式發行使用明確人工啟動的 GitHub Release，除非專案規則另有明確例外。
+- 本 repo 開發測試包 Artifact 的 `retention-days` 預設為 **3 天**（覆蓋共通母本 14 天的一般預設），適用所有 `apps/<Project>` 的 Build workflow；個別專案若需要更長保留時間，須在該專案 `PROJECT_RULES.md` 明確例外並說明理由。
 - Public Actions 可以正常使用，但要避免同一 PR／main 重複建置、無關專案一起跑或每個小修正都觸發昂貴工作。
 
 ## 6. 個人 Copyright / License
