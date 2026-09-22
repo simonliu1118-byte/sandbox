@@ -1,10 +1,10 @@
-namespace GDownloader;
+namespace GDriveDownloader;
 
 internal static class AppPaths
 {
     public static string RootDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "GDownloader");
+        "GDriveDownloader");
 
     public static string ToolsDir { get; } = Path.Combine(RootDir, "tools");
 
@@ -15,7 +15,7 @@ internal static class AppPaths
     public static string DefaultDownloadDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Downloads",
-        "GDownloader");
+        "GDriveDownloader");
 
     public static string YtDlpExe { get; } = Path.Combine(ToolsDir, "yt-dlp.exe");
 

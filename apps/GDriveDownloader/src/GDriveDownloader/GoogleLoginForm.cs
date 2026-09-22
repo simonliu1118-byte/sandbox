@@ -1,7 +1,7 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace GDownloader;
+namespace GDriveDownloader;
 
 internal sealed class GoogleLoginForm : Form
 {

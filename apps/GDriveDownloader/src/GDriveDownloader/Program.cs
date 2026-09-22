@@ -1,4 +1,4 @@
-namespace GDownloader;
+namespace GDriveDownloader;
 
 internal static class Program
 {

@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Net.Http;
 
-namespace GDownloader;
+namespace GDriveDownloader;
 
 internal static class ToolManager
 {

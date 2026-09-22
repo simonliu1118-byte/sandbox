@@ -1,20 +1,20 @@
-name: GDownloader Build
+name: GDriveDownloader Build
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'apps/GDownloader/src/**'
-      - 'apps/GDownloader/VERSION'
-      - 'apps/GDownloader/BUILD'
-      - '.github/workflows/gdownloader-build.yml'
+      - 'apps/GDriveDownloader/src/**'
+      - 'apps/GDriveDownloader/VERSION'
+      - 'apps/GDriveDownloader/BUILD'
+      - '.github/workflows/gdrivedownloader-build.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: gdownloader-${{ github.workflow }}-${{ github.ref }}
+  group: gdrivedownloader-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,8 +33,8 @@ jobs:
       - name: Read version
         id: version
         run: |
-          $version = (Get-Content 'apps/GDownloader/VERSION' -Raw).Trim()
-          $build = (Get-Content 'apps/GDownloader/BUILD' -Raw).Trim()
+          $version = (Get-Content 'apps/GDriveDownloader/VERSION' -Raw).Trim()
+          $build = (Get-Content 'apps/GDriveDownloader/BUILD' -Raw).Trim()
           "version=$version" >> $env:GITHUB_OUTPUT
           "build=$build" >> $env:GITHUB_OUTPUT
           if ($build -eq '0') {
@@ -46,27 +46,27 @@ jobs:
           }
 
       - name: Restore
-        run: dotnet restore apps/GDownloader/src/GDownloader/GDownloader.csproj
+        run: dotnet restore apps/GDriveDownloader/src/GDriveDownloader/GDriveDownloader.csproj
 
       - name: Build
-        run: dotnet build apps/GDownloader/src/GDownloader/GDownloader.csproj -c Release --no-restore
+        run: dotnet build apps/GDriveDownloader/src/GDriveDownloader/GDriveDownloader.csproj -c Release --no-restore
 
       - name: Publish portable folder
         run: |
-          dotnet publish apps/GDownloader/src/GDownloader/GDownloader.csproj `
+          dotnet publish apps/GDriveDownloader/src/GDriveDownloader/GDriveDownloader.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=false `
             --no-restore `
-            -o publish/GDownloader
+            -o publish/GDriveDownloader
 
       - name: Package artifact
         run: |
-          Compress-Archive -Path 'publish/GDownloader/*' -DestinationPath "GDownloader-${{ steps.version.outputs.slug }}.zip"
+          Compress-Archive -Path 'publish/GDriveDownloader/*' -DestinationPath "GDriveDownloader-${{ steps.version.outputs.slug }}.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: GDownloader-${{ steps.version.outputs.slug }}
-          path: GDownloader-${{ steps.version.outputs.slug }}.zip
+          name: GDriveDownloader-${{ steps.version.outputs.slug }}
+          path: GDriveDownloader-${{ steps.version.outputs.slug }}.zip
           retention-days: 14
