@@ -20,6 +20,7 @@ internal sealed class ScannerForm : Form
     private readonly List<string> _nearMissUrls = new();
     private readonly Dictionary<string, string> _pendingBodyRequests = new();
     private readonly List<string> _capturedBodies = new();
+    private string? _lastPlaybackApiUrl;
 
     public ScannerForm(string fileId, TimeSpan collectWindow, Action<string>? log = null)
     {
@@ -166,7 +167,20 @@ internal sealed class ScannerForm : Form
                 _capturedBodies.Add($"URL: {url}\n內容：{truncated}");
             }
 
-            ParsePlaybackApiResponse(body);
+            _lastPlaybackApiUrl = url;
+            var addedCount = ParsePlaybackApiResponse(body);
+            if (addedCount > 0)
+            {
+                string breakdown;
+                lock (_candidates)
+                {
+                    breakdown = string.Join("、", _candidates
+                        .GroupBy(c => (c.Kind, c.Label))
+                        .Select(g => $"{g.Key.Label} x{g.Count()}"));
+                }
+
+                _log?.Invoke($"目前累積候選來源：{breakdown}");
+            }
         }
         catch (Exception ex)
         {
@@ -191,48 +205,52 @@ internal sealed class ScannerForm : Form
     /// carrying an itag and a real videoplayback URL. Parse that directly instead
     /// of waiting to passively see individual videoplayback network requests.
     /// </summary>
-    private void ParsePlaybackApiResponse(string body)
+    private int ParsePlaybackApiResponse(string body)
     {
         try
         {
             using var outerDoc = JsonDocument.Parse(body);
             if (!outerDoc.RootElement.TryGetProperty("mediaStreamingData", out var mediaStreamingData))
             {
-                return;
+                return 0;
             }
 
             if (!mediaStreamingData.TryGetProperty("serializedHouseBrandPlayerResponse", out var serializedProp))
             {
-                return;
+                return 0;
             }
 
             var serialized = serializedProp.GetString();
             if (string.IsNullOrEmpty(serialized))
             {
-                return;
+                return 0;
             }
 
             using var innerDoc = JsonDocument.Parse(serialized);
             if (!innerDoc.RootElement.TryGetProperty("streamingData", out var streamingData))
             {
-                return;
+                return 0;
             }
 
-            AddFormatsFromArray(streamingData, "formats");
-            AddFormatsFromArray(streamingData, "adaptiveFormats");
+            var added = AddFormatsFromArray(streamingData, "formats");
+            added += AddFormatsFromArray(streamingData, "adaptiveFormats");
+            return added;
         }
         catch
         {
             // Response body didn't match the expected schema; leave candidates as-is.
+            return 0;
         }
     }
 
-    private void AddFormatsFromArray(JsonElement streamingData, string propertyName)
+    private int AddFormatsFromArray(JsonElement streamingData, string propertyName)
     {
         if (!streamingData.TryGetProperty(propertyName, out var array) || array.ValueKind != JsonValueKind.Array)
         {
-            return;
+            return 0;
         }
+
+        var added = 0;
 
         foreach (var entry in array.EnumerateArray())
         {
@@ -275,6 +293,7 @@ internal sealed class ScannerForm : Form
                         Itag = itag,
                         MimeType = mimeType,
                     });
+                    added++;
                 }
             }
             catch
@@ -282,6 +301,8 @@ internal sealed class ScannerForm : Form
                 // Skip malformed entries.
             }
         }
+
+        return added;
     }
 
     private void OnWebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
