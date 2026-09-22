@@ -16,7 +16,7 @@
 - 正確流程固定為：用 WebView2（偽裝一般桌面版 Chrome User-Agent，見第 3 節）開啟 Drive 播放頁、觸發播放，Drive 會呼叫其 `workspacevideo-pa.clients6.google.com/v1/drive/media/<id>/playback` API；用 CDP `Network.getResponseBody` 讀出該次回應內容，解析 `mediaStreamingData.serializedHouseBrandPlayerResponse`（本身又是一段 JSON 字串）裡的 `streamingData.formats`（合併音視訊）與 `streamingData.adaptiveFormats`（分離音視訊）兩個陣列，每筆依 `itag` 分類畫質，直接取得真正的 `videoplayback` 網址；不得自行呼叫 Drive 內部 API 猜測畫質清單或另外實作一套 URL 猜測邏輯。
 - 上述 playback API 回應解析是畫質清單的主要來源；`WebResourceRequested`（搭配 `AddWebResourceRequestedFilter`）被動監聽播放器實際產生的 `videoplayback` 請求維持作為輔助／備援偵測機制，不得移除：Google 這個 API 端點未來可能再變動，被動監聽是萬一 playback API 格式改變時的降級手段。
 - WebView2 預設 User-Agent 帶有 `Edg/` 等識別字元，Google Drive 會因此判定為嵌入式瀏覽器而改走 `workspacevideo` API；經實測改用一般桌面版 Chrome User-Agent 字串（見第 3 節）不影響 `workspacevideo` API 的使用，此 API 本身即為目前的正式資料來源，不得因為改了 UA 就重新假設「一定會拿到舊版 `videoplayback` 直接請求」。
-- 下載一律「自動選擇偵測到的最高可用畫質」；同一畫質若偵測到多個候選來源，下載速度過慢（預設 < 50 KB/s，暖機期預設 8 秒）時依序改試下一個候選，全部候選都慢速時改用第一個候選以慢速下載到底，不得因為慢速就整體失敗。
+- 下載一律「自動選擇偵測到的最高可用畫質」；同一畫質若偵測到多個候選來源，下載速度過慢（預設 < 50 KB/s，暖機期預設 8 秒）時依序改試下一個候選。單一次分析常常只會拿到同畫質的一個候選（playback API 每次呼叫只回傳當下分配到的邊緣伺服器），因此候選用盡且仍然慢速時，固定重新呼叫一次分析（re-scan，預設最多 2 次）取得新的下載網址再試，而不是只認一次分析結果；重新分析仍找不到更快的來源時，才改用最後一個候選以慢速下載到底，不得因為慢速就整體失敗。
 - 實際下載一律使用同一個已登入的 WebView2 瀏覽器 session，透過 CDP 的 `Fetch` domain 在 Response 階段攔截目標 `videoplayback` 請求並用 `IO.read` 串流寫檔；不得另外用複製出來的 cookie／URL 交給外部 HTTP client（`HttpClient`、`yt-dlp` 等）發送請求，避免重新踩到 403 的坑。
 - 候選來源網址只需移除 `range` 與 `ump` 這兩個查詢參數即可取得完整串流網址；其餘參數（含 `rn`、`rbuf` 等）維持原樣，不得額外增刪。
 
