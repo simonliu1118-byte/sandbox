@@ -1,5 +1,10 @@
 # Sandbox Governance Changelog
 
+## 1.2.3 — 2026/09/22
+
+- `REPO_POLICY.md` 新增 repo-level 預設：本 repo 開發測試包 Actions Artifact 的 `retention-days` 統一預設為 3 天（覆蓋共通母本 14 天的一般預設），適用所有 `apps/<Project>` Build workflow；個別專案需要更長保留時間須在自己的 `PROJECT_RULES.md` 明確例外。
+- `ScratchGame`（既有）與 `GDriveDownloader`（另案 PR 同步調整）的 Build workflow 皆已設為 `retention-days: 3`，與此預設一致。
+
 ## 1.2.2 — 2026/09/22
 
 - 新增專案 `apps/GDriveDownloader`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0），與 `apps/ScratchGame` 各自獨立計版、彼此不共用資源。
