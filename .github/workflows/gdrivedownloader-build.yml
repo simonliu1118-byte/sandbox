@@ -69,4 +69,4 @@ jobs:
         with:
           name: GDriveDownloader-${{ steps.version.outputs.slug }}
           path: GDriveDownloader-${{ steps.version.outputs.slug }}.zip
-          retention-days: 14
+          retention-days: 3
