@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Text.RegularExpressions;
-
 namespace GDriveDownloader;
 
 internal sealed class MainForm : Form
@@ -8,7 +5,7 @@ internal sealed class MainForm : Form
     private readonly TextBox _urlBox = new() { Left = 12, Top = 14, Width = 520 };
     private readonly Button _enqueueButton = new() { Text = "加入佇列", Left = 540, Top = 12, Width = 100 };
     private readonly Button _loginButton = new() { Text = "登入 Google 帳號", Left = 650, Top = 12, Width = 140 };
-    private readonly Label _loginStatusLabel = new() { Left = 800, Top = 17, Width = 160, Text = "登入狀態：未登入" };
+    private readonly Label _loginStatusLabel = new() { Left = 800, Top = 17, Width = 160, Text = "登入狀態：檢查中..." };
 
     private readonly TextBox _outputDirBox = new() { Left = 12, Top = 50, Width = 520, ReadOnly = true };
     private readonly Button _browseButton = new() { Text = "選擇下載資料夾", Left = 540, Top = 48, Width = 140 };
@@ -85,7 +82,7 @@ internal sealed class MainForm : Form
         _startButton.Click += async (_, _) => await StartQueueAsync();
         _stopButton.Click += (_, _) => StopQueue();
 
-        Load += (_, _) => RefreshLoginStatus();
+        Load += async (_, _) => await RefreshLoginStatusAsync();
     }
 
     private void Log(string message)
@@ -99,22 +96,18 @@ internal sealed class MainForm : Form
         _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
     }
 
-    private void RefreshLoginStatus()
+    private async Task RefreshLoginStatusAsync()
     {
-        var loggedIn = File.Exists(AppPaths.CookiesFile) && new FileInfo(AppPaths.CookiesFile).Length > 0;
+        _loginStatusLabel.Text = "登入狀態：檢查中...";
+        var loggedIn = await LoginStatusChecker.IsLoggedInAsync();
         _loginStatusLabel.Text = loggedIn ? "登入狀態：已登入" : "登入狀態：未登入";
     }
 
     private async Task OpenLoginAsync()
     {
         using var loginForm = new GoogleLoginForm();
-        if (loginForm.ShowDialog(this) == DialogResult.OK)
-        {
-            Log("已儲存 Google 登入狀態，之後下載私人影片將自動套用，不需每次重新登入。");
-        }
-
-        RefreshLoginStatus();
-        await Task.CompletedTask;
+        loginForm.ShowDialog(this);
+        await RefreshLoginStatusAsync();
     }
 
     private void BrowseOutputDir()
@@ -165,7 +158,6 @@ internal sealed class MainForm : Form
 
         try
         {
-            var ytDlp = await ToolManager.EnsureYtDlpAsync(Log);
             var ffmpeg = await ToolManager.EnsureFfmpegAsync(Log);
 
             foreach (var item in _queue)
@@ -180,7 +172,7 @@ internal sealed class MainForm : Form
                     continue;
                 }
 
-                await DownloadOneAsync(item, ytDlp, ffmpeg, _cts.Token);
+                await DownloadOneAsync(item, ffmpeg, _cts.Token);
             }
 
             Log("佇列處理完畢。");
@@ -204,113 +196,20 @@ internal sealed class MainForm : Form
         Log("已要求停止，將於目前項目結束後停止。");
     }
 
-    private async Task DownloadOneAsync(QueueItem item, string ytDlp, string? ffmpeg, CancellationToken token)
+    private async Task DownloadOneAsync(QueueItem item, string? ffmpeg, CancellationToken token)
     {
-        UpdateItem(item, QueueStatus.Downloading, "下載中...");
+        UpdateItem(item, QueueStatus.Downloading, "分析畫質中...");
 
-        var hasCookies = File.Exists(AppPaths.CookiesFile) && new FileInfo(AppPaths.CookiesFile).Length > 0;
-        var format = ffmpeg != null ? "bv*+ba/b" : "b";
+        var result = await DownloadEngine.RunAsync(item.Url, _outputDirBox.Text, ffmpeg, Log, token);
 
-        var psi = new ProcessStartInfo(ytDlp)
+        if (result.Success)
         {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
-
-        psi.ArgumentList.Add(item.Url);
-        psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add(format);
-        psi.ArgumentList.Add("-o");
-        psi.ArgumentList.Add(Path.Combine(_outputDirBox.Text, "%(title)s.%(ext)s"));
-        psi.ArgumentList.Add("--no-playlist");
-        psi.ArgumentList.Add("--newline");
-
-        if (ffmpeg != null)
-        {
-            psi.ArgumentList.Add("--ffmpeg-location");
-            psi.ArgumentList.Add(ffmpeg);
-            psi.ArgumentList.Add("--merge-output-format");
-            psi.ArgumentList.Add("mp4");
-        }
-
-        if (hasCookies)
-        {
-            psi.ArgumentList.Add("--cookies");
-            psi.ArgumentList.Add(AppPaths.CookiesFile);
-        }
-
-        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        var progressRegex = new Regex(@"\[download\]\s+([0-9.]+)%");
-        var errorLines = new List<string>();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (string.IsNullOrEmpty(e.Data))
-            {
-                return;
-            }
-
-            var match = progressRegex.Match(e.Data);
-            if (match.Success)
-            {
-                UpdateItem(item, QueueStatus.Downloading, $"下載中 {match.Groups[1].Value}%");
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-            {
-                errorLines.Add(e.Data);
-            }
-        };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        using (token.Register(() =>
-        {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-            }
-            catch
-            {
-                // Process may have already exited; nothing to clean up.
-            }
-        }))
-        {
-            try
-            {
-                await process.WaitForExitAsync(token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Handled below via token.IsCancellationRequested.
-            }
-        }
-
-        if (token.IsCancellationRequested)
-        {
-            UpdateItem(item, QueueStatus.Failed, "已取消");
-            return;
-        }
-
-        if (process.ExitCode == 0)
-        {
-            UpdateItem(item, QueueStatus.Completed, "完成");
+            UpdateItem(item, QueueStatus.Completed, $"完成：{Path.GetFileName(result.OutputPath)}");
         }
         else
         {
-            var message = errorLines.Count > 0 ? errorLines[^1] : $"yt-dlp 結束碼 {process.ExitCode}";
-            UpdateItem(item, QueueStatus.Failed, message);
-            Log($"下載失敗：{item.Url} - {message}");
+            UpdateItem(item, QueueStatus.Failed, result.ErrorMessage ?? "未知錯誤");
+            Log($"下載失敗：{item.Url} - {result.ErrorMessage}");
         }
     }
 
