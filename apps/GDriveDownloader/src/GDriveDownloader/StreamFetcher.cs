@@ -122,11 +122,25 @@ internal sealed class StreamFetcher : IDisposable
 
         _webView.CoreWebView2.Navigate(url);
 
-        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
-        var completed = await Task.WhenAny(tcs.Task, timeoutTask);
-        if (completed == timeoutTask && !tcs.Task.IsCompleted)
+        // This timeout only guards "did a response ever start" (wrong URL, network
+        // failure, no Fetch.requestPaused at all). Once streaming has actually
+        // started, a multi-GB video can legitimately take far longer than 30s, so
+        // we must not apply this deadline to the whole transfer - only to the
+        // startup phase. Once started, wait unboundedly for tcs.Task; the speed
+        // checks inside PumpStreamAsync and the caller's CancellationToken are what
+        // bound an in-progress download.
+        var startupTimeoutTask = Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+        var firstCompleted = await Task.WhenAny(tcs.Task, startupTimeoutTask);
+        if (firstCompleted == startupTimeoutTask && !tcs.Task.IsCompleted)
         {
-            tcs.TrySetResult(new FetchOutcome { Result = FetchResult.Timeout, ErrorMessage = "等待回應逾時" });
+            if (started)
+            {
+                await tcs.Task;
+            }
+            else
+            {
+                tcs.TrySetResult(new FetchOutcome { Result = FetchResult.Timeout, ErrorMessage = "等待回應逾時" });
+            }
         }
 
         try

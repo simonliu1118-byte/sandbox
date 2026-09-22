@@ -6,6 +6,7 @@
 
 - 正式技術線：C# / .NET 8 / WinForms + WebView2；目標平台 Windows x64。
 - 正式發行以 self-contained single-file（`PublishSingleFile` + `IncludeNativeLibrariesForSelfExtract`）為目標，不要求使用者另外安裝 .NET runtime；發行資料夾只保留 `GDriveDownloader.exe` 與 `ffmpeg.exe` 兩個檔案，不得讓使用者面對成堆散落的 DLL。
+- CI 上傳 Actions Artifact 固定直接上傳 `publish` 資料夾本身，不得自行先用 `Compress-Archive` 包一層 zip 再上傳：GitHub 下載 Artifact 時一定會再包一層 zip，若上傳的內容本身已是 zip，使用者下載後要解壓縮兩次才能拿到檔案。
 - `GDriveDownloader.exe` 是本專案唯一產品識別，不建立第二個平行專案或另一條版號。
 - 本專案為個人用途的下載自動化工具，不代表任何公司或組織。
 

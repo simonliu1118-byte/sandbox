@@ -72,12 +72,15 @@ jobs:
           }
           Copy-Item -Path $ffmpegExe.FullName -Destination 'publish/GDriveDownloader/ffmpeg.exe'
 
-      - name: Package artifact
-        run: |
-          Compress-Archive -Path 'publish/GDriveDownloader/*' -DestinationPath "GDriveDownloader-${{ steps.version.outputs.slug }}.zip"
-
       - uses: actions/upload-artifact@v4
         with:
           name: GDriveDownloader-${{ steps.version.outputs.slug }}
-          path: GDriveDownloader-${{ steps.version.outputs.slug }}.zip
+          # Upload the "publish" parent folder (not a pre-zipped file, and not
+          # publish/GDriveDownloader/* which would flatten the files). GitHub
+          # always wraps whatever is uploaded in one zip for download; uploading
+          # our own zip meant users had to extract twice. Uploading the folder
+          # this way means downloading and extracting once yields a single
+          # "GDriveDownloader" folder containing GDriveDownloader.exe and
+          # ffmpeg.exe.
+          path: publish
           retention-days: 3
