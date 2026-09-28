@@ -1,5 +1,12 @@
 # Sandbox Governance Changelog
 
+## 1.2.4 — 2026/09/29
+
+- 新增個人專案 `apps/MediaMerge`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0）。
+- 固定 `MediaMerge.exe` 為 Windows x64 單檔發行名稱；FFmpeg 於 CI 下載 LGPL build 後內嵌，不將執行檔提交至 Git。
+- 固定 `assets/MediaMerge.svg` 為應用程式 icon 唯一來源，由 Windows CI 產生多尺寸 ICO 並嵌入最終 EXE。
+- 新增 MediaMerge Windows Build workflow，採 pull request／manual 驗證與 sandbox 預設 3 天 Artifact retention。
+
 ## 1.2.3 — 2026/09/22
 
 - `REPO_POLICY.md` 新增 repo-level 預設：本 repo 開發測試包 Actions Artifact 的 `retention-days` 統一預設為 3 天（覆蓋共通母本 14 天的一般預設），適用所有 `apps/<Project>` Build workflow；個別專案需要更長保留時間須在自己的 `PROJECT_RULES.md` 明確例外。
