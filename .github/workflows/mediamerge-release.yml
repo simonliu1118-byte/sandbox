@@ -133,11 +133,11 @@ jobs:
             '- 同名自動加流水尾碼，不覆蓋既有檔案。',
             '- 視訊採 stream copy，不重新壓縮；所選音訊取代原視訊音軌。',
             '- 音訊無法直接封裝時才自動轉為容器相容格式。',
-            '- 單一 Windows x64 `MediaMerge.exe`，內嵌 LGPL FFmpeg。',
+            '- 單一 Windows x64 MediaMerge.exe，內嵌 LGPL FFmpeg。',
             '- 內嵌 MediaMerge 專屬 icon。',
             '',
             '## SHA-256',
-            "`$hash`"
+            $hash
           ) | Set-Content $notes -Encoding utf8
           Write-Host "MediaMerge.exe size: $($file.Length) bytes"
           Write-Host "SHA-256: $hash"
