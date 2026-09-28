@@ -14,4 +14,4 @@
 - 內嵌 LGPL FFmpeg，發行物只有單一 `MediaMerge.exe`
 - 自訂 MediaMerge icon 會同時嵌入 EXE、視窗與工作列圖示
 
-版本：V0.1.0
+版本：V1.0.0

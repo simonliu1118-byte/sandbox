@@ -1,0 +1,154 @@
+name: MediaMerge Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'release/MediaMerge-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mediamerge-release
+  cancel-in-progress: false
+
+env:
+  APP_DIR: apps/MediaMerge
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify release identity
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content 'apps/MediaMerge/VERSION' -Raw).Trim()
+          $build = (Get-Content 'apps/MediaMerge/BUILD' -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid VERSION: $version" }
+          if ($build -ne '0') { throw "Formal release requires BUILD=0; current BUILD=$build" }
+          $tag = "MediaMerge-v$version"
+          if ($env:EVENT_NAME -eq 'push') {
+            $expectedRef = "release/MediaMerge-v$version"
+            if ($env:REF_NAME -ne $expectedRef) { throw "Release trigger branch mismatch. Expected $expectedRef, got $env:REF_NAME" }
+          }
+          $versionCsv = ($version -replace '\.', ',') + ',0'
+          $rc = Get-Content 'apps/MediaMerge/src/app.rc' -Raw
+          if ($rc -notmatch [regex]::Escape("FILEVERSION $versionCsv")) { throw 'app.rc FILEVERSION does not match VERSION.' }
+          if ($rc -notmatch [regex]::Escape("PRODUCTVERSION $versionCsv")) { throw 'app.rc PRODUCTVERSION does not match VERSION.' }
+          if (git ls-remote --tags origin "refs/tags/$tag") { throw "Tag already exists: $tag" }
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: Sensitive-data scan
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $patterns = @('ghp_', 'github_pat_', 'AKIA', '-----BEGIN PRIVATE KEY-----', '-----BEGIN RSA PRIVATE KEY-----', '-----BEGIN OPENSSH PRIVATE KEY-----')
+          $files = git ls-files apps/MediaMerge
+          foreach ($file in $files) {
+            $text = Get-Content $file -Raw -ErrorAction SilentlyContinue
+            if ($null -eq $text) { continue }
+            foreach ($pattern in $patterns) {
+              if ($text.Contains($pattern)) { throw "Potential secret marker '$pattern' found in $file" }
+            }
+          }
+          Write-Host 'Sensitive-data scan passed.'
+
+      - name: Enable MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Generate application icon
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appDir = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge'
+          $svg = Join-Path $appDir 'assets/MediaMerge.svg'
+          $ico = Join-Path $appDir 'src/MediaMerge.ico'
+          & magick -background none $svg -define 'icon:auto-resize=256,128,64,48,32,24,16' $ico
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ico)) { throw 'MediaMerge.ico generation failed.' }
+          $icon = Get-Item $ico
+          if ($icon.Length -lt 10000) { throw "Generated icon unexpectedly small: $($icon.Length) bytes" }
+          Get-FileHash $ico -Algorithm SHA256
+
+      - name: Download LGPL FFmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appDir = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge'
+          $target = Join-Path $appDir 'src/ffmpeg.exe'
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg-lgpl.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg-lgpl'
+          Invoke-WebRequest -Uri 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          $ffmpeg = Get-ChildItem -Path $extract -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $ffmpeg) { throw 'ffmpeg.exe not found in downloaded archive.' }
+          Copy-Item $ffmpeg.FullName $target -Force
+          Get-FileHash $target -Algorithm SHA256
+
+      - name: Build release EXE
+        shell: cmd
+        working-directory: apps/MediaMerge
+        run: |
+          if not exist dist mkdir dist
+          pushd src
+          rc /nologo /fo ..\dist\app.res app.rc
+          popd
+          cl /nologo /utf-8 /std:c++20 /O2 /MT /EHsc /W4 src\main_with_icon.cpp dist\app.res /link /SUBSYSTEM:WINDOWS /OUT:dist\MediaMerge.exe user32.lib gdi32.lib comctl32.lib shell32.lib comdlg32.lib
+
+      - name: Verify and hash release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/MediaMerge.exe'
+          if (-not (Test-Path $exe)) { throw 'MediaMerge.exe missing.' }
+          $file = Get-Item $exe
+          if ($file.Length -lt 20MB) { throw "Final EXE unexpectedly small: $($file.Length) bytes" }
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $hashFile = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/MediaMerge.exe.sha256.txt'
+          "$hash  MediaMerge.exe" | Set-Content $hashFile -Encoding ascii
+          $notes = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/release-notes.md'
+          @(
+            "# MediaMerge V$env:RELEASE_VERSION",
+            '',
+            '首個正式版本。',
+            '',
+            '## 主要功能',
+            '- 選擇一個視訊檔與一個音訊檔後直接合併。',
+            '- 可自訂輸出檔名，輸出固定放在來源視訊同一資料夾。',
+            '- 同名自動加流水尾碼，不覆蓋既有檔案。',
+            '- 視訊採 stream copy，不重新壓縮；所選音訊取代原視訊音軌。',
+            '- 音訊無法直接封裝時才自動轉為容器相容格式。',
+            '- 單一 Windows x64 `MediaMerge.exe`，內嵌 LGPL FFmpeg。',
+            '- 內嵌 MediaMerge 專屬 icon。',
+            '',
+            '## SHA-256',
+            "`$hash`"
+          ) | Set-Content $notes -Encoding utf8
+          Write-Host "MediaMerge.exe size: $($file.Length) bytes"
+          Write-Host "SHA-256: $hash"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/MediaMerge.exe'
+          $hashFile = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/MediaMerge.exe.sha256.txt'
+          $notes = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/release-notes.md'
+          gh release create $env:RELEASE_TAG $exe $hashFile --repo $env:GITHUB_REPOSITORY --target main --title "MediaMerge V$env:RELEASE_VERSION" --notes-file $notes
