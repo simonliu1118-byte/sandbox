@@ -12,5 +12,6 @@
 - 視訊原音軌會由所選音訊取代
 - 音訊若無法直接封裝，才自動轉成相容格式
 - 內嵌 LGPL FFmpeg，發行物只有單一 `MediaMerge.exe`
+- 自訂 MediaMerge icon 會同時嵌入 EXE、視窗與工作列圖示
 
 版本：V0.1.0

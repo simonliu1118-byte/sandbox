@@ -30,6 +30,19 @@ jobs:
         with:
           arch: x64
 
+      - name: Generate application icon
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appDir = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge'
+          $svg = Join-Path $appDir 'assets/MediaMerge.svg'
+          $ico = Join-Path $appDir 'src/MediaMerge.ico'
+          & magick -background none $svg -define 'icon:auto-resize=256,128,64,48,32,24,16' $ico
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ico)) { throw 'MediaMerge.ico generation failed.' }
+          $icon = Get-Item $ico
+          if ($icon.Length -lt 10000) { throw "Generated icon unexpectedly small: $($icon.Length) bytes" }
+          Get-FileHash $ico -Algorithm SHA256
+
       - name: Download LGPL FFmpeg
         shell: pwsh
         run: |
@@ -54,7 +67,7 @@ jobs:
           pushd src
           rc /nologo /fo ..\dist\app.res app.rc
           popd
-          cl /nologo /utf-8 /std:c++20 /O2 /MT /EHsc /W4 src\main.cpp dist\app.res /link /SUBSYSTEM:WINDOWS /OUT:dist\MediaMerge.exe user32.lib gdi32.lib comctl32.lib shell32.lib comdlg32.lib
+          cl /nologo /utf-8 /std:c++20 /O2 /MT /EHsc /W4 src\main_with_icon.cpp dist\app.res /link /SUBSYSTEM:WINDOWS /OUT:dist\MediaMerge.exe user32.lib gdi32.lib comctl32.lib shell32.lib comdlg32.lib
 
       - name: Verify final binary
         shell: pwsh
