@@ -1,17 +1,22 @@
 name: MediaMerge Build
 
 on:
-  push:
-    branches:
-      - main
-      - 'mediamerge/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
-      - 'apps/MediaMerge/**'
+      - 'apps/MediaMerge/src/**'
+      - 'apps/MediaMerge/assets/**'
+      - 'apps/MediaMerge/VERSION'
+      - 'apps/MediaMerge/BUILD'
       - '.github/workflows/mediamerge-build.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: mediamerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   APP_DIR: apps/MediaMerge
@@ -87,5 +92,5 @@ jobs:
           name: MediaMerge-Windows-x64
           path: apps/MediaMerge/dist/MediaMerge.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
           compression-level: 0

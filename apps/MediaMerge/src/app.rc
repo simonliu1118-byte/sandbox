@@ -26,7 +26,7 @@ BEGIN
             VALUE "FileDescription", "MediaMerge - Audio + Video Merger\0"
             VALUE "FileVersion", "0.1.0\0"
             VALUE "InternalName", "MediaMerge\0"
-            VALUE "LegalCopyright", "Copyright © 2026 Simon Liu. All Rights Reserved.\0"
+            VALUE "LegalCopyright", "Copyright © 2026 C.C. Liu. All Rights Reserved.\0"
             VALUE "OriginalFilename", "MediaMerge.exe\0"
             VALUE "ProductName", "MediaMerge\0"
             VALUE "ProductVersion", "0.1.0\0"

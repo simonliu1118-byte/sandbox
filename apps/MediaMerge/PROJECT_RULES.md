@@ -1,7 +1,7 @@
 # MediaMerge Project Rules
 
 - 專案正式名稱：`MediaMerge`。
-- 本專案是個人／sandbox 工具，不屬於 CY 系列程式；程式名稱、UI、檔名、路徑與版本資訊不得使用 `CY`、`CYMediaMerge` 或 Chihyuan 公司品牌識別。
+- 本專案為 sandbox 個人工具，不屬於任何公司或組織產品線；程式名稱、UI、檔名、路徑與版本資訊不得帶入其他產品線或公司品牌識別。
 - Windows 發行檔固定命名為 `MediaMerge.exe`。
 - 專案路徑固定為 `apps/MediaMerge/`。
 - 發行目標為 Windows x64 單檔 EXE；FFmpeg 採 LGPL build，於 CI 建置時下載並嵌入，不將 `ffmpeg.exe` 提交至 Git。
