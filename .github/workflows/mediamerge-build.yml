@@ -1,0 +1,78 @@
+name: MediaMerge Build
+
+on:
+  push:
+    branches:
+      - main
+      - 'mediamerge/**'
+    paths:
+      - 'apps/MediaMerge/**'
+      - '.github/workflows/mediamerge-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: apps/MediaMerge
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Download LGPL FFmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appDir = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge'
+          $target = Join-Path $appDir 'src/ffmpeg.exe'
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg-lgpl.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg-lgpl'
+          Invoke-WebRequest -Uri 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          $ffmpeg = Get-ChildItem -Path $extract -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $ffmpeg) { throw 'ffmpeg.exe not found in downloaded archive.' }
+          Copy-Item $ffmpeg.FullName $target -Force
+          if (-not (Test-Path $target)) { throw 'FFmpeg staging copy failed.' }
+          Get-FileHash $target -Algorithm SHA256
+
+      - name: Build single-file EXE
+        shell: cmd
+        working-directory: apps/MediaMerge
+        run: |
+          if not exist dist mkdir dist
+          pushd src
+          rc /nologo /fo ..\dist\app.res app.rc
+          popd
+          cl /nologo /utf-8 /std:c++20 /O2 /MT /EHsc /W4 src\main.cpp dist\app.res /link /SUBSYSTEM:WINDOWS /OUT:dist\MediaMerge.exe user32.lib gdi32.lib comctl32.lib shell32.lib comdlg32.lib
+
+      - name: Verify final binary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'apps/MediaMerge/dist/MediaMerge.exe'
+          if (-not (Test-Path $exe)) { throw 'MediaMerge.exe missing.' }
+          $file = Get-Item $exe
+          if ($file.Length -lt 20MB) { throw "Final EXE unexpectedly small: $($file.Length) bytes" }
+          Write-Host "Final EXE: $($file.FullName)"
+          Write-Host "Size: $($file.Length) bytes"
+          Get-FileHash $exe -Algorithm SHA256
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediaMerge-Windows-x64
+          path: apps/MediaMerge/dist/MediaMerge.exe
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
