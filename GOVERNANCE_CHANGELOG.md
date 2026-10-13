@@ -1,5 +1,12 @@
 # Sandbox Governance Changelog
 
+## 1.2.5 — 2026/10/13
+
+- 新增個人專案 `apps/TimecardOCR`，採 Windows PowerShell 5.1、本機 OCR、選用 Gemini AI 輔助及 Excel 匯出。
+- 新增該專案唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）與 `BUILD`（0）。
+- 新增 Windows 專案檢查及可攜版測試包 workflow，測試 Artifact 保留 3 天。
+
+
 ## 1.2.4 — 2026/09/29
 
 - 新增個人專案 `apps/MediaMerge`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0）。
