@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.5 — 2026/10/14
+
+- 納入個人旅行規劃程式 `apps/TravelPlan`，匯入既有 V0.8.5 測試版 source、Version 歷史及接續文件。
+- 新增唯一 `PROJECT_RULES.md` 與 `VERSION`（0.8.5）、`BUILD`（0）；產品版本沿用匯入基準，不因單純入庫升版。
+- 原始碼與既有文字文件原樣保存；未提交 EXE、ZIP、執行資料或私密設定。缺少原 assets、Windows 實機尚待驗證的狀態寫入 README。
+
 ## 1.2.4 — 2026/09/29
 
 - 新增個人專案 `apps/MediaMerge`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0）。
@@ -48,3 +54,4 @@
 - 建立 `COMMON_RULES_VERSION`、`COMMON_RULES_CHANGELOG.md`、`RULES_INDEX.md`、Governance Check 與手動 Common Rules sync workflow。
 - ScratchGame 重複的 Local-first／Token-efficient 規則改由共通母本統一維護，PROJECT_RULES 只保留 ScratchGame 專案特例。
 - ScratchGame Windows Build workflow 改為 PR／manual 驗證，避免 merge 後又因 main push 重複建置同一批內容。
+
