@@ -1,1 +1,0 @@
-Country and subdivision identifiers: ISO 3166 / pycountry. Localized country names: Unicode CLDR via Babel. Representative time-zone cities: IANA tz database zone1970.tab. Optional full GeoNames importer uses GeoNames data under CC BY 4.0.

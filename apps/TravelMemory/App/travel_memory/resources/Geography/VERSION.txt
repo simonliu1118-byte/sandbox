@@ -1,2 +1,0 @@
-TravelMemory starter geography 2026.07
-Countries and ISO 3166-2 subdivisions from pycountry/Babel; representative cities from IANA zone1970.tab; selected East Asia cities curated for TravelMemory.
