@@ -1,0 +1,17 @@
+旅行記憶（Travel Memory）v1.1.0
+Windows x64｜Python 3.12｜PySide6｜QtWebEngine｜SQLite｜MapLibre
+
+啟動架構：沿用 v1.0.5 已確認可正常顯示主視窗的 Windows 監督式啟動器
+執行環境：程式資料夾內的 Runtime\PortablePython
+系統變更：不修改 PATH、Python Launcher、.py 關聯或系統 Python
+
+© 2026 C.C.Liu All Rights Reserved.
+
+
+v1.1.0 修改：
+- RITI TXT 匯入時明確顯示進度對話框，依序回報準備、逐列解析及資料庫寫入進度。
+- 多日 RITI TXT 會依有效定位點的本地日期建立每日軌跡；跨午夜 segment 不會被強制切斷。
+- 第一次開啟 v1.1.0 時，會自動把舊版已匯入的多日 RITI 單一軌跡升級為每日軌跡。
+- 修正「顯示全部軌跡」按鈕遮住放大按鈕的問題。
+- 地圖控制改為兩組：重置北方／顯示全部軌跡、放大／縮小。
+- 地圖操作提示改為繁體中文，新增公制比例尺。
