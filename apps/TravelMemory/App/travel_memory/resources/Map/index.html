@@ -14,10 +14,10 @@
     #fallbackTracks{position:absolute;inset:0;width:100%;height:100%}
     #fallbackTracks polyline{pointer-events:stroke;cursor:pointer}
     #badge{position:absolute;left:12px;bottom:12px;padding:6px 9px;background:rgba(255,255,255,.92);border:1px solid #c4ccd1;border-radius:4px;font-size:13px}
-    .tm-control-button{display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;background:#fff;color:#333;cursor:pointer}
+    .maplibregl-ctrl-group button.tm-control-button{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:34px;height:34px;padding:0;border:0;line-height:0;background:#fff;color:#333;cursor:pointer}
     .tm-control-button+ .tm-control-button{border-top:1px solid #ddd}
     .tm-control-button:hover{background:#f3f3f3}
-    .tm-control-button svg{width:21px;height:21px;display:block}
+    .tm-control-button svg{width:21px;height:21px;display:block;flex:none}
     .maplibregl-ctrl-scale{font-family:"Microsoft JhengHei","Segoe UI",sans-serif;background:rgba(255,255,255,.9);border-color:#333;color:#222}
   </style>
 </head>
@@ -32,14 +32,41 @@
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script>
     let bridge=null, map=null, provider='auto', selectedTrackId=null, generation=0, recoveryTimer=null;
-    let payload={tracks:[],gapSeconds:120,showPoints:true,showEndpoints:true,showSegmentConnectors:true,lineWidth:2.4,pointSize:3,fit:true};
+    let payload={tracks:[],gapSeconds:120,showPoints:true,showEndpoints:true,showSegmentConnectors:true,lineWidth:2.4,pointSize:3};
+    let pendingViewport=null, savedCamera=null;
+    function cancelViewport(){pendingViewport=null}
+    function trackBounds(tracks){
+      let bounds=null;
+      for(const track of tracks){
+        const coordinates=track.bounds ? [[track.bounds[0],track.bounds[1]],[track.bounds[2],track.bounds[3]]] : (track.segments||[]).flatMap(s=>(s.points||[]).map(p=>[p.lon,p.lat]));
+        for(const c of coordinates){if(!c.every(Number.isFinite))continue;if(!bounds)bounds=[...c,...c];else{bounds[0]=Math.min(bounds[0],c[0]);bounds[1]=Math.min(bounds[1],c[1]);bounds[2]=Math.max(bounds[2],c[0]);bounds[3]=Math.max(bounds[3],c[1])}}
+      }
+      return bounds;
+    }
+    function applyViewport(){
+      if(!pendingViewport)return;
+      if(map&&!map.isStyleLoaded())return;
+      const command=pendingViewport;pendingViewport=null;
+      const bounds=command.bounds||trackBounds(command.trackId==null?(payload.tracks||[]):(payload.tracks||[]).filter(t=>t.id===command.trackId));
+      if(!bounds)return;
+      if(map){
+        map.stop();
+        if(bounds[0]===bounds[2]&&bounds[1]===bounds[3])map.jumpTo({center:[bounds[0],bounds[1]],zoom:14});
+        else map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:45,maxZoom:15,duration:0});
+      }else{
+        const a=project(bounds[0],bounds[3]),b=project(bounds[2],bounds[1]);
+        const aspect=Math.max(1,fallback.clientWidth)/Math.max(1,fallback.clientHeight);
+        const height=Math.max(b[1]-a[1],(b[0]-a[0])/aspect,.4)*1.2,width=height*aspect;
+        fallbackTracks.setAttribute('viewBox',`${(a[0]+b[0]-width)/2} ${(a[1]+b[1]-height)/2} ${width} ${height}`);
+      }
+    }
     const mapDiv=document.getElementById('map'), fallback=document.getElementById('fallback');
     const fallbackTracks=document.getElementById('fallbackTracks'), badge=document.getElementById('badge');
     const send=(method,...args)=>{try{if(bridge&&typeof bridge[method]==='function')bridge[method](...args)}catch(e){console.warn(e)}};
     new QWebChannel(qt.webChannelTransport, channel=>{bridge=channel.objects.bridge;send('mapStatus','ready','本機簡易地圖')});
 
     function useFallback(label='本機簡易地圖'){
-      if(map){map.remove();map=null}
+      if(map){savedCamera={center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()};map.remove();map=null}
       mapDiv.style.display='none';fallback.style.display='block';badge.textContent=label;
       drawFallback();send('mapStatus','fallback',label);
       if(recoveryTimer){clearInterval(recoveryTimer);recoveryTimer=null}
@@ -57,8 +84,10 @@
       if(!window.maplibregl){useFallback();return}
       const gen=++generation;mapDiv.style.display='block';fallback.style.display='none';
       send('mapStatus','loading',name==='osm'?'OpenStreetMap':'OpenFreeMap');
-      if(map)map.remove();
-      map=new maplibregl.Map({container:'map',style:styleFor(name),center:[139,36],zoom:4,attributionControl:true});
+      if(map){savedCamera={center:map.getCenter().toArray(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()};map.remove()}
+      map=new maplibregl.Map({container:'map',style:styleFor(name),center:[139,36],zoom:4,...(savedCamera||{}),attributionControl:true});
+      ['dragstart','zoomstart','rotatestart','pitchstart'].forEach(event=>map.on(event,e=>{if(e.originalEvent)cancelViewport()}));
+      ['wheel','pointerdown','touchstart','keydown'].forEach(event=>map.getCanvas().addEventListener(event,cancelViewport,{passive:true}));
       addMapControls();
       let loaded=false;
       const timer=setTimeout(()=>{if(!loaded&&gen===generation){if(name==='openfreemap'&&allowFallback)createMap('osm',false);else useFallback()}},10000);
@@ -75,19 +104,19 @@
       const element=document.createElement('div');element.className='maplibregl-ctrl maplibregl-ctrl-group';buttons.forEach(button=>element.appendChild(button));
       return {onAdd(){return element},onRemove(){element.remove()}};
     }
-    function fitAllTracks(){payload.fit=true;if(map)renderOnline();else drawFallback()}
+    function fitAllTracks(){pendingViewport={trackId:null};applyViewport()}
     function addMapControls(){
       const northIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 17 12 12 10 7 12Z" fill="#d93025"/><path d="M12 22 7 12 12 14 17 12Z" fill="#777"/><text x="12" y="9.3" text-anchor="middle" font-size="5.2" font-weight="700" fill="#fff">N</text></svg>';
       const fitIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12h8M12 8v8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".75"/></svg>';
       const plusIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       const minusIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       map.addControl(controlGroup([
-        controlButton('重置地圖為北方朝上',northIcon,()=>map.easeTo({bearing:0,pitch:0,duration:300})),
+        controlButton('重置地圖為北方朝上',northIcon,()=>{cancelViewport();map.easeTo({bearing:0,pitch:0,duration:300})}),
         controlButton('顯示全部軌跡',fitIcon,fitAllTracks),
       ]),'top-right');
       map.addControl(controlGroup([
-        controlButton('放大',plusIcon,()=>map.zoomIn()),
-        controlButton('縮小',minusIcon,()=>map.zoomOut()),
+        controlButton('放大',plusIcon,()=>{cancelViewport();map.zoomIn()}),
+        controlButton('縮小',minusIcon,()=>{cancelViewport();map.zoomOut()}),
       ]),'top-right');
       const scale=new maplibregl.ScaleControl({maxWidth:120,unit:'metric'});map.addControl(scale,'bottom-right');
       const scaleElement=scale._container;if(scaleElement){scaleElement.title='地圖比例尺';scaleElement.setAttribute('aria-label','地圖比例尺')}
@@ -141,7 +170,7 @@
       return {lines:{type:'FeatureCollection',features:lines},points:{type:'FeatureCollection',features:points},bounds};
     }
     function feature(track,kind,coords){return{type:'Feature',properties:{trackId:track.id,color:track.color,kind},geometry:{type:'LineString',coordinates:coords}}}
-    function renderOnline(){if(!map||!map.isStyleLoaded())return;const data=buildGeoJson();map.getSource('lines')?.setData(data.lines);map.getSource('points')?.setData(data.points);updateHighlight();if(payload.fit&&data.bounds)map.fitBounds([[data.bounds[0],data.bounds[1]],[data.bounds[2],data.bounds[3]]],{padding:45,maxZoom:15,duration:0})}
+    function renderOnline(){if(!map||!map.isStyleLoaded())return;const data=buildGeoJson();map.getSource('lines')?.setData(data.lines);map.getSource('points')?.setData(data.points);updateHighlight();applyViewport()}
     function updateHighlight(){if(map?.getLayer('highlight'))map.setFilter('highlight',['all',['==',['get','trackId'],selectedTrackId??-1],['==',['get','kind'],'solid']])}
     function project(lon,lat){return[(lon+180)/360*2000,(90-lat)/180*1000]}
     function drawFallback(){
@@ -152,8 +181,10 @@
           const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');line.setAttribute('points',coords);line.setAttribute('fill','none');line.setAttribute('stroke',track.color||'#2f80ed');line.setAttribute('stroke-width',track.id===selectedTrackId?'5':'2.5');line.setAttribute('vector-effect','non-scaling-stroke');line.addEventListener('click',()=>{selectedTrackId=track.id;drawFallback();send('trackSelected',track.id)});fallbackTracks.appendChild(line)
         }
       }
+      applyViewport();
     }
-    window.tmSetTracks=function(json){payload=typeof json==='string'?JSON.parse(json):json;payload.fit=true;if(map)renderOnline();else drawFallback()};
+    window.tmSetTracks=function(json){const next=typeof json==='string'?JSON.parse(json):json;const fit=next.fit===true;delete next.fit;payload=next;if(fit)pendingViewport={trackId:null};if(map)renderOnline();else drawFallback()};
+    window.tmFitTrack=function(id,bounds){pendingViewport={trackId:Number(id),bounds};applyViewport()};
     window.tmSetOptions=function(json){const opts=typeof json==='string'?JSON.parse(json):json;payload={...payload,...opts};if(map)renderOnline();else drawFallback()};
     window.tmSetProvider=setProvider;
     window.tmSelectTrack=function(id){selectedTrackId=id==null?null:Number(id);if(map)updateHighlight();else drawFallback()};
