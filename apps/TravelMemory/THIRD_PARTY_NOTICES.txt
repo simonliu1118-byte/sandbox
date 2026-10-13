@@ -1,0 +1,12 @@
+旅行記憶使用下列第三方元件：
+
+- Python
+- PySide6 / Qt / QtWebEngine
+- MapLibre GL JS
+- SQLite
+- timezonefinder
+- OpenFreeMap
+- OpenStreetMap data and tiles
+- GeoNames / pycountry / Babel derived geography seed data（詳見 Resources/Geography/ATTRIBUTION.txt）
+
+各元件依其原始授權條款使用。本檔不是第三方授權文字的替代品。

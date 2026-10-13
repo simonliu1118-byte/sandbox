@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.6 — 2026/10/14
+
+- 納入 apps/TravelMemory 的 V1.1.0 使用者提供復原 source；新增唯一 PROJECT_RULES.md、VERSION 與 BUILD。
+- 排除個人軌跡、資料庫、備份、設定、EXE 與 Runtime；保留既有必要圖示與地理／地圖資源。
+- 原啟動器 source 與封裝腳本未恢復，V1.1.1 修改待補回；此為 source recovery，不是正式 Windows Release。
+
 ## 1.2.5 — 2026/10/14
 
 - 納入個人旅行規劃程式 `apps/TravelPlan`，匯入既有 V0.8.5 測試版 source、Version 歷史及接續文件。
