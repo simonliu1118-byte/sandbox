@@ -1,0 +1,24 @@
+# API keys / credentials
+.env
+.env.*
+*.key
+*credentials*.json
+*secret*.json
+
+# Personal / output files
+*.xlsx
+*.xls
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.pdf
+
+# Runtime and temporary
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+__pycache__/
+.pytest_cache/

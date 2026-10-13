@@ -1,0 +1,52 @@
+name: TimecardOCR check
+
+on:
+  pull_request:
+    paths:
+      - 'apps/TimecardOCR/**'
+      - '.github/workflows/timecard-ocr-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: timecard-ocr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript source
+        shell: pwsh
+        run: |
+          node --check apps/TimecardOCR/app.js
+          node --check apps/TimecardOCR/ai.js
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $paths = @('server.ps1','ocr.ps1','gemini.ps1')
+          foreach ($name in $paths) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path (Resolve-Path 'apps/TimecardOCR') $name), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw "$name PowerShell parse failed: $errors" }
+          }
+      - name: Build portable folder for smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $src = 'apps/TimecardOCR'
+          $dst = 'TimecardOCR-portable'
+          New-Item -ItemType Directory -Path $dst | Out-Null
+          @('啟動程式.bat','server.ps1','ocr.ps1','gemini.ps1','index.html','app.js','ai.js','使用說明.txt','README.md','VERSION','BUILD') | ForEach-Object { Copy-Item (Join-Path $src $_) $dst }
+          Compress-Archive -Path $dst -DestinationPath 'TimecardOCR-portable.zip'
+          Get-FileHash 'TimecardOCR-portable.zip' -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TimecardOCR-portable
+          path: TimecardOCR-portable.zip
+          retention-days: 3
