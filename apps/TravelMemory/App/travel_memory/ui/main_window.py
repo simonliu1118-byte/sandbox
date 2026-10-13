@@ -4,8 +4,8 @@ import base64
 from datetime import date
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, Qt, QTimer, QThread
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtCore import QByteArray, Qt, QTimer, QThread, QSize
+from PySide6.QtGui import QAction, QCloseEvent, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QLineEdit,
     QProgressDialog,
+    QToolButton,
 )
 
 from .. import APP_NAME, __version__
@@ -74,7 +75,7 @@ class MainWindow(QMainWindow):
         self._restore_window_state()
         self.refresh_tree()
         self.map_widget.set_provider(self.app_settings.map_provider)
-        QTimer.singleShot(200, self.refresh_map)
+        self.refresh_map(fit=True)
 
     def _build_ui(self, map_directory: Path, map_cache_directory: Path) -> None:
         self.setWindowTitle(f"{APP_NAME}  {__version__}")
@@ -83,17 +84,27 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        add_trip = QAction("新增旅程", self); add_trip.triggered.connect(self.add_trip); toolbar.addAction(add_trip)
-        rename_trip = QAction("重新命名旅程", self); rename_trip.triggered.connect(self.rename_selected_trip); toolbar.addAction(rename_trip)
-        delete_trip = QAction("刪除旅程", self); delete_trip.triggered.connect(self.delete_selected_trip); toolbar.addAction(delete_trip)
-        toolbar.addSeparator()
+        trip_menu = QMenu(self)
+        trip_menu.addAction("新增旅程", self.add_trip)
+        self.rename_trip_action = trip_menu.addAction("重新命名旅程", self.rename_selected_trip)
+        self.delete_trip_action = trip_menu.addAction("刪除旅程", self.delete_selected_trip)
+        trip_button = QPushButton("旅程")
+        trip_button.setMenu(trip_menu); toolbar.addWidget(trip_button)
+        track_menu = QMenu(self)
+        self.merge_action = track_menu.addAction("合併軌跡", self.merge_checked)
+        self.rename_track_action = track_menu.addAction("重新命名軌跡", self.rename_selected_track)
+        self.delete_track_action = track_menu.addAction("刪除軌跡", self.delete_selected_track)
+        track_button = QPushButton("軌跡")
+        track_button.setMenu(track_menu); toolbar.addWidget(track_button)
+        trip_menu.aboutToShow.connect(self._update_menu_actions)
+        track_menu.aboutToShow.connect(self._update_menu_actions)
 
         import_menu = QMenu(self)
         import_riti = import_menu.addAction("RITI TXT")
         import_gpx = import_menu.addAction("GPX")
         import_riti.triggered.connect(self.import_riti)
         import_gpx.triggered.connect(self.import_gpx)
-        import_button = QPushButton("匯入 ▼")
+        import_button = QPushButton("匯入")
         import_button.setMenu(import_menu)
         toolbar.addWidget(import_button)
 
@@ -102,19 +113,22 @@ class MainWindow(QMainWindow):
         export_kml = export_menu.addAction("KML")
         export_gpx.triggered.connect(lambda: self.export_checked("gpx"))
         export_kml.triggered.connect(lambda: self.export_checked("kml"))
-        export_button = QPushButton("匯出 ▼")
+        export_button = QPushButton("匯出")
         export_button.setMenu(export_menu)
         toolbar.addWidget(export_button)
 
-        merge = QAction("合併", self); merge.triggered.connect(self.merge_checked); toolbar.addAction(merge)
-        settings = QAction("設定", self); settings.triggered.connect(self.open_settings); toolbar.addAction(settings)
+        settings_menu = QMenu(self)
+        for index, label in enumerate(("一般", "軌跡／地圖", "資料庫備份還原", "旅伴設定", "活動設定")):
+            settings_menu.addAction(label, lambda checked=False, i=index: self.open_settings(i))
+        settings_button = QPushButton("設定")
+        settings_button.setMenu(settings_menu); toolbar.addWidget(settings_button)
         toolbar.addSeparator()
 
-        points = QAction("定位點", self); points.setCheckable(True); points.setChecked(self.app_settings.show_points)
-        endpoints = QAction("起迄點", self); endpoints.setCheckable(True); endpoints.setChecked(self.app_settings.show_endpoints)
+        points = self._display_button("顯示定位點", '<circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>', self.app_settings.show_points)
+        endpoints = self._display_button("顯示起訖點", '<path d="M5 21V3l10 4-10 4M16 17h5M18.5 14.5v5"/>', self.app_settings.show_endpoints)
         points.toggled.connect(self._map_option_changed); endpoints.toggled.connect(self._map_option_changed)
         self.points_action = points; self.endpoints_action = endpoints
-        toolbar.addAction(points); toolbar.addAction(endpoints)
+        toolbar.addWidget(points); toolbar.addWidget(endpoints)
 
         central = QWidget()
         central_layout = QVBoxLayout(central)
@@ -204,7 +218,7 @@ class MainWindow(QMainWindow):
         count = len(tracks)
         self.filter_status.setText(f"顯示 {count} 筆軌跡" + ("（篩選中）" if has_filter else ""))
 
-    def refresh_map(self) -> None:
+    def refresh_map(self, *, fit: bool = False) -> None:
         ids = self.repository.checked_track_ids()
         payload = self.repository.map_payload(
             ids, max_points=self.app_settings.max_map_points, gap_seconds=self.app_settings.gap_display_seconds
@@ -217,7 +231,33 @@ class MainWindow(QMainWindow):
             show_segment_connectors=self.app_settings.show_segment_connectors,
             line_width=self.app_settings.line_width,
             point_size=self.app_settings.point_size,
+            fit=fit,
         )
+
+    def _display_button(self, tooltip: str, shapes: str, checked: bool) -> QToolButton:
+        button = QToolButton(self)
+        svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#173b59" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{shapes}</svg>'
+        pixmap = QPixmap(); pixmap.loadFromData(svg.encode(), "SVG")
+        button.setIcon(QIcon(pixmap)); button.setIconSize(QSize(24, 24))
+        button.setFixedSize(36, 36); button.setCheckable(True); button.setChecked(checked)
+        button.setToolTip(tooltip); button.setAccessibleName(tooltip)
+        button.setStyleSheet("QToolButton {background:#eef0f2;border:1px solid #c1c8ce;border-radius:5px;padding:4px;} QToolButton:checked {background:#99cff7;border:2px solid #1877b9;} QToolButton:hover {border-color:#1877b9;}")
+        return button
+
+    def _update_menu_actions(self) -> None:
+        has_trip = self.selected_trip_id() is not None
+        has_track = self.selected_track_id() is not None
+        self.rename_trip_action.setEnabled(has_trip); self.delete_trip_action.setEnabled(has_trip)
+        self.rename_track_action.setEnabled(has_track); self.delete_track_action.setEnabled(has_track)
+        self.merge_action.setEnabled(len(self.repository.checked_track_ids()) >= 2)
+
+    def rename_selected_track(self) -> None:
+        track_id = self.selected_track_id()
+        if track_id is not None: self.rename_track(track_id)
+
+    def delete_selected_track(self) -> None:
+        track_id = self.selected_track_id()
+        if track_id is not None: self.delete_track(track_id)
 
     # ---------- Selection ----------
     def selected_track_id(self) -> int | None:
@@ -234,7 +274,7 @@ class MainWindow(QMainWindow):
     def _tree_item_changed(self, item: QTreeWidgetItem, column: int) -> None:
         if self._loading_tree or column != 0 or item.data(0, KIND_ROLE) != "track": return
         self.repository.set_checked(int(item.data(0, ID_ROLE)), item.checkState(0) == Qt.CheckState.Checked)
-        self.refresh_map()
+        self.refresh_map(fit=item.checkState(0) == Qt.CheckState.Checked)
 
     def _tree_selection_changed(self, current: QTreeWidgetItem | None, previous: QTreeWidgetItem | None) -> None:
         track_id = int(current.data(0, ID_ROLE)) if current and current.data(0, KIND_ROLE) == "track" else None
@@ -307,7 +347,7 @@ class MainWindow(QMainWindow):
         )
 
     def _show_import_report(self, report) -> None:
-        self.refresh_tree(); self.refresh_map()
+        self.refresh_tree(); self.refresh_map(fit=True)
         lines = [f"已匯入軌跡：{len(report.imported_track_ids)}"]
         for item in report.source_reports:
             if "valid_points" in item:
@@ -347,7 +387,7 @@ class MainWindow(QMainWindow):
         if not ok: return
         try:
             new_id = self.repository.merge_tracks(ids, name)
-            self.refresh_tree(); self.refresh_map(); self._select_track_in_tree(new_id)
+            self.refresh_tree(); self.refresh_map(fit=True); self._select_track_in_tree(new_id)
             QMessageBox.information(self, "合併完成", "軌跡合併完成。")
         except Exception as exc: QMessageBox.warning(self, "無法合併", str(exc))
 
@@ -440,13 +480,17 @@ class MainWindow(QMainWindow):
     def clear_filter(self) -> None:
         self.criteria = FilterCriteria(); self.refresh_tree()
 
-    def open_settings(self) -> None:
-        dialog = SettingsDialog(self.app_settings, self.repository, self.backup_service, self)
+    def open_settings(self, tab_index: int = 0) -> None:
+        old_provider = self.app_settings.map_provider
+        dialog = SettingsDialog(self.app_settings, self.repository, self.backup_service, self, tab_index=tab_index)
         if dialog.exec():
             self.settings_service.save(self.app_settings)
+            self.points_action.blockSignals(True); self.endpoints_action.blockSignals(True)
             self.points_action.setChecked(self.app_settings.show_points)
             self.endpoints_action.setChecked(self.app_settings.show_endpoints)
-            self.map_widget.set_provider(self.app_settings.map_provider)
+            self.points_action.blockSignals(False); self.endpoints_action.blockSignals(False)
+            if old_provider != self.app_settings.map_provider:
+                self.map_widget.set_provider(self.app_settings.map_provider)
             self.refresh_tree(); self.refresh_map()
 
     def _map_option_changed(self) -> None:
@@ -469,6 +513,8 @@ class MainWindow(QMainWindow):
             menu.addAction("刪除旅程", self.delete_selected_trip)
         elif kind == "track":
             track_id = int(item.data(0, ID_ROLE))
+            menu.addAction("定位到軌跡", lambda: self.locate_track(track_id))
+            menu.addSeparator()
             menu.addAction("編輯資訊", lambda: self.edit_track(track_id))
             menu.addAction("重新命名", lambda: self.rename_track(track_id))
             export = menu.addMenu("匯出")
@@ -480,6 +526,17 @@ class MainWindow(QMainWindow):
             menu.addSeparator()
             menu.addAction("刪除", lambda: self.delete_track(track_id))
         menu.exec(self.tree.viewport().mapToGlobal(position))
+
+    def locate_track(self, track_id: int) -> None:
+        bounds = self.repository.track_bounds(track_id)
+        if bounds is None:
+            QMessageBox.information(self, "定位到軌跡", "此軌跡沒有有效定位點。")
+            return
+        self.repository.set_checked(track_id, True)
+        self.refresh_tree(); self._select_track_in_tree(track_id)
+        self.refresh_map()
+        self.map_widget.select_track(track_id)
+        self.map_widget.fit_track(track_id, bounds)
 
     def _move_track(self, track_id: int, trip_id: int) -> None:
         self.repository.move_track(track_id, trip_id); self.refresh_tree(); self.refresh_map()

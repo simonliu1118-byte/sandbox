@@ -81,7 +81,7 @@ class MapWidget(QWebEngineView):
 
     def set_tracks(self, tracks: list[dict], *, gap_seconds: int = 120, show_points: bool = True,
                    show_endpoints: bool = True, show_segment_connectors: bool = True,
-                   line_width: float = 2.4, point_size: float = 3.0) -> None:
+                   line_width: float = 2.4, point_size: float = 3.0, fit: bool = False) -> None:
         payload = {
             "tracks": tracks,
             "gapSeconds": gap_seconds,
@@ -90,7 +90,7 @@ class MapWidget(QWebEngineView):
             "showSegmentConnectors": show_segment_connectors,
             "lineWidth": line_width,
             "pointSize": point_size,
-            "fit": True,
+            "fit": fit,
         }
         encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         self._run("tracks", f"window.tmSetTracks({json.dumps(encoded)});")
@@ -105,6 +105,9 @@ class MapWidget(QWebEngineView):
     def select_track(self, track_id: int | None) -> None:
         value = "null" if track_id is None else str(int(track_id))
         self._run("selection", f"window.tmSelectTrack({value});")
+
+    def fit_track(self, track_id: int, bounds: list[float] | None = None) -> None:
+        self._run("viewport", f"window.tmFitTrack({int(track_id)}, {json.dumps(bounds)});")
 
     def _check_health(self) -> None:
         if not self._loaded or self._shutdown:

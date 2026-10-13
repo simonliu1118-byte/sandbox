@@ -452,7 +452,7 @@ class ReferenceManager(QWidget):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, settings: AppSettings, repository: Repository, backup_service: BackupService, parent=None) -> None:
+    def __init__(self, settings: AppSettings, repository: Repository, backup_service: BackupService, parent=None, *, tab_index: int = 0) -> None:
         super().__init__(parent)
         self.settings = settings
         self.repository = repository
@@ -467,6 +467,8 @@ class SettingsDialog(QDialog):
         refs = QTabWidget(); refs.addTab(ReferenceManager(repository, "groups"), "群組"); refs.addTab(ReferenceManager(repository, "companions"), "旅伴")
         tabs.addTab(refs, "旅伴設定")
         tabs.addTab(ReferenceManager(repository, "activities"), "活動設定")
+        tabs.setCurrentIndex(max(0, min(tab_index, tabs.count() - 1)))
+        self.tabs = tabs
         root.addWidget(tabs, 1)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._save); buttons.rejected.connect(self.reject); root.addWidget(buttons)

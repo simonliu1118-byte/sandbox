@@ -9,6 +9,7 @@ from typing import Iterable, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .database import Database
+from contextlib import closing
 from .models import FilterCriteria, ParsedTrack, TrackSummary, TripRecord
 from .operations import CancellationToken, ProgressCallback, ProgressUpdate
 from .services.timezone_service import TimeZoneService
@@ -470,6 +471,16 @@ class Repository:
                 )
         return result
 
+    def track_bounds(self, track_id: int) -> list[float] | None:
+        """Use all stored points, not display sampling, for viewport bounds."""
+        with closing(self.database.connect(readonly=True)) as connection:
+            row = connection.execute(
+                """SELECT MIN(p.longitude),MIN(p.latitude),MAX(p.longitude),MAX(p.latitude)
+                   FROM track_points p JOIN track_segments s ON s.id=p.segment_id
+                   WHERE s.track_id=?""", (track_id,),
+            ).fetchone()
+        return [float(value) for value in row] if row and row[0] is not None else None
+
     def map_payload(
         self,
         track_ids: Sequence[int],
@@ -487,7 +498,9 @@ class Repository:
             tracks = connection.execute(
                 f"""
                 SELECT k.id,k.assigned_date,COALESCE(k.custom_name,k.source_name,'未命名軌跡') AS name,
-                       COUNT(p.id) AS point_count
+                       COUNT(p.id) AS point_count,
+                       MIN(p.longitude) AS west,MIN(p.latitude) AS south,
+                       MAX(p.longitude) AS east,MAX(p.latitude) AS north
                 FROM tracks k
                 LEFT JOIN track_segments s ON s.track_id=k.id
                 LEFT JOIN track_points p ON p.segment_id=s.id
@@ -570,6 +583,7 @@ class Repository:
                         "point_count": original_count,
                         "drawn_point_count": drawn_count,
                         "overview": drawn_count < original_count,
+                        "bounds": [float(track[key]) for key in ("west", "south", "east", "north")] if original_count else None,
                     }
                 )
         return result
