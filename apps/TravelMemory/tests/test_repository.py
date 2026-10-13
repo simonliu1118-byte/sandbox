@@ -1,4 +1,5 @@
 import logging
+import gc
 import os
 import sys
 import tempfile
@@ -36,6 +37,9 @@ class BoundsTest(unittest.TestCase):
             self.assertEqual(repo.track_bounds(ids[0]), [-40., -20., 70., 40.])
             self.assertEqual(repo.map_payload(ids, max_points=1)[0]['bounds'], [-40., -20., 70., 40.])
             self.assertIsNone(repo.track_bounds(-1))
+            # Existing sqlite Connection context managers commit/rollback but do
+            # not close handles; collect their cycles before Windows temp cleanup.
+            gc.collect()
 
 
 if __name__ == '__main__': unittest.main()

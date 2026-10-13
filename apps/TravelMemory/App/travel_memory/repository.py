@@ -9,6 +9,7 @@ from typing import Iterable, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .database import Database
+from contextlib import closing
 from .models import FilterCriteria, ParsedTrack, TrackSummary, TripRecord
 from .operations import CancellationToken, ProgressCallback, ProgressUpdate
 from .services.timezone_service import TimeZoneService
@@ -472,7 +473,7 @@ class Repository:
 
     def track_bounds(self, track_id: int) -> list[float] | None:
         """Use all stored points, not display sampling, for viewport bounds."""
-        with self.database.connect(readonly=True) as connection:
+        with closing(self.database.connect(readonly=True)) as connection:
             row = connection.execute(
                 """SELECT MIN(p.longitude),MIN(p.latitude),MAX(p.longitude),MAX(p.latitude)
                    FROM track_points p JOIN track_segments s ON s.id=p.segment_id
