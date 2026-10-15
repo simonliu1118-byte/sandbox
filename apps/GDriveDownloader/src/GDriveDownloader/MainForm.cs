@@ -11,8 +11,11 @@ internal sealed class MainForm : Form
     private readonly Label _versionLabel = new() { AutoSize = true, Left = 56, Top = 36 };
     private readonly Panel _iconBadge = new() { Left = 16, Top = 14, Width = 34, Height = 34, BackColor = Theme.Accent };
     private readonly Label _iconGlyph = new() { Text = "⤓", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.White, Font = new Font(Theme.FontFamily, 14f, FontStyle.Bold) };
-    private readonly Label _loginStatusPill = new() { Width = 160, Height = 30, Top = 17 };
-    private readonly Button _loginButton = new() { Text = "登入 Google 帳號", Width = 140, Height = 30, Top = 17 };
+
+    // Login status and the login action share a single button: while logged out
+    // it reads "登入 Google 帳號" and opens the login window; once logged in it
+    // just displays the logged-in state (still re-clickable to re-authenticate).
+    private readonly Button _loginButton = new() { Width = 160, Height = 30, Top = 17 };
     private readonly Button _openLogButton = new() { Text = "開啟 Log 資料夾", Width = 120, Height = 30, Top = 17 };
 
     // ---- Input panel ---------------------------------------------------
@@ -32,12 +35,13 @@ internal sealed class MainForm : Form
     private readonly Button _startButton = new() { Text = "開始下載佇列", Width = 130, Height = 30, Top = 7 };
     private readonly Button _stopButton = new() { Text = "停止", Width = 90, Height = 30, Top = 7, Enabled = false };
 
-    private readonly ListView _queueList = new()
+    private readonly FlowLayoutPanel _taskListFlow = new()
     {
         Dock = DockStyle.Fill,
-        View = View.Details,
-        FullRowSelect = true,
-        HideSelection = false,
+        FlowDirection = FlowDirection.TopDown,
+        WrapContents = false,
+        AutoScroll = true,
+        BackColor = Theme.Window,
     };
 
     private readonly Label _emptyStateLabel = new()
@@ -114,15 +118,12 @@ internal sealed class MainForm : Form
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         _versionLabel.Text = version is null ? "版本未知" : $"版本 {version.Major}.{version.Minor}.{version.Build}";
 
-        Theme.StylePill(_loginStatusPill, active: false);
-        _loginStatusPill.Text = "檢查登入狀態中...";
         Theme.StylePrimaryButton(_loginButton);
         Theme.StyleSecondaryButton(_openLogButton);
 
         _topBar.Controls.Add(_iconBadge);
         _topBar.Controls.Add(_titleLabel);
         _topBar.Controls.Add(_versionLabel);
-        _topBar.Controls.Add(_loginStatusPill);
         _topBar.Controls.Add(_loginButton);
         _topBar.Controls.Add(_openLogButton);
         _topBar.Controls.Add(Theme.MakeDivider());
@@ -164,19 +165,15 @@ internal sealed class MainForm : Form
         _taskListHeader.Controls.Add(Theme.MakeDivider());
         _taskListHeader.Resize += (_, _) => LayoutTaskListHeaderRight();
 
-        Theme.StyleListView(_queueList);
-        _queueList.Columns.Add("Google Drive 影片", 420);
-        _queueList.Columns.Add("狀態", 90);
-        _queueList.Columns.Add("下載狀態與進度", 360);
-
         Theme.StyleCaption(_emptyStateLabel);
         _emptyStateLabel.ForeColor = Theme.TextSecondary;
         _emptyStateLabel.Font = Theme.BodyFont;
 
         var listHost = new Panel { Dock = DockStyle.Fill };
-        listHost.Controls.Add(_queueList);
+        listHost.Controls.Add(_taskListFlow);
         listHost.Controls.Add(_emptyStateLabel);
         _emptyStateLabel.BringToFront();
+        _taskListFlow.Resize += (_, _) => ResizeAllCards();
 
         _taskListPanel.Controls.Add(listHost);
         _taskListPanel.Controls.Add(_taskListHeader);
@@ -219,7 +216,6 @@ internal sealed class MainForm : Form
         var right = _topBar.ClientSize.Width - 16;
         _openLogButton.Left = right - _openLogButton.Width;
         _loginButton.Left = _openLogButton.Left - 8 - _loginButton.Width;
-        _loginStatusPill.Left = _loginButton.Left - 8 - _loginStatusPill.Width;
     }
 
     private void LayoutInputPanel()
@@ -247,6 +243,17 @@ internal sealed class MainForm : Form
     private void LayoutStatusBarRight()
     {
         _outputPathLabel.Left = _statusBar.ClientSize.Width - 16 - _outputPathLabel.Width;
+    }
+
+    private void ResizeAllCards()
+    {
+        // FlowLayoutPanel doesn't stretch children to its own width, so each card's
+        // width is kept in sync by hand (minus a little room for the scrollbar).
+        var width = Math.Max(200, _taskListFlow.ClientSize.Width - 20);
+        foreach (var item in _queue)
+        {
+            item.Card?.SetWidth(width);
+        }
     }
 
     private void WireEvents()
@@ -312,13 +319,23 @@ internal sealed class MainForm : Form
 
     private async Task RefreshLoginStatusAsync()
     {
-        _loginStatusPill.Text = "檢查登入狀態中...";
-        Theme.StylePill(_loginStatusPill, active: false);
+        _loginButton.Text = "檢查登入狀態中...";
+        _loginButton.Enabled = false;
 
         var loggedIn = await LoginStatusChecker.IsLoggedInAsync();
 
-        _loginStatusPill.Text = loggedIn ? "✓ 已登入 Google" : "尚未登入";
-        Theme.StylePill(_loginStatusPill, active: loggedIn);
+        _loginButton.Enabled = true;
+        if (loggedIn)
+        {
+            _loginButton.Text = "✓ 已登入 Google";
+            Theme.StyleSecondaryButton(_loginButton);
+        }
+        else
+        {
+            _loginButton.Text = "登入 Google 帳號";
+            Theme.StylePrimaryButton(_loginButton);
+        }
+
         LayoutTopBarRight();
     }
 
@@ -356,12 +373,47 @@ internal sealed class MainForm : Form
         var item = new QueueItem(url);
         _queue.Add(item);
 
-        var row = new ListViewItem(new[] { url, "等待中", string.Empty });
-        item.ListViewItem = row;
-        _queueList.Items.Add(row);
+        var card = new TaskCard(item);
+        card.SetWidth(Math.Max(200, _taskListFlow.ClientSize.Width - 20));
+        card.StopRequested += (_, _) => OnCardStopRequested(item);
+        item.Card = card;
+
+        _taskListFlow.Controls.Add(card);
         _emptyStateLabel.Visible = false;
 
         _urlBox.Clear();
+        UpdateTaskCounts();
+    }
+
+    private void OnCardStopRequested(QueueItem item)
+    {
+        switch (item.Status)
+        {
+            case QueueStatus.Downloading:
+                // The in-flight download is cancelled; DownloadOneAsync removes the
+                // card once it observes the cancellation instead of leaving behind
+                // a "cancelled" row the user has to dismiss separately.
+                item.RemoveAfterCompletion = true;
+                item.Cts?.Cancel();
+                item.Card?.SetStatus(QueueStatus.Downloading, "正在停止...");
+                break;
+            default:
+                RemoveItem(item);
+                break;
+        }
+    }
+
+    private void RemoveItem(QueueItem item)
+    {
+        _queue.Remove(item);
+        if (item.Card != null)
+        {
+            _taskListFlow.Controls.Remove(item.Card);
+            item.Card.Dispose();
+            item.Card = null;
+        }
+
+        _emptyStateLabel.Visible = _queue.Count == 0;
         UpdateTaskCounts();
     }
 
@@ -382,19 +434,33 @@ internal sealed class MainForm : Form
         {
             var ffmpeg = await ToolManager.EnsureFfmpegAsync(Log);
 
-            foreach (var item in _queue)
+            // Index-based walk (not foreach) because a card's stop/remove button can
+            // delete a pending item from _queue while this loop is awaiting a
+            // different item's download; foreach would throw on that mutation.
+            var i = 0;
+            while (i < _queue.Count)
             {
                 if (_cts.IsCancellationRequested)
                 {
                     break;
                 }
 
+                var item = _queue[i];
                 if (item.Status != QueueStatus.Pending)
                 {
+                    i++;
                     continue;
                 }
 
                 await DownloadOneAsync(item, ffmpeg, _cts.Token);
+
+                // If the item is still at index i, advance past it; if it was
+                // removed mid-download, index i now already points at the next
+                // item, so stay put instead of skipping it.
+                if (i < _queue.Count && ReferenceEquals(_queue[i], item))
+                {
+                    i++;
+                }
             }
 
             Log("佇列處理完畢。");
@@ -418,55 +484,67 @@ internal sealed class MainForm : Form
         Log("已要求停止，將於目前項目結束後停止。");
     }
 
-    private async Task DownloadOneAsync(QueueItem item, string? ffmpeg, CancellationToken token)
+    private async Task DownloadOneAsync(QueueItem item, string? ffmpeg, CancellationToken outerToken)
     {
-        UpdateItem(item, QueueStatus.Downloading, "分析畫質中...");
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(outerToken);
+        item.Cts = linkedCts;
 
-        // Every log line DownloadEngine emits for this item also becomes its live
-        // status text in the queue list, so the list no longer freezes on the
-        // very first message once the download actually starts.
-        void ItemLog(string message)
+        UpdateItemStatus(item, QueueStatus.Downloading, "分析畫質中...");
+        item.Card?.SetVideoProgress(null, "分析畫質中...");
+        item.Card?.SetAudioProgress(null, "分析畫質中...");
+
+        void OnAudioAvailable(bool hasAudio)
         {
-            Log(message);
-            UpdateItem(item, QueueStatus.Downloading, message);
+            if (!hasAudio)
+            {
+                item.Card?.SetAudioUnavailable();
+            }
         }
 
-        var result = await DownloadEngine.RunAsync(item.Url, _outputDirBox.Text, ffmpeg, ItemLog, token);
+        var result = await DownloadEngine.RunAsync(
+            item.Url,
+            _outputDirBox.Text,
+            ffmpeg,
+            Log,
+            (fraction, label) => item.Card?.SetVideoProgress(fraction, label),
+            (fraction, label) => item.Card?.SetAudioProgress(fraction, label),
+            OnAudioAvailable,
+            linkedCts.Token);
+
+        item.Cts = null;
+
+        if (item.RemoveAfterCompletion)
+        {
+            RemoveItem(item);
+            return;
+        }
 
         if (result.Success)
         {
-            UpdateItem(item, QueueStatus.Completed, $"完成：{Path.GetFileName(result.OutputPath)}");
+            UpdateItemStatus(item, QueueStatus.Completed, $"完成：{Path.GetFileName(result.OutputPath)}");
+        }
+        else if (linkedCts.IsCancellationRequested)
+        {
+            UpdateItemStatus(item, QueueStatus.Cancelled, "已取消");
         }
         else
         {
-            UpdateItem(item, QueueStatus.Failed, result.ErrorMessage ?? "未知錯誤");
+            UpdateItemStatus(item, QueueStatus.Failed, result.ErrorMessage ?? "未知錯誤");
             Log($"下載失敗：{item.Url} - {result.ErrorMessage}");
         }
     }
 
-    private void UpdateItem(QueueItem item, QueueStatus status, string message)
+    private void UpdateItemStatus(QueueItem item, QueueStatus status, string message)
     {
         if (InvokeRequired)
         {
-            BeginInvoke(new Action(() => UpdateItem(item, status, message)));
+            BeginInvoke(new Action(() => UpdateItemStatus(item, status, message)));
             return;
         }
 
         item.Status = status;
         item.Message = message;
-
-        if (item.ListViewItem != null)
-        {
-            item.ListViewItem.SubItems[1].Text = status switch
-            {
-                QueueStatus.Pending => "等待中",
-                QueueStatus.Downloading => "下載中",
-                QueueStatus.Completed => "已完成",
-                QueueStatus.Failed => "失敗",
-                _ => status.ToString(),
-            };
-            item.ListViewItem.SubItems[2].Text = message;
-        }
+        item.Card?.SetStatus(status, message);
 
         UpdateTaskCounts();
     }

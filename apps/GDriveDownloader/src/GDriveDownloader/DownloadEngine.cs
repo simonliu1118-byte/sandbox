@@ -29,6 +29,9 @@ internal static class DownloadEngine
         string outputDirectory,
         string? ffmpegPath,
         Action<string> log,
+        Action<double?, string> onVideoProgress,
+        Action<double?, string> onAudioProgress,
+        Action<bool> onAudioAvailable,
         CancellationToken token)
     {
         var fileId = ExtractFileId(driveUrl);
@@ -76,6 +79,8 @@ internal static class DownloadEngine
         var bestVideoGroup = videoGroups[0].ToList();
         var targetHeight = bestVideoGroup[0].Height;
         var initialAudioCandidates = initialCandidates.Where(c => c.Kind == StreamKind.Audio).ToList();
+        var hasAudio = initialAudioCandidates.Count > 0;
+        onAudioAvailable(hasAudio);
 
         log($"偵測到最高畫質：{bestVideoGroup[0].Label}（{bestVideoGroup.Count} 個候選來源，另有 {initialAudioCandidates.Count} 個音訊來源）。");
 
@@ -83,34 +88,62 @@ internal static class DownloadEngine
         var videoTempPath = Path.Combine(outputDirectory, $"{safeTitle}.video.tmp");
         var audioTempPath = Path.Combine(outputDirectory, $"{safeTitle}.audio.tmp");
 
-        using var fetcher = new StreamFetcher();
-        await fetcher.InitializeAsync();
+        // Video and audio are independent HTTP streams. Each StreamFetcher drives
+        // one hidden WebView2 window that can only stream a single navigation at a
+        // time, so downloading both concurrently (instead of one after the other)
+        // needs two separate fetchers, not a shared one.
+        using var videoFetcher = new StreamFetcher();
+        await videoFetcher.InitializeAsync();
 
-        var videoOutcome = await DownloadWithFallbackAsync(
-            fetcher,
+        using var audioFetcher = hasAudio ? new StreamFetcher() : null;
+        if (audioFetcher != null)
+        {
+            await audioFetcher.InitializeAsync();
+        }
+
+        var videoTask = DownloadWithFallbackAsync(
+            videoFetcher,
             bestVideoGroup,
             videoTempPath,
             "視訊",
             log,
+            onVideoProgress,
             () => scanner.Candidates.Where(c => c.Kind == StreamKind.Video && c.Height == targetHeight).ToList(),
             token);
-        if (videoOutcome.Result is not (FetchResult.Success or FetchResult.SlowAborted))
-        {
-            TryDelete(videoTempPath);
-            return DownloadEngineResult.Failed($"視訊下載失敗：{videoOutcome.ErrorMessage}");
-        }
 
-        string? finalAudioPath = null;
-        if (initialAudioCandidates.Count > 0)
-        {
-            var audioOutcome = await DownloadWithFallbackAsync(
-                fetcher,
+        var audioTask = audioFetcher != null
+            ? DownloadWithFallbackAsync(
+                audioFetcher,
                 initialAudioCandidates,
                 audioTempPath,
                 "音訊",
                 log,
+                onAudioProgress,
                 () => scanner.Candidates.Where(c => c.Kind == StreamKind.Audio).ToList(),
-                token);
+                token)
+            : null;
+
+        if (audioTask != null)
+        {
+            await Task.WhenAll(videoTask, audioTask);
+        }
+        else
+        {
+            await videoTask;
+        }
+
+        var videoOutcome = videoTask.Result;
+        if (videoOutcome.Result is not (FetchResult.Success or FetchResult.SlowAborted))
+        {
+            TryDelete(videoTempPath);
+            TryDelete(audioTempPath);
+            return DownloadEngineResult.Failed($"視訊下載失敗：{videoOutcome.ErrorMessage}");
+        }
+
+        string? finalAudioPath = null;
+        if (audioTask != null)
+        {
+            var audioOutcome = audioTask.Result;
             if (audioOutcome.Result is FetchResult.Success or FetchResult.SlowAborted)
             {
                 finalAudioPath = audioTempPath;
@@ -167,6 +200,7 @@ internal static class DownloadEngine
         string destinationPath,
         string kindLabel,
         Action<string> log,
+        Action<double?, string> progress,
         Func<List<VideoSourceCandidate>> getLiveCandidates,
         CancellationToken token)
     {
@@ -200,7 +234,7 @@ internal static class DownloadEngine
                     }
 
                     log($"{kindLabel}沒有找到較快的來源，改用慢速來源完整下載...");
-                    return await fetcher.DownloadAsync(lastCandidate.Url, destinationPath, null, minAcceptableBytesPerSecond: 0, WarmupBeforeSpeedCheck, token);
+                    return await fetcher.DownloadAsync(lastCandidate.Url, destinationPath, MakeProgressHandler(progress), minAcceptableBytesPerSecond: 0, WarmupBeforeSpeedCheck, token);
                 }
 
                 try
@@ -221,21 +255,12 @@ internal static class DownloadEngine
             waitedWithoutNew = TimeSpan.Zero;
 
             log($"正在下載{kindLabel}來源（{next.Label}）...");
+            progress(null, "準備下載...");
 
-            var lastLoggedBucket = -1;
             var outcome = await fetcher.DownloadAsync(
                 next.Url,
                 destinationPath,
-                (bytes, seconds) =>
-                {
-                    var kbps = seconds > 0 ? bytes / 1024.0 / seconds : 0;
-                    var bucket = (int)(bytes / (512 * 1024));
-                    if (bucket != lastLoggedBucket)
-                    {
-                        lastLoggedBucket = bucket;
-                        log($"{kindLabel}下載中：{bytes / 1024} KB，約 {kbps:0} KB/s");
-                    }
-                },
+                MakeProgressHandler(progress),
                 MinAcceptableBytesPerSecond,
                 WarmupBeforeSpeedCheck,
                 token);
@@ -249,6 +274,24 @@ internal static class DownloadEngine
                 ? $"{kindLabel}來源速度過慢，嘗試下一個來源..."
                 : $"{kindLabel}來源失敗（{outcome.ErrorMessage}），嘗試下一個來源...");
         }
+    }
+
+    /// <summary>
+    /// Turns raw byte/elapsed-time/content-length samples into the (fraction,
+    /// label) shape the task card's progress bar wants, instead of printing every
+    /// sample to the log box (the log is for discrete events, not a progress feed).
+    /// </summary>
+    private static Action<long, double, long?> MakeProgressHandler(Action<double?, string> progress)
+    {
+        return (bytes, seconds, contentLength) =>
+        {
+            var kbps = seconds > 0 ? bytes / 1024.0 / seconds : 0;
+            double? fraction = contentLength is > 0 ? Math.Clamp((double)bytes / contentLength.Value, 0, 1) : null;
+            var label = contentLength is > 0
+                ? $"{bytes / 1024} KB / {contentLength.Value / 1024} KB，約 {kbps:0} KB/s"
+                : $"{bytes / 1024} KB，約 {kbps:0} KB/s";
+            progress(fraction, label);
+        };
     }
 
     private static async Task<bool> MuxAsync(string ffmpegPath, string videoPath, string audioPath, string outputPath, CancellationToken token)

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -59,7 +60,7 @@ internal sealed class StreamFetcher : IDisposable
     public async Task<FetchOutcome> DownloadAsync(
         string url,
         string destinationPath,
-        Action<long, double>? onProgress,
+        Action<long, double, long?>? onProgress,
         int minAcceptableBytesPerSecond,
         TimeSpan warmupBeforeSpeedCheck,
         CancellationToken token)
@@ -107,9 +108,31 @@ internal sealed class StreamFetcher : IDisposable
                 }
 
                 started = true;
+
+                long? contentLength = null;
+                if (evt.TryGetProperty("responseHeaders", out var headersProp) && headersProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var header in headersProp.EnumerateArray())
+                    {
+                        var name = header.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                        if (!string.Equals(name, "content-length", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        var value = header.TryGetProperty("value", out var valueProp) ? valueProp.GetString() : null;
+                        if (long.TryParse(value, out var parsed))
+                        {
+                            contentLength = parsed;
+                        }
+
+                        break;
+                    }
+                }
+
                 var streamResult = await _dts.SendAsync("Fetch.takeResponseBodyAsStream", new { requestId });
                 var handle = streamResult.GetProperty("stream").GetString()!;
-                var outcome = await PumpStreamAsync(handle, destinationPath, onProgress, minAcceptableBytesPerSecond, warmupBeforeSpeedCheck, token);
+                var outcome = await PumpStreamAsync(handle, destinationPath, onProgress, contentLength, minAcceptableBytesPerSecond, warmupBeforeSpeedCheck, token);
                 tcs.TrySetResult(outcome);
             }
             catch (Exception ex)
@@ -158,7 +181,8 @@ internal sealed class StreamFetcher : IDisposable
     private async Task<FetchOutcome> PumpStreamAsync(
         string handle,
         string destinationPath,
-        Action<long, double>? onProgress,
+        Action<long, double, long?>? onProgress,
+        long? contentLength,
         int minAcceptableBytesPerSecond,
         TimeSpan warmupBeforeSpeedCheck,
         CancellationToken token)
@@ -189,7 +213,7 @@ internal sealed class StreamFetcher : IDisposable
                 var bytes = base64Encoded ? Convert.FromBase64String(data) : System.Text.Encoding.UTF8.GetBytes(data);
                 await fileStream.WriteAsync(bytes, token);
                 total += bytes.Length;
-                onProgress?.Invoke(total, stopwatch.Elapsed.TotalSeconds);
+                onProgress?.Invoke(total, stopwatch.Elapsed.TotalSeconds, contentLength);
             }
 
             if (minAcceptableBytesPerSecond > 0)

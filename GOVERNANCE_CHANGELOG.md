@@ -1,5 +1,9 @@
 # Sandbox Governance Changelog
 
+## 1.2.5 — 2026/10/15
+
+- `apps/GDriveDownloader/PROJECT_RULES.md` 第 4 節補充兩項固定規則：(1) 同一項目內視訊／音訊兩條串流改為並行下載（各自獨立 `StreamFetcher`），不得回退成先視訊後音訊的循序做法，此規則與「跨項目循序、同一時間僅下載一個項目」並不衝突；(2) 主介面任務清單改採「一個項目一張卡片」呈現，每張卡片需同時顯示執行狀態與視訊／音訊各自的進度條，並提供各自的停止／移除按鈕；下載過程中的位元組數／速度等細節只能呈現在卡片進度條上，不得持續灌進執行紀錄文字區塊。
+
 ## 1.2.4 — 2026/09/22
 
 - `apps/GDriveDownloader/PROJECT_RULES.md` 改寫畫質策略與登入狀態判斷權威：不得再使用 `yt-dlp` 或其他靜態猜測畫質清單、複製 cookie 給外部 HTTP client 的做法（實測會被 Google 判定非瀏覽器連線並回應 403）；改為固定用 WebView2 的 Chrome DevTools Protocol 實際播放並監聽 `videoplayback` 請求分類畫質，下載也透過同一個已登入瀏覽器 session 的 CDP `Fetch`/`IO` 串流完成。
