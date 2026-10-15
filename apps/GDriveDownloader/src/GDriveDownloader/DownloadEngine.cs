@@ -24,6 +24,16 @@ internal static class DownloadEngine
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan MaxPollWithoutNewCandidate = TimeSpan.FromSeconds(60);
 
+    // The last-resort "accept whatever speed it gets" download must still catch a
+    // genuine stall (0 B/s forever - a dead connection, not just a slow one): a
+    // literal 0 floor previously disabled PumpStreamAsync's checkpoint entirely,
+    // so a hung transfer never got detected and the UI just froze forever. This
+    // floor is far below the normal 50 KB/s fallback threshold so it only trips
+    // on a true stall, with a longer warmup to tolerate a slow-but-alive start.
+    private const int MinStallBytesPerSecond = 2 * 1024;
+    private static readonly TimeSpan StallWarmup = TimeSpan.FromSeconds(20);
+    private const int MaxStallRetries = 3;
+
     public static async Task<DownloadEngineResult> RunAsync(
         string driveUrl,
         string outputDirectory,
@@ -234,7 +244,7 @@ internal static class DownloadEngine
                     }
 
                     log($"{kindLabel}沒有找到較快的來源，改用慢速來源完整下載...");
-                    return await fetcher.DownloadAsync(lastCandidate.Url, destinationPath, MakeProgressHandler(progress), minAcceptableBytesPerSecond: 0, WarmupBeforeSpeedCheck, token);
+                    return await DownloadWithStallRetryAsync(lastCandidate.Url, destinationPath, kindLabel, log, progress, token);
                 }
 
                 try
@@ -277,6 +287,51 @@ internal static class DownloadEngine
     }
 
     /// <summary>
+    /// Last-resort download of a single already-known-slow URL: tolerates a very
+    /// low but non-zero speed (see <see cref="MinStallBytesPerSecond"/>) instead
+    /// of accepting literally any rate, because disabling the speed check
+    /// entirely (the old behaviour) meant a connection that stalled to 0 B/s was
+    /// never detected - the UI just froze with no progress and no error. Each
+    /// retry uses a brand new <see cref="StreamFetcher"/> (fresh hidden WebView2
+    /// window) instead of re-navigating the one that just stalled, since
+    /// re-requesting the identical URL on a connection that only just aborted
+    /// risks reusing a wedged cache/connection entry.
+    /// </summary>
+    private static async Task<FetchOutcome> DownloadWithStallRetryAsync(
+        string url,
+        string destinationPath,
+        string kindLabel,
+        Action<string> log,
+        Action<double?, string> progress,
+        CancellationToken token)
+    {
+        for (var attempt = 1; attempt <= MaxStallRetries; attempt++)
+        {
+            using var retryFetcher = new StreamFetcher();
+            await retryFetcher.InitializeAsync();
+
+            var outcome = await retryFetcher.DownloadAsync(
+                url,
+                destinationPath,
+                MakeProgressHandler(progress),
+                MinStallBytesPerSecond,
+                StallWarmup,
+                token);
+
+            if (outcome.Result != FetchResult.SlowAborted || token.IsCancellationRequested)
+            {
+                return outcome;
+            }
+
+            log(attempt < MaxStallRetries
+                ? $"{kindLabel}下載停滯，重試第 {attempt + 1} 次..."
+                : $"{kindLabel}下載停滯，重試 {MaxStallRetries} 次後仍然失敗。");
+        }
+
+        return new FetchOutcome { Result = FetchResult.HttpError, ErrorMessage = "下載停滯，重試多次仍失敗" };
+    }
+
+    /// <summary>
     /// Turns raw byte/elapsed-time/content-length samples into the (fraction,
     /// label) shape the task card's progress bar wants, instead of printing every
     /// sample to the log box (the log is for discrete events, not a progress feed).
@@ -287,11 +342,25 @@ internal static class DownloadEngine
         {
             var kbps = seconds > 0 ? bytes / 1024.0 / seconds : 0;
             double? fraction = contentLength is > 0 ? Math.Clamp((double)bytes / contentLength.Value, 0, 1) : null;
-            var label = contentLength is > 0
-                ? $"{bytes / 1024} KB / {contentLength.Value / 1024} KB，約 {kbps:0} KB/s"
-                : $"{bytes / 1024} KB，約 {kbps:0} KB/s";
-            progress(fraction, label);
+
+            var sizeLabel = contentLength is > 0
+                ? $"{FormatBytes(bytes)} / {FormatBytes(contentLength.Value)}"
+                : FormatBytes(bytes);
+            var speedLabel = kbps >= 1024 ? $"{kbps / 1024:0.0} MB/s" : $"{kbps:0} KB/s";
+
+            progress(fraction, $"{sizeLabel}，約 {speedLabel}");
         };
+    }
+
+    /// <summary>
+    /// Google Drive videos routinely run into the hundreds of MB, so a raw KB
+    /// count ("184653 KB") is unreadable; switch to MB once the value is at
+    /// least 1 MB and fall back to KB only for genuinely small values.
+    /// </summary>
+    private static string FormatBytes(long bytes)
+    {
+        var mb = bytes / 1024.0 / 1024.0;
+        return mb >= 1 ? $"{mb:0.0} MB" : $"{bytes / 1024.0:0} KB";
     }
 
     private static async Task<bool> MuxAsync(string ffmpegPath, string videoPath, string audioPath, string outputPath, CancellationToken token)

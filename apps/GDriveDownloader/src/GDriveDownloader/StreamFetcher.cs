@@ -203,7 +203,9 @@ internal sealed class StreamFetcher : IDisposable
                 return new FetchOutcome { Result = FetchResult.Cancelled, BytesWritten = total };
             }
 
-            var chunk = await _dts!.SendAsync("IO.read", new { handle, size = 1048576 });
+            // 256 KB instead of a full 1 MB per read so the progress bar/label
+            // update ~4x more often instead of jumping in coarse 1024 KB steps.
+            var chunk = await _dts!.SendAsync("IO.read", new { handle, size = 262144 });
             var eof = chunk.TryGetProperty("eof", out var eofProp) && eofProp.GetBoolean();
             var base64Encoded = chunk.TryGetProperty("base64Encoded", out var b64Prop) && b64Prop.GetBoolean();
             var data = chunk.TryGetProperty("data", out var dataProp) ? dataProp.GetString() ?? string.Empty : string.Empty;
