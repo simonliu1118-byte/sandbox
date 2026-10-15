@@ -16,11 +16,20 @@ internal static class Theme
     public static readonly Color Danger = Color.FromArgb(180, 55, 55);
     public static readonly Color DangerHover = Color.FromArgb(164, 47, 47);
 
+    public static readonly Color SuccessSoft = Color.FromArgb(209, 242, 235);
+    public static readonly Color SuccessText = Color.FromArgb(13, 118, 108);
+    public static readonly Color NeutralSoft = Color.FromArgb(241, 243, 245);
+    public static readonly Color NeutralText = Color.FromArgb(102, 112, 133);
+
     public const string FontFamily = "Microsoft JhengHei UI";
 
     public static Font BodyFont { get; } = new(FontFamily, 9.5f, FontStyle.Regular, GraphicsUnit.Point);
 
     public static Font SectionFont { get; } = new(FontFamily, 9.5f, FontStyle.Bold, GraphicsUnit.Point);
+
+    public static Font TitleFont { get; } = new(FontFamily, 13f, FontStyle.Bold, GraphicsUnit.Point);
+
+    public static Font CaptionFont { get; } = new(FontFamily, 8.5f, FontStyle.Regular, GraphicsUnit.Point);
 
     public static void ApplyForm(Form form)
     {
@@ -88,5 +97,42 @@ internal static class Theme
         listView.ForeColor = TextPrimary;
         listView.BorderStyle = BorderStyle.FixedSingle;
         listView.GridLines = true;
+    }
+
+    /// <summary>
+    /// A small rounded-look "pill" label (e.g. the login-status badge), colored
+    /// either as an active/success state or a neutral/inactive state.
+    /// </summary>
+    public static void StylePill(Label label, bool active)
+    {
+        label.Font = SectionFont;
+        label.BackColor = active ? SuccessSoft : NeutralSoft;
+        label.ForeColor = active ? SuccessText : NeutralText;
+        label.TextAlign = ContentAlignment.MiddleCenter;
+        label.AutoSize = false;
+        label.Padding = new Padding(10, 0, 10, 0);
+    }
+
+    public static void StyleHeading(Label label)
+    {
+        label.Font = TitleFont;
+        label.ForeColor = TextPrimary;
+        label.BackColor = Color.Transparent;
+    }
+
+    public static void StyleCaption(Label label)
+    {
+        label.Font = CaptionFont;
+        label.ForeColor = TextSecondary;
+        label.BackColor = Color.Transparent;
+    }
+
+    /// <summary>
+    /// A thin 1px separator line used under top/header bars to mimic a card border
+    /// without drawing custom graphics.
+    /// </summary>
+    public static Panel MakeDivider()
+    {
+        return new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Border };
     }
 }

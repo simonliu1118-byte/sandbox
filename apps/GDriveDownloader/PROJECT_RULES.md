@@ -5,37 +5,52 @@
 ## 1. 產品、平台與版本線
 
 - 正式技術線：C# / .NET 8 / WinForms + WebView2；目標平台 Windows x64。
-- 正式發行以 self-contained portable folder 為目標，不要求使用者另外安裝 .NET runtime。
+- 正式發行以 self-contained single-file（`PublishSingleFile` + `IncludeNativeLibrariesForSelfExtract`）為目標，不要求使用者另外安裝 .NET runtime；發行資料夾只保留 `GDriveDownloader.exe` 與 `ffmpeg.exe` 兩個檔案，不得讓使用者面對成堆散落的 DLL。
+- CI 上傳 Actions Artifact 固定直接上傳 `publish` 資料夾本身，不得自行先用 `Compress-Archive` 包一層 zip 再上傳：GitHub 下載 Artifact 時一定會再包一層 zip，若上傳的內容本身已是 zip，使用者下載後要解壓縮兩次才能拿到檔案。
 - `GDriveDownloader.exe` 是本專案唯一產品識別，不建立第二個平行專案或另一條版號。
 - 本專案為個人用途的下載自動化工具，不代表任何公司或組織。
 
 ## 2. 畫質策略
 
-- 下載畫質策略固定為「自動選擇可用最高畫質」：解析交由 `yt-dlp` 處理（`-f "bv*+ba/b"`，`ffmpeg` 可用時合併為 mp4）。
-- `ffmpeg` 若無法取得，退回不需合併的最高可用單一串流（`-f "b"`），不得為了合併失敗而讓下載整體失敗。
-- 不得自行重寫 Google Drive 影片畫質清單解析邏輯；解析權威固定交給 `yt-dlp`，避免重蹈舊版「無法正確辨識畫質」的問題。
+- **畫質解析權威固定為「實際播放 + 真實網路請求分析」，不得回頭改用 `yt-dlp` 或其他靜態猜測畫質清單的做法。** 這是為了修正舊版「無法正確辨識畫質」的根本病灶：單純複製 cookie 給外部 HTTP client（含 `yt-dlp --cookies`）在 Google Drive 的 `videoplayback` 端點上會被判定為非瀏覽器連線，實測回應 HTTP 403。
+- 正確流程固定為：用 WebView2（偽裝一般桌面版 Chrome User-Agent，見第 3 節）開啟 Drive 播放頁、觸發播放，Drive 會呼叫其 `workspacevideo-pa.clients6.google.com/v1/drive/media/<id>/playback` API；用 CDP `Network.getResponseBody` 讀出該次回應內容，解析 `mediaStreamingData.serializedHouseBrandPlayerResponse`（本身又是一段 JSON 字串）裡的 `streamingData.formats`（合併音視訊）與 `streamingData.adaptiveFormats`（分離音視訊）兩個陣列，每筆依 `itag` 分類畫質，直接取得真正的 `videoplayback` 網址；不得自行呼叫 Drive 內部 API 猜測畫質清單或另外實作一套 URL 猜測邏輯。
+- 上述 playback API 回應解析是畫質清單的主要來源；`WebResourceRequested`（搭配 `AddWebResourceRequestedFilter`）被動監聽播放器實際產生的 `videoplayback` 請求維持作為輔助／備援偵測機制，不得移除：Google 這個 API 端點未來可能再變動，被動監聽是萬一 playback API 格式改變時的降級手段。
+- WebView2 預設 User-Agent 帶有 `Edg/` 等識別字元，Google Drive 會因此判定為嵌入式瀏覽器而改走 `workspacevideo` API；經實測改用一般桌面版 Chrome User-Agent 字串（見第 3 節）不影響 `workspacevideo` API 的使用，此 API 本身即為目前的正式資料來源，不得因為改了 UA 就重新假設「一定會拿到舊版 `videoplayback` 直接請求」。
+- 下載一律「自動選擇偵測到的最高可用畫質」；同一畫質若偵測到多個候選來源，下載速度過慢（預設 < 50 KB/s，暖機期預設 8 秒）時依序改試下一個候選。
+- 分析視窗（`ScannerForm`）完成初次分析後不得關閉，必須維持靜音背景播放直到整個下載工作階段結束（成功或失敗）：持續播放會讓 Drive 自然產生更多、有時分配到不同邊緣伺服器的 `videoplayback` 請求，用來在候選來源用盡且仍然慢速時直接撿新的下載點，不必整個重新導覽頁面。下載端固定用輪詢（預設間隔 4 秒、最多累計等待 60 秒沒有新候選才放棄）讀取分析視窗持續增長的候選清單，不得改回「關閉後重開一個新分析視窗」的做法。仍然找不到更快的來源時，才改用最後一個候選以慢速下載到底，不得因為慢速就整體失敗。
+- 上一條的「慢速下載到底」不得完全關閉速度監控（曾經把速度門檻設為 0，結果連線真的中斷／停滯時完全偵測不到，畫面卡住不動也不會報錯）：必須保留一個遠低於一般門檻（50 KB/s）的最低門檻（預設 2 KB/s，暖機期拉長為 20 秒）用來分辨「真的很慢但還在傳輸」與「已經停滯」；只有真正停滯時才重試（固定用全新的 `StreamFetcher`／隱藏 WebView2 視窗重新連線，不得重用剛卡住的同一個連線重新導覽同一網址），重試固定次數（預設 3 次）後仍停滯才視為該次下載失敗。
+- 下載進度文字一律依數值大小自動切換單位（未滿 1 MB 顯示 KB，達 1 MB 以上顯示 MB，到小數點後一位），不得固定只用 KB 呈現：Google Drive 影片常見數百 MB，純 KB 數字難以閱讀。
+- 實際下載一律使用同一個已登入的 WebView2 瀏覽器 session，透過 CDP 的 `Fetch` domain 在 Response 階段攔截目標 `videoplayback` 請求並用 `IO.read` 串流寫檔；不得另外用複製出來的 cookie／URL 交給外部 HTTP client（`HttpClient`、`yt-dlp` 等）發送請求，避免重新踩到 403 的坑。
+- 候選來源網址只需移除 `range` 與 `ump` 這兩個查詢參數即可取得完整串流網址；其餘參數（含 `rn`、`rbuf` 等）維持原樣，不得額外增刪。
 
 ## 3. Google 登入與私人影片授權
 
 - 私人影片授權採「內嵌 WebView2 開啟獨立登入視窗」模式，不使用讀取使用者主要瀏覽器（Chrome/Edge 等）既有 cookie 的方式。
+- 所有會實際導覽 Google 頁面的 WebView2 執行個體（登入視窗、畫質分析視窗、下載用視窗）一律統一套用 `BrowserIdentity.DesktopChromeUserAgent`（一般桌面版 Chrome User-Agent 字串），維持同一個 session 的瀏覽器身分一致；不得只在部分視窗套用。
 - WebView2 使用固定的持久化 profile 目錄（本機 `%LOCALAPPDATA%\GDriveDownloader\WebView2Profile`），登入狀態預期可跨程式重啟保留，使用者不需每次重新登入。
-- 使用者完成登入後，程式將登入視窗當下的 Google 相關 cookie 匯出為 Netscape 格式 `cookies.txt`，供 `yt-dlp` 於公開與私人影片下載時一併使用；公開影片下載不因附帶 cookies 而失敗。
-- 登入 session 過期或失效時，由使用者手動重新點擊「登入 Google 帳號」更新 `cookies.txt`；程式不主動明碼保存帳號密碼。
+- 登入狀態一律即時查詢該持久化 profile 目前是否存在 Google 登入 session cookie（domain 為 google.com、cookie 名稱包含 `SID`／`LSID` 等關鍵字，不得限縮成少數幾個固定 cookie 名稱的白名單），不得依賴另外匯出到磁碟的 cookie 檔案作為登入狀態的唯一依據。
+- 登入 session 過期或失效時，由使用者手動重新點擊「登入 Google 帳號」更新登入狀態；程式不主動明碼保存帳號密碼，也不需要另外匯出、保存 cookie 檔案。
 
 ## 4. 佇列與下載流程
 
 - 佇列模式固定為「使用者每次貼上單一連結後加入佇列，程式依加入順序逐一下載」；不提供批次貼上多連結一次匯入的介面。
-- 佇列處理為循序（同一時間僅下載一項），可由使用者中途要求停止；停止只影響尚未開始的項目，進行中項目視為取消。
+- 佇列處理為循序（同一時間僅下載一個項目），可由使用者中途要求停止整個佇列；停止只影響尚未開始的項目，進行中項目視為取消。
+- 同一個項目內的視訊與音訊兩條串流下載為並行（各自用獨立的 `StreamFetcher`／隱藏 WebView2 視窗同時下載），不得改回「先下載完視訊才開始下載音訊」的循序做法；這與「同一時間僅下載一個項目」的佇列規則並不衝突，指的是跨項目循序、項目內並行。
+- 主介面任務清單採「一個項目一張卡片」呈現，每張卡片需同時顯示：目前執行狀態、視訊下載進度條、音訊下載進度條（無音訊來源時顯示「無音訊來源」而非進度條跑動）；每張卡片需提供各自的停止／移除按鈕：對尚未開始或已結束的項目按下即直接從清單移除，對進行中的項目按下則先取消該項目的下載，完成取消後才從清單移除，不需使用者再額外確認或點兩次。
+- 下載中的詳細位元組數／速度等細節一律只呈現在對應卡片的進度條與文字上，不得持續灌進下方「執行紀錄」文字區塊；執行紀錄只保留離散事件（例如切換來源、下載失敗、完成合併等），避免被高頻率的進度訊息洗版。
 
 ## 5. 第三方工具依賴
 
-- `yt-dlp.exe` 與 `ffmpeg.exe` 屬執行期依賴，於程式第一次需要時自動下載至本機 `%LOCALAPPDATA%\GDriveDownloader\tools`，不隨 Git 提交，也不內嵌於本專案 build 產物中。
-- 上述執行期自動下載的第三方工具二進位檔，不屬於根 `REPOSITORY_RULES.md` 第 5.1 節「Binary asset source integrity SOP」規範對象；該節僅規範提交進 Git、影響產品輸出的專案自有 binary source。
+- `ffmpeg.exe`（僅用於將分開下載的視訊／音訊合併為單一 mp4）由 CI 在 Windows runner 上下載並與 `GDriveDownloader.exe` 一起放進正式發行 ZIP，使用者不需另外等待程式首次執行時才下載；不隨 Git 提交，也不內嵌於 `GDriveDownloader.exe` 本身（維持獨立 exe，方便單獨更新）。
+- 程式啟動時優先使用與 `GDriveDownloader.exe` 同層的 `ffmpeg.exe`；找不到時才退回本機 `%LOCALAPPDATA%\GDriveDownloader\tools` 執行期下載作為保底（例如開發時直接執行未封裝的 build），不得反過來把执行期下載當成正式發行的主要取得方式。
+- 畫質偵測與實際媒體下載不依賴任何第三方下載工具（不使用 `yt-dlp` 或其他外部下載器），一律透過 WebView2 自身的 Chrome DevTools Protocol 完成，見第 2 節。
+- 上述 CI 下載或執行期保底下載的第三方工具二進位檔，不屬於根 `REPOSITORY_RULES.md` 第 5.1 節「Binary asset source integrity SOP」規範對象；該節僅規範提交進 Git、影響產品輸出的專案自有 binary source。
 - 若上游下載來源失效，屬已知風險並應於下次維護時檢視，不視為需要把第三方工具二進位檔改為提交進 Git 的理由。
 
 ## 6. Runtime 資料與隱私
 
-- `cookies.txt`、WebView2 profile 目錄、下載佇列狀態與任何登入相關資料屬使用者 runtime 個資，一律保存於本機 `%LOCALAPPDATA%\GDriveDownloader`，不得提交至 Git、記錄於 log 範例或作為測試 fixture。
+- WebView2 profile 目錄、下載佇列狀態與任何登入相關資料屬使用者 runtime 個資，一律保存於本機 `%LOCALAPPDATA%\GDriveDownloader`，不得提交至 Git、記錄於 log 範例或作為測試 fixture。
+- Log 檔案是唯一例外：為了方便測試時尋找，固定存在與 `GDriveDownloader.exe` 同層的 `logs` 子目錄（每次啟動一個新檔），不放進 `%LOCALAPPDATA%`；仍不得提交至 Git、記錄於文件範例或作為測試 fixture。
 - 下載完成的影片檔案預設輸出至使用者本機資料夾（預設 `Downloads\GDriveDownloader`），不隨程式或 Git 一併保存。
 
 ## 7. 視覺風格

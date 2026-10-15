@@ -57,16 +57,30 @@ jobs:
             -c Release `
             -r win-x64 `
             --self-contained true `
-            -p:PublishSingleFile=false `
+            -p:PublishSingleFile=true `
             --no-restore `
             -o publish/GDriveDownloader
 
-      - name: Package artifact
+      - name: Bundle ffmpeg
         run: |
-          Compress-Archive -Path 'publish/GDriveDownloader/*' -DestinationPath "GDriveDownloader-${{ steps.version.outputs.slug }}.zip"
+          Invoke-WebRequest -Uri 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip' -OutFile 'ffmpeg.zip'
+          Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'ffmpeg-extracted'
+          $ffmpegExe = Get-ChildItem -Path 'ffmpeg-extracted' -Filter 'ffmpeg.exe' -Recurse | Select-Object -First 1
+          if (-not $ffmpegExe) {
+            Write-Error 'ffmpeg.exe not found in downloaded archive.'
+            exit 1
+          }
+          Copy-Item -Path $ffmpegExe.FullName -Destination 'publish/GDriveDownloader/ffmpeg.exe'
 
       - uses: actions/upload-artifact@v4
         with:
           name: GDriveDownloader-${{ steps.version.outputs.slug }}
-          path: GDriveDownloader-${{ steps.version.outputs.slug }}.zip
+          # Upload the "publish" parent folder (not a pre-zipped file, and not
+          # publish/GDriveDownloader/* which would flatten the files). GitHub
+          # always wraps whatever is uploaded in one zip for download; uploading
+          # our own zip meant users had to extract twice. Uploading the folder
+          # this way means downloading and extracting once yields a single
+          # "GDriveDownloader" folder containing GDriveDownloader.exe and
+          # ffmpeg.exe.
+          path: publish
           retention-days: 3
