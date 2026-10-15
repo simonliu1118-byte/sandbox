@@ -1,14 +1,27 @@
 # Sandbox Governance Changelog
 
-## 1.2.5 — 2026/10/15
+## 1.2.7 — 2026/10/15
 
 - `apps/GDriveDownloader/PROJECT_RULES.md` 第 4 節補充兩項固定規則：(1) 同一項目內視訊／音訊兩條串流改為並行下載（各自獨立 `StreamFetcher`），不得回退成先視訊後音訊的循序做法，此規則與「跨項目循序、同一時間僅下載一個項目」並不衝突；(2) 主介面任務清單改採「一個項目一張卡片」呈現，每張卡片需同時顯示執行狀態與視訊／音訊各自的進度條，並提供各自的停止／移除按鈕；下載過程中的位元組數／速度等細節只能呈現在卡片進度條上，不得持續灌進執行紀錄文字區塊。
 
-## 1.2.4 — 2026/09/22
+## 1.2.6 — 2026/09/22
 
 - `apps/GDriveDownloader/PROJECT_RULES.md` 改寫畫質策略與登入狀態判斷權威：不得再使用 `yt-dlp` 或其他靜態猜測畫質清單、複製 cookie 給外部 HTTP client 的做法（實測會被 Google 判定非瀏覽器連線並回應 403）；改為固定用 WebView2 的 Chrome DevTools Protocol 實際播放並監聽 `videoplayback` 請求分類畫質，下載也透過同一個已登入瀏覽器 session 的 CDP `Fetch`/`IO` 串流完成。
 - 登入狀態判斷不得再限縮成少數固定 cookie 名稱白名單，改為即時查詢持久化 profile 是否存在 google.com 網域、名稱含 `SID`/`LSID` 的 session cookie。
 - 新增 `apps/GDriveDownloader/legacy/`：舊版（Bun + 受控 Chrome/Edge CDP）發行包可還原原始碼快照，僅供追溯，不屬於正式技術線。
+
+## 1.2.5 — 2026/10/14
+
+- 納入個人旅行規劃程式 `apps/TravelPlan`，匯入既有 V0.8.5 測試版 source、Version 歷史及接續文件。
+- 新增唯一 `PROJECT_RULES.md` 與 `VERSION`（0.8.5）、`BUILD`（0）；產品版本沿用匯入基準，不因單純入庫升版。
+- 原始碼與既有文字文件原樣保存；未提交 EXE、ZIP、執行資料或私密設定。缺少原 assets、Windows 實機尚待驗證的狀態寫入 README。
+
+## 1.2.4 — 2026/09/29
+
+- 新增個人專案 `apps/MediaMerge`：建立唯一 `PROJECT_RULES.md`、`VERSION`（0.1.0）、`BUILD`（0）。
+- 固定 `MediaMerge.exe` 為 Windows x64 單檔發行名稱；FFmpeg 於 CI 下載 LGPL build 後內嵌，不將執行檔提交至 Git。
+- 固定 `assets/MediaMerge.svg` 為應用程式 icon 唯一來源，由 Windows CI 產生多尺寸 ICO 並嵌入最終 EXE。
+- 新增 MediaMerge Windows Build workflow，採 pull request／manual 驗證與 sandbox 預設 3 天 Artifact retention。
 
 ## 1.2.3 — 2026/09/22
 
@@ -51,3 +64,4 @@
 - 建立 `COMMON_RULES_VERSION`、`COMMON_RULES_CHANGELOG.md`、`RULES_INDEX.md`、Governance Check 與手動 Common Rules sync workflow。
 - ScratchGame 重複的 Local-first／Token-efficient 規則改由共通母本統一維護，PROJECT_RULES 只保留 ScratchGame 專案特例。
 - ScratchGame Windows Build workflow 改為 PR／manual 驗證，避免 merge 後又因 main push 重複建置同一批內容。
+
