@@ -25,6 +25,8 @@ public sealed record ScratchPackZone(
 
 public sealed record ScratchPackPrize(long Amount, long Count);
 
+public sealed record ScratchPackSymbolPrize(string Symbol, long Amount);
+
 public sealed record ScratchPackManifestDefinition(
     string FormatVersion,
     Guid PackageId,
@@ -60,7 +62,15 @@ public sealed record ScratchPackTicketDefinition(
     bool? UseCustomDecoyAmounts = null,
     IReadOnlyList<long>? DecoyAmounts = null,
     int? NearMissPairProbability = null,
-    int? NearMissPairCount = null);
+    int? NearMissPairCount = null,
+    string? SymbolCountMode = null,
+    string? TargetSymbol = null,
+    int? MinimumMatchCount = null,
+    int? MatchCount = null,
+    IReadOnlyList<ScratchPackSymbolPrize>? SymbolPrizes = null,
+    bool? AllowMultipleWins = null,
+    bool? UseCustomDecoySymbols = null,
+    IReadOnlyList<string>? DecoySymbols = null);
 
 public sealed record LoadedScratchPack(
     ScratchPackManifestDefinition Manifest,
