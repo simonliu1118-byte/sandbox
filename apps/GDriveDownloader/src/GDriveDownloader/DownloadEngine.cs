@@ -1,0 +1,450 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+
+namespace GDriveDownloader;
+
+internal sealed class DownloadEngineResult
+{
+    public required bool Success { get; init; }
+
+    public string? OutputPath { get; init; }
+
+    public string? ErrorMessage { get; init; }
+
+    public static DownloadEngineResult Succeeded(string path) => new() { Success = true, OutputPath = path };
+
+    public static DownloadEngineResult Failed(string message) => new() { Success = false, ErrorMessage = message };
+}
+
+internal static class DownloadEngine
+{
+    private const int MinAcceptableBytesPerSecond = 50 * 1024;
+    private static readonly TimeSpan WarmupBeforeSpeedCheck = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan ScanWindow = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan MaxPollWithoutNewCandidate = TimeSpan.FromSeconds(60);
+
+    // The last-resort "accept whatever speed it gets" download must still catch a
+    // genuine stall (0 B/s forever - a dead connection, not just a slow one): a
+    // literal 0 floor previously disabled PumpStreamAsync's checkpoint entirely,
+    // so a hung transfer never got detected and the UI just froze forever. This
+    // floor is far below the normal 50 KB/s fallback threshold so it only trips
+    // on a true stall, with a longer warmup to tolerate a slow-but-alive start.
+    private const int MinStallBytesPerSecond = 2 * 1024;
+    private static readonly TimeSpan StallWarmup = TimeSpan.FromSeconds(20);
+    private const int MaxStallRetries = 3;
+
+    public static async Task<DownloadEngineResult> RunAsync(
+        string driveUrl,
+        string outputDirectory,
+        string? ffmpegPath,
+        Action<string> log,
+        Action<double?, string> onVideoProgress,
+        Action<double?, string> onAudioProgress,
+        Action<bool> onAudioAvailable,
+        CancellationToken token)
+    {
+        var fileId = ExtractFileId(driveUrl);
+        if (fileId is null)
+        {
+            return DownloadEngineResult.Failed("無法從連結解析出 Google Drive 檔案 ID。");
+        }
+
+        log("正在開啟 Google Drive 播放頁面並分析可用畫質...");
+
+        // The scanner stays open and keeps playing (muted) in the background for
+        // the whole download session instead of closing after the initial window:
+        // continued playback naturally produces more videoplayback requests over
+        // time (sometimes routed to a different edge server), which is a much
+        // cheaper way to find an alternate download point for a slow source than
+        // closing and re-navigating from scratch.
+        using var scanner = new ScannerForm(fileId, ScanWindow, log);
+        scanner.Show();
+        await scanner.WaitUntilDoneAsync();
+
+        if (token.IsCancellationRequested)
+        {
+            return DownloadEngineResult.Failed("已取消");
+        }
+
+        var initialCandidates = scanner.Candidates.ToList();
+        var title = string.IsNullOrWhiteSpace(scanner.VideoTitle) ? fileId : scanner.VideoTitle!;
+
+        if (initialCandidates.Count == 0)
+        {
+            return DownloadEngineResult.Failed("沒有偵測到任何 videoplayback 來源，可能尚未登入、沒有權限，或影片無法播放。");
+        }
+
+        var videoGroups = initialCandidates
+            .Where(c => c.Kind == StreamKind.Video)
+            .GroupBy(c => c.Height ?? 0)
+            .OrderByDescending(g => g.Key)
+            .ToList();
+
+        if (videoGroups.Count == 0)
+        {
+            return DownloadEngineResult.Failed("沒有偵測到視訊來源。");
+        }
+
+        var bestVideoGroup = videoGroups[0].ToList();
+        var targetHeight = bestVideoGroup[0].Height;
+        var initialAudioCandidates = initialCandidates.Where(c => c.Kind == StreamKind.Audio).ToList();
+        var hasAudio = initialAudioCandidates.Count > 0;
+        onAudioAvailable(hasAudio);
+
+        log($"偵測到最高畫質：{bestVideoGroup[0].Label}（{bestVideoGroup.Count} 個候選來源，另有 {initialAudioCandidates.Count} 個音訊來源）。");
+
+        var safeTitle = SanitizeFileName(title);
+        var videoTempPath = Path.Combine(outputDirectory, $"{safeTitle}.video.tmp");
+        var audioTempPath = Path.Combine(outputDirectory, $"{safeTitle}.audio.tmp");
+
+        // Video and audio are independent HTTP streams. Each StreamFetcher drives
+        // one hidden WebView2 window that can only stream a single navigation at a
+        // time, so downloading both concurrently (instead of one after the other)
+        // needs two separate fetchers, not a shared one.
+        using var videoFetcher = new StreamFetcher();
+        await videoFetcher.InitializeAsync();
+
+        using var audioFetcher = hasAudio ? new StreamFetcher() : null;
+        if (audioFetcher != null)
+        {
+            await audioFetcher.InitializeAsync();
+        }
+
+        var videoTask = DownloadWithFallbackAsync(
+            videoFetcher,
+            bestVideoGroup,
+            videoTempPath,
+            "視訊",
+            log,
+            onVideoProgress,
+            () => scanner.Candidates.Where(c => c.Kind == StreamKind.Video && c.Height == targetHeight).ToList(),
+            token);
+
+        var audioTask = audioFetcher != null
+            ? DownloadWithFallbackAsync(
+                audioFetcher,
+                initialAudioCandidates,
+                audioTempPath,
+                "音訊",
+                log,
+                onAudioProgress,
+                () => scanner.Candidates.Where(c => c.Kind == StreamKind.Audio).ToList(),
+                token)
+            : null;
+
+        if (audioTask != null)
+        {
+            await Task.WhenAll(videoTask, audioTask);
+        }
+        else
+        {
+            await videoTask;
+        }
+
+        var videoOutcome = videoTask.Result;
+        if (videoOutcome.Result is not (FetchResult.Success or FetchResult.SlowAborted))
+        {
+            TryDelete(videoTempPath);
+            TryDelete(audioTempPath);
+            return DownloadEngineResult.Failed($"視訊下載失敗：{videoOutcome.ErrorMessage}");
+        }
+
+        string? finalAudioPath = null;
+        if (audioTask != null)
+        {
+            var audioOutcome = audioTask.Result;
+            if (audioOutcome.Result is FetchResult.Success or FetchResult.SlowAborted)
+            {
+                finalAudioPath = audioTempPath;
+            }
+            else
+            {
+                log($"音訊下載失敗，將只輸出視訊：{audioOutcome.ErrorMessage}");
+                TryDelete(audioTempPath);
+            }
+        }
+
+        var finalPath = MakeUniquePath(Path.Combine(outputDirectory, $"{safeTitle}.mp4"));
+
+        if (finalAudioPath != null && ffmpegPath != null)
+        {
+            log("正在合併視訊與音訊...");
+            var muxed = await MuxAsync(ffmpegPath, videoTempPath, finalAudioPath, finalPath, token);
+            if (muxed)
+            {
+                TryDelete(videoTempPath);
+                TryDelete(finalAudioPath);
+            }
+            else
+            {
+                log("合併失敗，改為只保留視訊檔。");
+                File.Move(videoTempPath, finalPath, overwrite: false);
+                TryDelete(finalAudioPath);
+            }
+        }
+        else
+        {
+            File.Move(videoTempPath, finalPath, overwrite: false);
+            if (finalAudioPath != null)
+            {
+                log("找不到 ffmpeg，無法合併音訊，音訊已略過。");
+                TryDelete(finalAudioPath);
+            }
+        }
+
+        return DownloadEngineResult.Succeeded(finalPath);
+    }
+
+    /// <summary>
+    /// Tries each known candidate for a quality tier; when the pool is exhausted
+    /// and the most recent attempt was too slow, polls <paramref name="getLiveCandidates"/>
+    /// (the still-playing scanner's growing candidate list) for anything new,
+    /// up to <see cref="MaxPollWithoutNewCandidate"/> of waiting with no new
+    /// candidate appearing, before finally accepting the last candidate at
+    /// whatever speed it gets.
+    /// </summary>
+    private static async Task<FetchOutcome> DownloadWithFallbackAsync(
+        StreamFetcher fetcher,
+        List<VideoSourceCandidate> initialCandidates,
+        string destinationPath,
+        string kindLabel,
+        Action<string> log,
+        Action<double?, string> progress,
+        Func<List<VideoSourceCandidate>> getLiveCandidates,
+        CancellationToken token)
+    {
+        var candidates = new List<VideoSourceCandidate>(initialCandidates);
+        var triedUrls = new HashSet<string>();
+        var waitedWithoutNew = TimeSpan.Zero;
+        VideoSourceCandidate? lastCandidate = null;
+
+        while (true)
+        {
+            var next = candidates.FirstOrDefault(c => !triedUrls.Contains(c.Url));
+
+            if (next is null)
+            {
+                var fresh = getLiveCandidates();
+                var newOnes = fresh.Where(c => candidates.All(existing => existing.Url != c.Url)).ToList();
+
+                if (newOnes.Count > 0)
+                {
+                    log($"{kindLabel}背景播放產生了 {newOnes.Count} 個新的候選來源，繼續嘗試...");
+                    candidates.AddRange(newOnes);
+                    waitedWithoutNew = TimeSpan.Zero;
+                    continue;
+                }
+
+                if (waitedWithoutNew >= MaxPollWithoutNewCandidate)
+                {
+                    if (lastCandidate is null)
+                    {
+                        return new FetchOutcome { Result = FetchResult.HttpError, ErrorMessage = "沒有可用來源" };
+                    }
+
+                    log($"{kindLabel}沒有找到較快的來源，改用慢速來源完整下載...");
+                    return await DownloadWithStallRetryAsync(lastCandidate.Url, destinationPath, kindLabel, log, progress, token);
+                }
+
+                try
+                {
+                    await Task.Delay(PollInterval, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return new FetchOutcome { Result = FetchResult.Cancelled };
+                }
+
+                waitedWithoutNew += PollInterval;
+                continue;
+            }
+
+            triedUrls.Add(next.Url);
+            lastCandidate = next;
+            waitedWithoutNew = TimeSpan.Zero;
+
+            log($"正在下載{kindLabel}來源（{next.Label}）...");
+            progress(null, "準備下載...");
+
+            var outcome = await fetcher.DownloadAsync(
+                next.Url,
+                destinationPath,
+                MakeProgressHandler(progress),
+                MinAcceptableBytesPerSecond,
+                WarmupBeforeSpeedCheck,
+                token);
+
+            if (outcome.Result == FetchResult.Success || token.IsCancellationRequested)
+            {
+                return outcome;
+            }
+
+            log(outcome.Result == FetchResult.SlowAborted
+                ? $"{kindLabel}來源速度過慢，嘗試下一個來源..."
+                : $"{kindLabel}來源失敗（{outcome.ErrorMessage}），嘗試下一個來源...");
+        }
+    }
+
+    /// <summary>
+    /// Last-resort download of a single already-known-slow URL: tolerates a very
+    /// low but non-zero speed (see <see cref="MinStallBytesPerSecond"/>) instead
+    /// of accepting literally any rate, because disabling the speed check
+    /// entirely (the old behaviour) meant a connection that stalled to 0 B/s was
+    /// never detected - the UI just froze with no progress and no error. Each
+    /// retry uses a brand new <see cref="StreamFetcher"/> (fresh hidden WebView2
+    /// window) instead of re-navigating the one that just stalled, since
+    /// re-requesting the identical URL on a connection that only just aborted
+    /// risks reusing a wedged cache/connection entry.
+    /// </summary>
+    private static async Task<FetchOutcome> DownloadWithStallRetryAsync(
+        string url,
+        string destinationPath,
+        string kindLabel,
+        Action<string> log,
+        Action<double?, string> progress,
+        CancellationToken token)
+    {
+        for (var attempt = 1; attempt <= MaxStallRetries; attempt++)
+        {
+            using var retryFetcher = new StreamFetcher();
+            await retryFetcher.InitializeAsync();
+
+            var outcome = await retryFetcher.DownloadAsync(
+                url,
+                destinationPath,
+                MakeProgressHandler(progress),
+                MinStallBytesPerSecond,
+                StallWarmup,
+                token);
+
+            if (outcome.Result != FetchResult.SlowAborted || token.IsCancellationRequested)
+            {
+                return outcome;
+            }
+
+            log(attempt < MaxStallRetries
+                ? $"{kindLabel}下載停滯，重試第 {attempt + 1} 次..."
+                : $"{kindLabel}下載停滯，重試 {MaxStallRetries} 次後仍然失敗。");
+        }
+
+        return new FetchOutcome { Result = FetchResult.HttpError, ErrorMessage = "下載停滯，重試多次仍失敗" };
+    }
+
+    /// <summary>
+    /// Turns raw byte/elapsed-time/content-length samples into the (fraction,
+    /// label) shape the task card's progress bar wants, instead of printing every
+    /// sample to the log box (the log is for discrete events, not a progress feed).
+    /// </summary>
+    private static Action<long, double, long?> MakeProgressHandler(Action<double?, string> progress)
+    {
+        return (bytes, seconds, contentLength) =>
+        {
+            var kbps = seconds > 0 ? bytes / 1024.0 / seconds : 0;
+            double? fraction = contentLength is > 0 ? Math.Clamp((double)bytes / contentLength.Value, 0, 1) : null;
+
+            var sizeLabel = contentLength is > 0
+                ? $"{FormatBytes(bytes)} / {FormatBytes(contentLength.Value)}"
+                : FormatBytes(bytes);
+            var speedLabel = kbps >= 1024 ? $"{kbps / 1024:0.0} MB/s" : $"{kbps:0} KB/s";
+
+            progress(fraction, $"{sizeLabel}，約 {speedLabel}");
+        };
+    }
+
+    /// <summary>
+    /// Google Drive videos routinely run into the hundreds of MB, so a raw KB
+    /// count ("184653 KB") is unreadable; switch to MB once the value is at
+    /// least 1 MB and fall back to KB only for genuinely small values.
+    /// </summary>
+    private static string FormatBytes(long bytes)
+    {
+        var mb = bytes / 1024.0 / 1024.0;
+        return mb >= 1 ? $"{mb:0.0} MB" : $"{bytes / 1024.0:0} KB";
+    }
+
+    private static async Task<bool> MuxAsync(string ffmpegPath, string videoPath, string audioPath, string outputPath, CancellationToken token)
+    {
+        var psi = new ProcessStartInfo(ffmpegPath)
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        psi.ArgumentList.Add("-y");
+        psi.ArgumentList.Add("-i");
+        psi.ArgumentList.Add(videoPath);
+        psi.ArgumentList.Add("-i");
+        psi.ArgumentList.Add(audioPath);
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add("copy");
+        psi.ArgumentList.Add(outputPath);
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        await process.WaitForExitAsync(token);
+        return process.ExitCode == 0 && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0;
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
+        var result = new string(chars).Trim();
+        return string.IsNullOrWhiteSpace(result) ? "GDriveVideo" : result;
+    }
+
+    private static string MakeUniquePath(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        var directory = Path.GetDirectoryName(path)!;
+        var nameWithoutExt = Path.GetFileNameWithoutExtension(path);
+        var ext = Path.GetExtension(path);
+
+        for (var i = 1; ; i++)
+        {
+            var candidate = Path.Combine(directory, $"{nameWithoutExt} ({i}){ext}");
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private static void TryDelete(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // best effort cleanup
+        }
+    }
+
+    private static string? ExtractFileId(string url)
+    {
+        var match = Regex.Match(url, @"/d/([a-zA-Z0-9_-]{10,})");
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
+
+        match = Regex.Match(url, @"[?&]id=([a-zA-Z0-9_-]{10,})");
+        return match.Success ? match.Groups[1].Value : null;
+    }
+}

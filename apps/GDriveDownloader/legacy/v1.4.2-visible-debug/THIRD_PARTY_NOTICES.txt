@@ -1,0 +1,28 @@
+Third-party components
+======================
+
+Bun runtime
+Copyright (c) Oven.sh and contributors.
+Licensed under the MIT License.
+https://github.com/oven-sh/bun
+
+FFmpeg
+Copyright (c) the FFmpeg developers.
+FFmpeg is distributed under the GNU LGPL v2.1 or later; builds that include
+GPL components are distributed under the GNU GPL v2 or later.
+https://ffmpeg.org/legal.html
+
+webview-bun and webview
+Copyright (c) their respective contributors.
+Licensed under the MIT License.
+https://github.com/tr1ckydev/webview-bun
+https://github.com/webview/webview
+
+Microsoft Edge WebView2 Runtime
+Copyright (c) Microsoft Corporation.
+Distributed and licensed by Microsoft as part of Windows / Edge WebView2.
+https://developer.microsoft.com/microsoft-edge/webview2/
+
+This application invokes FFmpeg as a separate executable to combine media
+streams. Source-code and license information for these components are
+available from their respective official projects.

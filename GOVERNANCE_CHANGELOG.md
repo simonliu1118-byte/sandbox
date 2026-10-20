@@ -1,5 +1,19 @@
 # Sandbox Governance Changelog
 
+## 1.2.8 — 2026/10/16
+
+- `apps/GDriveDownloader/PROJECT_RULES.md` 第 2 節修正「慢速來源完整下載到底」的規則：不得把速度門檻完全設為 0（實測會導致連線真的停滯時完全偵測不到，畫面卡住不報錯），改為保留遠低於一般門檻的最低速度（預設 2 KB/s、暖機 20 秒）分辨「真慢」與「停滯」，停滯時改用全新連線重試固定次數後才視為失敗；另外固定下載進度文字需依大小自動切換 KB／MB 顯示單位，不得固定只用 KB。
+
+## 1.2.7 — 2026/10/15
+
+- `apps/GDriveDownloader/PROJECT_RULES.md` 第 4 節補充兩項固定規則：(1) 同一項目內視訊／音訊兩條串流改為並行下載（各自獨立 `StreamFetcher`），不得回退成先視訊後音訊的循序做法，此規則與「跨項目循序、同一時間僅下載一個項目」並不衝突；(2) 主介面任務清單改採「一個項目一張卡片」呈現，每張卡片需同時顯示執行狀態與視訊／音訊各自的進度條，並提供各自的停止／移除按鈕；下載過程中的位元組數／速度等細節只能呈現在卡片進度條上，不得持續灌進執行紀錄文字區塊。
+
+## 1.2.6 — 2026/09/22
+
+- `apps/GDriveDownloader/PROJECT_RULES.md` 改寫畫質策略與登入狀態判斷權威：不得再使用 `yt-dlp` 或其他靜態猜測畫質清單、複製 cookie 給外部 HTTP client 的做法（實測會被 Google 判定非瀏覽器連線並回應 403）；改為固定用 WebView2 的 Chrome DevTools Protocol 實際播放並監聽 `videoplayback` 請求分類畫質，下載也透過同一個已登入瀏覽器 session 的 CDP `Fetch`/`IO` 串流完成。
+- 登入狀態判斷不得再限縮成少數固定 cookie 名稱白名單，改為即時查詢持久化 profile 是否存在 google.com 網域、名稱含 `SID`/`LSID` 的 session cookie。
+- 新增 `apps/GDriveDownloader/legacy/`：舊版（Bun + 受控 Chrome/Edge CDP）發行包可還原原始碼快照，僅供追溯，不屬於正式技術線。
+
 ## 1.2.5 — 2026/10/14
 
 - 納入個人旅行規劃程式 `apps/TravelPlan`，匯入既有 V0.8.5 測試版 source、Version 歷史及接續文件。

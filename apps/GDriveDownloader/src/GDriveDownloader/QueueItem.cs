@@ -6,6 +6,7 @@ internal enum QueueStatus
     Downloading,
     Completed,
     Failed,
+    Cancelled,
 }
 
 internal sealed class QueueItem
@@ -21,5 +22,14 @@ internal sealed class QueueItem
 
     public string Message { get; set; } = string.Empty;
 
-    public ListViewItem? ListViewItem { get; set; }
+    public CancellationTokenSource? Cts { get; set; }
+
+    /// <summary>
+    /// Set when the user stops a card that is actively downloading: the in-flight
+    /// download is cancelled, and once DownloadOneAsync observes it finish it
+    /// removes the card entirely instead of showing a "cancelled" status.
+    /// </summary>
+    public bool RemoveAfterCompletion { get; set; }
+
+    public TaskCard? Card { get; set; }
 }
