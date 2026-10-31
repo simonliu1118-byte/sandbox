@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.6 — 2026/10/31
+
+- 依使用者停用決定，移除 `apps/TravelPlan/` 的 21 個檔案，包括 source、版本歷史與專案文件。
+- 刪除範圍限 TravelPlan；其他 APP 保持不變。歷史 commit 保留，未改寫 Git 歷史。
+- 同步 AITeam main 共通規則 2.11.0 及母本的三個共通檔案。
+
 ## 1.2.5 — 2026/10/14
 
 - 納入個人旅行規劃程式 `apps/TravelPlan`，匯入既有 V0.8.5 測試版 source、Version 歷史及接續文件。
