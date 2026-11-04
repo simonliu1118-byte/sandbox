@@ -193,7 +193,7 @@ public sealed class ScratchPackV1Loader
             throw new InvalidDataException("priceDisplay 只允許 0 或 1。");
         if (issueSize <= 0 || ticketsPerBook <= 0 || issueSize % ticketsPerBook != 0)
             throw new InvalidDataException("issueSize / ticketsPerBook 無效或無法整除。");
-        if (gameType is not "1" and not "2" and not "3")
+        if (gameType is not "1" and not "2" and not "3" and not "4")
             throw new InvalidDataException($"目前版本尚未實作 GameType：{gameType}");
 
         ScratchPackRect? priceArea = null;
@@ -312,6 +312,26 @@ public sealed class ScratchPackV1Loader
 
             GameType2Rules.ValidateDefinition(ticket);
             return ticket;
+        }
+
+        if (gameType == "4")
+        {
+            return GameType4Rules.ParseDefinition(
+                name,
+                price,
+                canvas,
+                priceDisplay == 1,
+                priceArea,
+                gameType,
+                issueSize,
+                ticketsPerBook,
+                ticketArt,
+                serialArea,
+                foil,
+                zones,
+                prizes,
+                json,
+                game);
         }
 
         EnsureOnlyProperties(game, "game",

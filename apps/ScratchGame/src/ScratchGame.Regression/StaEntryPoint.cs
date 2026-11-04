@@ -7,6 +7,7 @@ internal static class StaEntryPoint
     {
         GameType2Regression.Run();
         GameType3Regression.Run();
+        GameType4Regression.Run();
         return Program.Main(args);
     }
 }

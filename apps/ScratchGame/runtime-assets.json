@@ -111,6 +111,11 @@
       "path": "TestPacks/GameType3-Test.scratchpack",
       "size": 2336,
       "sha256": "58a6cd148d6e5245e30718e70d614dd0b7b37d6453d7fe5dbf26de5f8851618f"
+    },
+    {
+      "path": "TestPacks/GameType4-Test.scratchpack",
+      "size": 2404,
+      "sha256": "9d41eb2bcef72724a929ef0144cae08c67592d8dacaf61963c132c031a648236"
     }
   ]
 }

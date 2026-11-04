@@ -8,6 +8,7 @@ public static class GameTypeCatalog
             "1" => "星星連線",
             "2" => "中獎號碼",
             "3" => "三個相同",
+            "4" => "符號計數",
             "ThreeLine" => "三星連線（舊版）",
             "LuckyNumberMatch" => "幸運號碼",
             "MatchThree" => "三個相同",
