@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Google Drive 影片下載器</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">↓</span>
+        <div>
+          <div class="brand-title">Google Drive 影片下載器</div>
+          <div class="brand-subtitle" id="version-label">正在啟動…</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="button" id="settings-button">⚙ 設定</button>
+        <button type="button" class="button" id="login-button">登入 Google</button>
+      </div>
+    </header>
+
+    <form class="url-form" id="url-form">
+      <label for="url-input">影片網址</label>
+      <div class="url-entry-row">
+        <input id="url-input" type="url" autocomplete="off" required
+          placeholder="貼上 Google Drive 影片網址，按 Enter 加入並自動開始">
+        <label class="quality-picker" for="quality-select">
+          <span>畫質</span>
+          <select id="quality-select">
+            <option value="highest">最高可用</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+            <option value="auto">播放器自動</option>
+          </select>
+        </label>
+      </div>
+      <div class="input-note" id="input-note">公開影片不需登入；無權限的影片會留在佇列中等待登入。</div>
+      <div class="input-note" id="browser-session-note">正在確認共用的瀏覽器登入工作階段…</div>
+    </form>
+
+    <section class="queue-section" aria-labelledby="queue-heading">
+      <div class="queue-heading-row">
+        <h1 id="queue-heading">任務清單</h1>
+        <div class="queue-actions">
+          <span id="queue-count">未完成 0筆・已完成 0筆</span>
+          <button type="button" class="button danger-button" id="cancel-all-button">取消全部</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="file-column">Google Drive 影片</th>
+              <th>下載狀態與進度</th>
+              <th class="total-column">總進度</th>
+              <th class="action-column">操作</th>
+            </tr>
+          </thead>
+          <tbody id="task-list">
+            <tr class="empty-row"><td colspan="4">尚未加入影片網址</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="statusbar">
+      <span id="status-summary">下載中 0筆　等待 0筆　已完成 0筆</span>
+      <span id="output-summary">儲存位置：讀取中…</span>
+    </footer>
+  </main>
+
+  <dialog id="quality-dialog">
+    <div id="quality-dialog-content">
+      <div class="dialog-title-row">
+        <h2 id="quality-dialog-title">確認影片畫質</h2>
+      </div>
+      <div class="quality-dialog-message" id="quality-dialog-message"></div>
+      <div class="dialog-note" id="quality-dialog-note"></div>
+      <div class="dialog-actions quality-confirm-actions" id="quality-confirm-actions">
+        <button type="button" class="button" id="quality-open-player">開啟播放器確認</button>
+        <button type="button" class="button" id="quality-only-lower">確實只有較低畫質</button>
+        <button type="button" class="button" id="quality-cancel-direct">取消任務</button>
+        <button type="button" class="button danger-button" id="quality-report-bug">確認有指定畫質，回報BUG</button>
+      </div>
+      <div class="dialog-actions quality-fallback-actions" id="quality-fallback-actions" hidden>
+        <button type="button" class="button" id="quality-back">返回確認</button>
+        <button type="button" class="button danger-button" id="quality-cancel-task">取消任務</button>
+        <span id="quality-fallback-choices" class="quality-fallback-choices"></span>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" id="settings-form">
+      <div class="dialog-title-row">
+        <h2>設定</h2>
+        <button type="button" class="icon-button" id="settings-close" aria-label="關閉設定">×</button>
+      </div>
+
+      <div class="field-group">
+        <label for="output-directory">預設存檔位置</label>
+        <div class="path-row">
+          <input id="output-directory" type="text" required>
+          <button type="button" class="button" id="browse-button">瀏覽…</button>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <div class="field-group">
+          <label for="concurrency">同時處理影片數量</label>
+          <input id="concurrency" type="number" min="1" max="8" required>
+        </div>
+        <div class="field-group">
+          <label for="slow-threshold">慢速門檻（KB/s）</label>
+          <input id="slow-threshold" type="number" min="1" max="10000" required>
+        </div>
+        <div class="field-group">
+          <label for="first-byte-timeout-seconds">下載啟動等待時間（秒）</label>
+          <input id="first-byte-timeout-seconds" type="number" min="5" max="120" required>
+        </div>
+        <div class="field-group">
+          <label for="observation-seconds">平均速度觀察時間（秒）</label>
+          <input id="observation-seconds" type="number" min="3" max="300" required>
+        </div>
+        <div class="field-group">
+          <label for="quality-confirm-seconds">畫質確認時間（秒）</label>
+          <input id="quality-confirm-seconds" type="number" min="10" max="300" required>
+        </div>
+      </div>
+
+      <div class="dialog-note">下載啟動等待時間是收到第一個位元前的寬限；收到資料後才開始計算平均速度。畫質確認時間只限制第一階段的畫質選擇；開始下載後，尋找同畫質高速來源不設時間限制。</div>
+      <div class="dialog-actions">
+        <button type="button" class="button" id="settings-cancel">取消</button>
+        <button type="submit" class="button primary-button">儲存設定</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/ui.js"></script>
+</body>
+</html>
