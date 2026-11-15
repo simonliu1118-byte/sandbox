@@ -82,8 +82,12 @@ class OnePageTests(unittest.TestCase):
         self.assertIn("查詢價格".encode(), page.data)
 
     def test_no_export_import_controls(self):
-        with patch.dict(os.environ, {"VERCEL": ""}):
-            page = self.client.get("/?keyword=test")
+        # Entire CI must remain offline: use a normal search result fixture.
+        result = {"status": "ok", "results": parse_results(payload(), "羅技 M331")[1],
+                  "raw_count": 2, "checked_at": "2026-11-15T00:00:00+00:00"}
+        with patch.dict(os.environ, {"VERCEL": ""}), patch("app.safe_search", return_value=result):
+            page = self.client.get("/?keyword=%E7%BE%85%E6%8A%80+M331")
+        self.assertIn(b'id="catalog-data"', page.data)
         self.assertNotIn(b'id="export-rules"', page.data)
         self.assertNotIn(b'id="import-rules"', page.data)
         self.assertNotIn("匯入分類備份".encode(), page.data)
