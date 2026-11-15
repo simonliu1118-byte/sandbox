@@ -268,3 +268,48 @@ python apps/ScraplingProbe/sku_vendor_validator.py --input local-sample.json --s
 ~~~
 
 Apify Khalid／SIÁN 為按筆計價的來源，預設費用類型 `paid`：若只提供最低／最高價，**不得**進入正式備用方案；只有通過完整逐規格售價驗證，才有資格另外進行主要方案的價格評估。Wellbyte 若僅能提供區間，註冊贈送的 500 credits **不構成持續免費**，除非另外證實有可維持預計查價量的永久免費方案。
+
+## V0.2.8：臺灣蝦皮低成本來源研究（2026-11-15）
+
+本輪是官方條款、定價與資料可用性的研究，沒有實際取得新的臺灣蝦皮售價，也沒有啟動付費 Actor、使用蝦皮帳號、VPN 或使用者的本機／公司網路。
+
+### 供應商候選及價格
+
+| 來源 | 候選用途 | 文件標示費用 | TW 實測 |
+|---|---|---|---|
+| [Apify Khalid](https://apify.com/khalid_alsaba/shopee-product-scraper) | 主要：SKU ID、規格名稱、個別售價 | US$6 / 1,000 筆 | 我們尚未取得成功的 TW Dataset |
+| [Apify SIÁN](https://apify.com/sian.agency/shopee-product-scraper) | 主要：商品詳情與 SKU 增補 | 約 US$4.40 / 1,000 筆起，SKU 增補可能另計 | 公開 Dataset API HTTP 401；單一規格示例不代表多規格成功 |
+| [Apify Dami](https://apify.com/dami_studio/shopee-product-scraper) | 免費備用候選：商品卡片展示價、ID、連結 | US$0.235 / 1,000 筆（以 Free 方案額度抵用） | 未有我們的 TW 取得價格證據 |
+| [Apify Lergassy Price Tracker](https://apify.com/lergassy/shopee-price-tracker) | 免費備用候選：當前展示價、價格變動紀錄 | Free plan 卡片價約 US$0.40 / 1,000 筆 | 未有我們的 TW 取得價格證據 |
+| [Wellbyte SKU](https://www.wellbyte.net/en/docs/api/shopee-product-item_sku_models_v1) | 若有個別 SKU 價格可為主要候選 | 39 credits／成功次，註冊 500 credits | 個別價格仍未證實；若只有區間，註冊贈額不構成長期免費 |
+| [蝦皮臺灣聯盟 Open API](https://affiliate.shopee.tw/) | 免費備用研究線，商品最低／最高價 | 加入聯盟免費、Open API 需另核准 | 未驗證臺灣 schema、權限與允許的私有競品監控用途 |
+| Octoparse | 已排除 | 超出使用者預算 | BR 已有實測多規格樣本，TW 尚未 |
+
+### 目前明確的新發現：Apify Free 額度可長期維持零付款
+
+[Apify 官方方案](https://apify.com/pricing)：Free 月費 US$0，包含每月 US$5 平台使用額度，免信用卡；[官方限額說明](https://help.apify.com/en/articles/11079614-reaching-platform-limits)：Free 方案額度耗盡後停止使用，不能調高平台限額或自動超額扣款。
+
+因此，只要**保留 Free 方案、沒有付款、預計查價量落在每月重置額度內**，可進入使用者規定的「只接受長期免費」備用候選審查。但這不等於已證明資料準確或已驗證商用授權。
+
+若每天檢查 100 件商品、30 天共 3,000 筆，僅以公告的單件事件價估算：
+- Dami：3,000 × US$0.000235 = US$0.705／月
+- Lergassy 卡片：3,000 × US$0.0004 = US$1.20／月
+- Khalid 詳情：3,000 × US$0.006 = US$18／月，屬可能付費的逐規格主要候選，不可當免費備用
+
+以上只是供應商公告事件費的理論試算，未包含任何可能的啟動、運算、儲存、代理、加值或其他費用。實際消耗量與是否符合免費額度，必須透過一次合法的最小試用及 Billing 紀錄確認。不得直接保證 3,000 筆免費。
+
+**重要語意**：Lergassy 所謂 lowestPrice / highestPrice 是多次觀測的「歷史高低價」，不是目前商品的 price_min / price_max，也不是特定 SKU 價格。Dami 的 price 為商品卡片展示價，不能自動標成當前最低價或指定規格售價。
+
+### 臺灣聯盟 Open API：先取得使用權
+
+臺灣[蝦皮聯盟計畫條款](https://help.shopee.tw/portal/4/article/77310) 有機器人、自動查詢與未經允許的資料擷取限制。加入[分潤計畫](https://shopee.tw/m/affiliateprogram) 雖然免費，也不等於能取得 Open API 權限及把報價用於私有競品監控。
+
+[2026-08 臺灣申請經驗](https://9527.com.tw/journey/shopee-api-waiting/) 指出 affiliate.shopee.tw 後台另有 Open API 審查入口；尚非任意自助取得金鑰。productOfferV2 的 priceMin / priceMax 欄位有其他國家文件佐證，但不能因此假設臺灣端已開放相同 schema 或用途。
+
+### 下一個能真正證明可用的實驗
+
+1. 若使用者自願建立自己的 Apify Free 帳號，且符合使用條款，才可由其安全設定 API token，**不可將 token 直接貼在公開 GitHub 或對話**。
+2. 只對一筆臺灣蝦皮、已知具有多規格的公開商品執行第三方 Actor，先核對是否有商品 ID、每個 SKU ID、規格名稱、個別售價、查價時間及來源 URL。
+3. 同時核對實際 US$ 費用與當月剩餘 Free 額度；不得自動升級、充值、超量執行或接入消費者蝦皮帳號。
+4. 若成功取得獨立 SKU 價格，送入既有 sku_vendor_validator.py 做主要驗收；若只有商品展示價或當前價格上下界，在**零付款且額度可長期支撐**的條件下才列免費備用。
+5. 到目前為止，**臺灣蝦皮真實逐規格售價的獨立成功驗證仍為零筆**。不以供應商文件、模擬測試或別國樣本冒充實測成功。
