@@ -211,3 +211,35 @@ python apps/ScraplingProbe/sku_vendor_validator.py --input vendor_sample.csv --o
 - 若同筆資料同時包含合格的逐規格售價與商品層級價格範圍，以主要方案優先，避免重複計數。
 - 驗證器現在回報備用商品數、最低價單獨數、最高價單獨數、完整區間數及超過 7 天的資料數；不將個別商品價格輸出到公開 CI。
 - Wellbyte／Apify 等供應商若只能提供商品價格上下界，保留備用資格，不直接淘汰；但資料來源仍需經實測，不得把文件範例當成已成功的資料。
+
+## V0.2.6：低成本 Apify 商品詳情資料接入（純離線）
+
+本版為兩個公開標示支援臺灣的按筆計價第三方服務加入 **JSON 輸入轉換器**，不啟動 Actor、不呼叫蝦皮或任何付費 API：
+
+- [Khalid Shopee Product Details](https://apify.com/khalid_alsaba/shopee-product-scraper)：標示 US$6／1,000 筆。預期 `raw.get_pc.data.item.models[].{model_id,name,price}`，原始數字除以 100000 才是 TWD；`item.price_min`／`item.price_max` 同樣按比例處理。若只有產品價格區間，自動列為備用方案。
+- [SIÁN Shopee Product Scraper](https://apify.com/sian.agency/shopee-product-scraper)：標示 US$4.40／1,000 筆起，可選商品詳情與 SKU 模型增補（實際費用可能高於基本費率）。`skuModels[].price` 已是一般幣值；需要 SKU ID **以及**規格名稱才能列為主要方案。文件示例只有單一 model、缺少規格名稱時不能誤認為逐規格成功。
+- [Zen Studio Shopee Scraper](https://apify.com/zen-studio/shopee-product-scraper)：其文件說明完整 SKU 型號售價只對 BR／ID 開放，TW 僅支援商品層級列表，因此暫列備用候選。
+- [Wellbyte Shopee SKU Matrix](https://www.wellbyte.net/zh/docs/api/shopee-product-item_sku_matrix_v1)：39 credits／成功呼叫，但完整 SKU 價格欄位還不確定；狀態頁查不到近期 SKU 端點成功樣本，現階段保留研究，不虛構 API 資料格式。
+
+用法（使用**已獲准的供應商 JSON 樣本**，並確保原始樣本不加入 Public Git）：
+
+~~~bash
+python apps/ScraplingProbe/provider_sample_adapter.py --provider khalid --input local-provider-output.json --output validation-summary.json
+python apps/ScraplingProbe/provider_sample_adapter.py --provider sian --input local-provider-output.json --output validation-summary.json
+~~~
+
+內部呼叫現有 `sku_vendor_validator.evaluate()` 以一致標準判定 `complete_multi_sku_price_evidence`（逐規格主要方案）、`fallback_product_price_bounds`（商品最低／最高價備用）或 `insufficient_evidence`。輸出僅有彙總統計，沒有供應商原始商品／規格內容或 API 金鑰。
+
+驗證器目前只認證資料**格式完整**，不確認臺灣蝦皮當下可否取得該資料，也無法證明商業授權及真正成交價格。兩個 Actor 先前公開 Dataset API 返回 401；後續必須持有獲授權的 Apify 帳號試用，才能驗證真實資料與成本。任何付費執行前應人工設定總預算上限與商品筆數，並確認增補欄位的實際計價。
+
+### 粗估月成本（僅供採購篩選）
+
+假設每天對相同商品各查一次，30 天，不含額外增補、執行費、稅或匯率：
+
+| 商品數量 | Khalid US$0.006／筆 | SIÁN 基本價 US$0.0044／筆 |
+|---|---:|---:|
+| 50 | US$9 | US$6.60 |
+| 100 | US$18 | US$13.20 |
+| 500 | US$90 | US$66 |
+
+SIÁN 逐規格 Model 增補可能另計費，因此不能直接以基本價保證含完整 SKU 資料。所有價格都以供應商實際執行當時為準。Octoparse 正式方案已因使用者預算限制排除。
