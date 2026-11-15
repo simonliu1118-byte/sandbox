@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#fbf8f3">
-<title>momo 與酷澎飛比參考價｜一頁式原型</title><link rel="stylesheet" href="/static/style.css">
+<title>momo／蝦皮與酷澎飛比參考價｜一頁式原型</title><link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/catalog_core.js"></script><script defer src="/static/catalog_ui.js"></script>
 </head>
 <body>
 <main>
 <div class="top"><strong>PRICE LAB</strong><span>商品查價 · 私人測試版</span></div>
 <header><p class="eyebrow">KEYWORD PRICE LOOKUP</p><h1>搜尋商品，直接看到價格。</h1>
-<p class="lead">可分別使用 momo 查價或酷澎／飛比參考價，不需要先提供商品網址。兩者獨立查詢，結果不混算。</p></header>
+<p class="lead">可分別查詢 momo 展示價、蝦皮／飛比參考價及酷澎／飛比參考價；飛比使用同一套擷取程式，但來源結果分開顯示、不混算。</p></header>
 <form action="/" method="get" class="search">
 <input name="keyword" type="search" maxlength="80" minlength="2" required
 value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：羅技 M331、咖啡、3M 膠帶">
@@ -70,35 +70,62 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 {% if has_next %}<a href="{{ url_for('homepage', keyword=keyword, page=page+1, sort=sort) }}">下一頁</a>{% endif %}
 </nav>{% endif %}
 </section>
-<section id="feebee" class="feebee-section" aria-labelledby="feebee-heading">
-<div class="heading"><div><h2 id="feebee-heading">酷澎／飛比參考價</h2><p>獨立查詢 · 資料來源：飛比價格（第三方收錄）</p></div>
-{% if feebee.status == 'ok' %}<span class="pill good">已取得參考價</span>
-{% elif feebee.status == 'idle' %}<span class="pill">尚未查詢</span>
-{% else %}<span class="pill warn">未取得可用參考價</span>{% endif %}</div>
+{% macro feebee_panel(market, title) %}
+{% set info = feebee[market] %}
+<section id="feebee-{{ market }}" class="feebee-section" aria-labelledby="feebee-{{ market }}-heading">
+<div class="heading"><div>
+<h2 id="feebee-{{ market }}-heading">{{ title }}／飛比參考價</h2>
+<p>資料來源：飛比收錄 · 與其他平台獨立顯示</p>
+</div>
+{% if info.status == 'ok' %}<span class="pill good">已取得參考價</span>
+{% elif info.status == 'idle' %}<span class="pill">尚未查詢</span>
+{% else %}<span class="pill warn">未取得可用參考價</span>{% endif %}
+</div>
 <div class="feebee-body">
-<p class="feebee-disclaimer"><strong>注意：</strong>這裡顯示飛比收錄的酷澎商品<strong>第三方參考價</strong>，不是酷澎現在的即時或成交價。<strong>來源價格更新時間未確認。</strong>不與 momo 價格或統計混算。</p>
-<form action="/" method="get" class="search feebee-search">
-<input type="hidden" name="source" value="feebee"><input name="feebee_keyword" type="search"
-maxlength="80" minlength="2" required aria-label="飛比酷澎查詢關鍵字"
-placeholder="例如：3m 1530-1" value="{{ feebee.keyword }}">
-<button type="submit">查詢飛比參考價</button></form>
-{% if feebee.error %}<p class="feebee-empty">{{ feebee.error }}</p>
-{% elif feebee.status == 'ok' %}
-<p class="feebee-note">取得 {{ feebee.rows|length }} 筆酷澎參考價。{% if feebee.checked %}本次讀取時間：{{ feebee.checked|replace('T',' ')|truncate(19,True,'') }} UTC（不是來源價格更新時間）。{% endif %}</p>
-{% elif feebee.status in ['blocked','blocked_cooldown'] %}<p class="feebee-empty">飛比限制了這次查詢；未取得可用參考價。</p>
-{% elif feebee.status == 'rate_limited' %}<p class="feebee-empty">查詢過於頻繁，請稍後再試。</p>
-{% elif feebee.status in ['no_price','no_match'] %}<p class="feebee-empty">未找到能可靠配對酷澎商品與價格的飛比資料，不能將不明數字當成參考價。</p>
-{% elif feebee.status != 'idle' %}<p class="feebee-empty">暫時無法取得可靠飛比參考價，請直接到飛比搜尋頁核對。</p>
+<p class="feebee-disclaimer"><strong>注意：</strong>僅為飛比收錄的 {{ title }} <strong>商品級第三方參考價</strong>，
+不是 {{ title }} 即時售價或結帳價格。<strong>來源價格更新時間未確認。</strong>
+{% if market == 'shopee' %}蝦皮多規格商品無法由此確認各 SKU 售價，需另行核價。{% endif %}
+不與 momo、其他平台價格統計混算。</p>
+<form action="/#feebee-{{ market }}" method="get" class="search feebee-search">
+<input type="hidden" name="source" value="feebee">
+<input type="hidden" name="market" value="{{ market }}">
+<input name="feebee_keyword" type="search" maxlength="80" minlength="2" required
+aria-label="飛比 {{ title }} 查詢關鍵字" placeholder="例如：3m 1530-1"
+value="{{ info.keyword }}">
+<button type="submit">查詢 {{ title }}</button></form>
+{% if info.error %}<p class="feebee-empty">{{ info.error }}</p>
+{% elif info.status == 'ok' %}
+<p class="feebee-note">取得 {{ info.rows|length }} 筆 {{ title }} 商品級參考價。
+{% if info.checked %}本次讀取時間：{{ info.checked|replace('T',' ')|truncate(19,True,'') }} UTC
+（不是來源價格更新時間）。{% endif %}</p>
+{% elif info.status in ['blocked','blocked_cooldown'] %}
+<p class="feebee-empty">飛比限制了這次查詢，未取得可用參考價。</p>
+{% elif info.status == 'rate_limited' %}
+<p class="feebee-empty">查詢過於頻繁，請稍後再試。</p>
+{% elif info.status in ['no_price','no_match'] %}
+<p class="feebee-empty">未找到能可靠配對 {{ title }} 商品與價格的飛比資料，不能將不明數字當成參考價。</p>
+{% elif info.status != 'idle' %}
+<p class="feebee-empty">暫時無法取得可靠飛比參考價，請直接到飛比搜尋頁核對。</p>
 {% endif %}
-{% if feebee.rows %}<div class="table"><table><thead><tr><th>酷澎商品（飛比收錄）</th><th>第三方參考價</th><th>來源</th></tr></thead><tbody>
-{% for item in feebee.rows %}<tr>
-<td><div class="name">{{ item.title }}</div><small>更新時間未確認 · 請核對規格及入數</small></td>
+{% if info.rows %}
+<div class="table"><table><thead><tr><th>{{ title }} 商品（飛比收錄）</th>
+<th>商品級參考價</th><th>來源</th></tr></thead>
+<tbody>{% for item in info.rows %}<tr>
+<td><div class="name">{{ item.title }}</div>
+<small>{% if market == 'shopee' %}{{ item.merchant }}
+{% if item.seller %}－{{ item.seller }}{% endif %} · {% endif %}
+來源價格更新時間未確認 · 規格與入數請核對</small></td>
 <td class="price">NT$ {{ '{:,}'.format(item.price) }}</td>
 <td><a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">飛比來源</a></td>
-</tr>{% endfor %}</tbody></table></div>{% endif %}
-{% if feebee.search_url %}<p class="feebee-source"><a href="{{ feebee.search_url }}"
-target="_blank" rel="noopener noreferrer">查看飛比原始搜尋結果</a></p>{% endif %}
+</tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% if info.search_url %}
+<p class="feebee-source"><a href="{{ info.search_url }}" target="_blank" rel="noopener noreferrer">
+查看飛比原始搜尋結果</a></p>{% endif %}
 </div></section>
+{% endmacro %}
+{{ feebee_panel('shopee', '蝦皮') }}
+{{ feebee_panel('coupang', '酷澎') }}
 <footer>展示價格不代表指定規格、會員折扣、折價券或實際結帳價格；無法取得時不會顯示 NT$0。原型沒有自動監控、登入或購買功能。</footer>
 </main>
 </body></html>

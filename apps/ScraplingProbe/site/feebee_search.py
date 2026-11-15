@@ -1,4 +1,8 @@
-"""Conservative Feebee/Coupang *reference price* parser; not a live Coupang quote."""
+"""One Feebee HTML search and parser, two separately presented merchant markets.
+
+All displayed prices are Feebee product-level references, never live checkout
+or individual SKU prices. Anonymous, no price history, no retries or proxies.
+"""
 import json
 import re
 import threading
@@ -11,6 +15,8 @@ from urllib.request import Request, urlopen
 
 BASE = "https://feebee.com.tw"
 MERCHANT_RE = re.compile(r"Coupang\s*酷澎|酷澎\s*Coupang", re.I)
+SHOPEE_RE = re.compile(r"^(蝦皮商城|蝦皮購物)(?:\s*[-－—]\s*(.+))?$")
+MARKETS = ("coupang", "shopee")
 PRICE_RE = re.compile(r"^(?:NT)?\$?\s*([1-9]\d{0,2}(?:,\d{3})*|[1-9]\d{0,6})\s*(?:元)?$")
 _CACHE = {}
 _LOCK = threading.Lock()
@@ -58,58 +64,96 @@ class VisibleNodes(HTMLParser):
             self.parts.append((text[:300], self.links[-1] if self.links else ""))
 
 
+def _merchant(text):
+    """Return (market, merchant label, seller, type) for exact shop markers."""
+    if MERCHANT_RE.fullmatch(text):
+        return ("coupang", "Coupang 酷澎", "", "coupang")
+    match = SHOPEE_RE.fullmatch(text)
+    if match:
+        label, seller = match.group(1), (match.group(2) or "").strip()[:100]
+        return ("shopee", label, seller,
+                "mall" if label == "蝦皮商城" else "marketplace")
+    return None
+
+
 def _card(parts, search_url):
-    merchants = [i for i, (text, _) in enumerate(parts) if MERCHANT_RE.search(text)]
-    if len(merchants) != 1:
+    tagged = [(i, info) for i, (text, _) in enumerate(parts)
+              if (info := _merchant(text)) is not None]
+    if len(tagged) != 1:
         return None
-    price_idx = merchants[0] - 1
-    if price_idx < 0:
+    merchant_idx, (market, merchant, seller, shop_type) = tagged[0]
+    price_idx = merchant_idx - 1
+    if price_idx < 1:
         return None
     match = PRICE_RE.fullmatch(parts[price_idx][0])
     if match is None:
         return None
     price = int(match.group(1).replace(",", ""))
-    if price <= 0 or price > 10000000:
+    if not 0 < price <= 10000000:
         return None
-    # A global header link can appear before the first listing. Product titles
-    # must be anchored nearby, directly preceding this card's price/merchant.
-    # When the site changes its markup, omit the card rather than mislabel it.
-    candidates = [(text, href) for text, href in parts[max(0, price_idx - 12):price_idx]
+    # A site header or unrelated ad is never a valid product title.
+    # Use only the latest nearby linked text from this purchase listing.
+    candidates = [(text, href) for text, href in
+                  parts[max(0, price_idx - 12):price_idx]
                   if href and len(text) >= 8 and text not in IGNORE
                   and "Feebee" not in text and "飛比價格" not in text
-                  and not MERCHANT_RE.search(text) and not PRICE_RE.fullmatch(text)
+                  and not _merchant(text) and not PRICE_RE.fullmatch(text)
                   and "精選商品優惠價格" not in text and "相關搜尋" not in text]
     if not candidates:
         return None
     title, href = candidates[-1]
-    return {"title": title[:200], "price": price,
-            "url": _safe_link(href, search_url), "source": "飛比／酷澎"}
+    return {"title": title[:220], "price": price,
+            "url": _safe_link(href, search_url), "source": "飛比／" + merchant,
+            "market": market, "merchant": merchant, "seller": seller,
+            "shop_type": shop_type}
 
 
-def parse_feebee_results(html, search_url):
-    """Extract ONLY one title-price-Coupang association per purchase listing."""
+def parse_all_results(html, search_url):
+    """Parse once; separate merchants without combining product/price statistics."""
     parser = VisibleNodes()
     parser.feed(html)
-    results, seen, parts, merchant_count = [], set(), [], 0
+    rows = {market: [] for market in MARKETS}
+    seen = {market: set() for market in MARKETS}
+    mentions = {market: 0 for market in MARKETS}
+    parts = []
     for text, href in parser.parts:
-        if MERCHANT_RE.search(text):
-            merchant_count += 1
+        marker = _merchant(text)
+        if marker:
+            mentions[marker[0]] += 1
         if text == "前往購買":
             row = _card(parts, search_url)
             if row:
-                identity = (row["title"], row["price"])
-                if identity not in seen:
-                    seen.add(identity)
-                    results.append(row)
-                    if len(results) >= 20:
-                        break
+                market = row["market"]
+                identity = (row["merchant"], row["seller"], row["title"],
+                            row["price"], row["url"])
+                if identity not in seen[market] and len(rows[market]) < 20:
+                    seen[market].add(identity)
+                    rows[market].append(row)
             parts = []
         else:
             parts.append((text, href))
-    if results:
-        return "ok", results
-    return ("no_price" if merchant_count else "no_match"), []
+    return {
+        market: ("ok" if rows[market] else
+                 "no_price" if mentions[market] else "no_match", rows[market])
+        for market in MARKETS
+    }
 
+
+def parse_feebee_results(html, search_url, market="coupang"):
+    """Compatibility entrypoint; market affects filtering, not the HTML request."""
+    if market not in MARKETS:
+        raise ValueError("unsupported market")
+    return parse_all_results(html, search_url)[market]
+
+
+def market_view(report, market="coupang"):
+    if market not in MARKETS:
+        raise ValueError("unsupported market")
+    view = {k: v for k, v in report.items() if k != "markets"}
+    if report.get("status") == "ok":
+        state, rows = report["markets"][market]
+        view.update(status=state, results=rows)
+    return view
 
 def fetch_once(keyword):
     search_url = make_search_url(keyword)
@@ -134,7 +178,8 @@ def fetch_once(keyword):
         if any(x in html[:3000].lower() for x in ("captcha", "access denied", "流量驗證")):
             report["status"] = "blocked"
             return report
-        report["status"], report["results"] = parse_feebee_results(html, search_url)
+        report["status"] = "ok"
+        report["markets"] = parse_all_results(html, search_url)
     except HTTPError as error:
         report["status"] = "blocked" if error.code in (403, 429) else "http_error"
     except (URLError, TimeoutError, OSError, ValueError) as error:
@@ -142,14 +187,20 @@ def fetch_once(keyword):
     return report
 
 
-def safe_search(keyword):
-    """In-memory 10-minute cache, not a persistent quotation history."""
+def safe_search(keyword, market="coupang"):
+    """One 10-minute in-memory page cache shared by both markets.
+
+    Never write prices or HTML to persistent storage. A source switch for the
+    same keyword will reuse the parsed page without another Feebee request.
+    """
     global _LAST_REQUEST, _BLOCKED_UNTIL
+    if market not in MARKETS:
+        raise ValueError("unsupported market")
     now = time.monotonic()
     with _LOCK:
         entry = _CACHE.get(keyword)
         if entry and now - entry[0] < 600:
-            return {**entry[1], "from_cache": True}
+            return {**market_view(entry[1], market), "from_cache": True}
         if now < _BLOCKED_UNTIL:
             return {"status": "blocked_cooldown", "results": [],
                     "source_url": make_search_url(keyword)}
@@ -157,21 +208,23 @@ def safe_search(keyword):
             return {"status": "rate_limited", "results": [],
                     "source_url": make_search_url(keyword)}
         _LAST_REQUEST = now
-        result = fetch_once(keyword)
-        if result["status"] == "blocked":
+        report = fetch_once(keyword)
+        if report["status"] == "blocked":
             _BLOCKED_UNTIL = time.monotonic() + 1800
-        elif result["status"] in ("ok", "no_price", "no_match"):
-            _CACHE[keyword] = (time.monotonic(), result)
-        return result
+        elif report["status"] == "ok":
+            _CACHE[keyword] = (time.monotonic(), report)
+        return market_view(report, market)
 
 
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--keyword", required=True)
+    ap.add_argument("--market", choices=MARKETS, default="coupang")
     args = ap.parse_args()
-    outcome = fetch_once(args.keyword)
-    print(json.dumps({"status": outcome["status"], "count": len(outcome["results"]),
+    outcome = safe_search(args.keyword, market=args.market)
+    print(json.dumps({"market": args.market, "status": outcome["status"],
+                      "count": len(outcome["results"]),
                       "samples": [{"title": x["title"], "price": x["price"]}
                                   for x in outcome["results"][:4]]},
                      ensure_ascii=False))

@@ -210,19 +210,30 @@ def homepage():
                 missing = [r for r in rows if r["price"] is None]
                 rows = sorted(priced, key=lambda r: r["price"],
                               reverse=(selected_sort == "desc")) + missing
-    feebee = {"keyword": "", "status": "idle", "rows": [],
-              "checked": None, "search_url": "", "error": ""}
+    # Feebee has one source/parser and two independent display panels.
+    # The requested platform is filtered server-side, never merged into momo.
+    feebee = {market: {"keyword": "", "status": "idle", "rows": [],
+                        "checked": None, "search_url": "", "error": ""}
+              for market in ("coupang", "shopee")}
     feebee_raw = request.args.get("feebee_keyword", "")
-    if request.args.get("source") == "feebee" and feebee_raw.strip():
-        try:
-            feebee["keyword"] = normalize_keyword(feebee_raw)
-        except ValueError as exc:
-            feebee["error"] = str(exc)
+    market = request.args.get("market", "coupang")
+    if request.args.get("source") == "feebee":
+        if market in feebee:
+            selected = feebee[market]
+            if feebee_raw.strip():
+                try:
+                    selected["keyword"] = normalize_keyword(feebee_raw)
+                except ValueError as exc:
+                    selected["error"] = str(exc)
+                else:
+                    result = safe_feebee_search(selected["keyword"], market=market)
+                    selected.update(status=result["status"],
+                                    rows=result.get("results", []),
+                                    checked=result.get("checked_at"),
+                                    search_url=result.get("source_url",
+                                                         feebee_url(selected["keyword"])))
         else:
-            result = safe_feebee_search(feebee["keyword"])
-            feebee.update(status=result["status"], rows=result.get("results", []),
-                          checked=result.get("checked_at"),
-                          search_url=result.get("source_url", feebee_url(feebee["keyword"])))
+            feebee["shopee"]["error"] = "不支援的查詢來源"
     return render_template("index.html", keyword=keyword, status=status,
                            rows=rows, checked=checked, error=error, page=page,
                            raw_count=raw_count, has_next=(page < 5 and raw_count >= 20),
