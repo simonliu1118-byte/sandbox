@@ -135,3 +135,12 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 - Apify 供應商的實際商品擷取能力仍待有授權、可控成本的正式試用核對。第三方結果也需要實際比對蝦皮頁面及確認資料更新時間。
 - [Rebrowser Shopee Dataset](https://github.com/rebrowser/shopee-dataset) 提供臺灣商品資料集及 `models` 欄位規格，但公開免費樣本將 `models`、`price` 等欄位以 `[PREMIUM]` 遮蔽，無法用免費樣本證明逐規格價；其 Hugging Face 樣本採 `CC BY-NC 4.0`，不可直接當商業競品監測資料來源。
 - 已移除 GitHub PR `synchronize` 的一時性第三方網路探針，恢復只執行離線單元測試。
+
+## Octoparse 公開 SKU 樣本查驗（V0.2.3）
+
+2026-11-15 由於 Octoparse 的免費按需試用需提交需求（公開網站上無可直接執行的臺灣試用 API），先檢查其 Hugging Face 公開資料集 [Octoparse/shopee-product-sku-data-sample](https://huggingface.co/datasets/Octoparse/shopee-product-sku-data-sample)。
+
+- 只存取 Hugging Face 公開 Dataset Server 的 split metadata 與每個 split 最多 100 筆示例，不向蝦皮直接請求、不申請帳號、不啟動付費抓取。
+- 檢查欄位 `sku_id`、`spu_id`、`sku_real_price` 並計算同商品是否至少有兩個不同的規格價格。
+- 巴西市場的 SKU 價格只能驗證資料形式，不能證明臺灣 Shopee 可取得同樣的逐規格售價。
+- 正式臺灣試用需向 Octoparse 申請指定商品的免費樣本，或使用 Apify 免費方案登入後執行單一測試商品。
