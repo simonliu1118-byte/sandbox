@@ -45,5 +45,3 @@ jobs:
         run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs
 
 
-      - name: One-off official Coupang Taiwan search HTTP and card diagnostics
-        run: python apps/ScraplingProbe/coupang_public_probe.py --keyword "3m膠帶"

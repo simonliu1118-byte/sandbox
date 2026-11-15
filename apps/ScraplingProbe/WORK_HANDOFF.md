@@ -105,3 +105,10 @@
 - [Run #43741231975](https://github.com/simonliu1118-byte/sandbox/actions/runs/43741231975) 確認 `3m 1530-1` 解析出 9 筆候選參考價；尚不是逐筆人工商品／價格核對，且飛比價不是酷澎當前價。
 - CI 改回純離線單元測試。Vercel Preview 仍是舊版，尚未更新及做實站驗收；PR 仍 Draft。
 - 使用者已決策不記錄報價、不追查更新時程、飛比獨立顯示，細部優化等拆站後再處理。
+
+## 2026-11-16 酷澎官方原站直接查詢研究（V0.5.1）
+- 使用者要先試官方來源、不用第三方。已新增更嚴謹的 `coupang_public_probe.py` HTML 商品卡片診斷，區分首購優惠、一般展示價；測試僅計候選值、不宣稱最終成交價。
+- [GitHub Actions Run #43742394605](https://github.com/simonliu1118-byte/sandbox/actions/runs/43742394605) 單次向 `www.tw.coupang.com/srp/3m膠帶` 公開 GET，結果 `http_denied`／**HTTP 403**、**0 筆可用現價**。原有單元測試 72/72、網站 22/22 成功。
+- 依專案規則，已移除這輪一次性外部查詢步驟，禁止持續重試／代理繞過。
+- 使用者提出若 GitHub Actions 不通，隔天再評估架設獨立站。正確技術分工為 Cloudflare Worker 執行查詢、D1 選用儲存設定與分類。搬到 Worker 未驗證可克服 403，不提前合併或正式部署。
+- 前一輪飛比參考查價功能仍保留，不修改原 momo，Vercel Preview 仍未更新。

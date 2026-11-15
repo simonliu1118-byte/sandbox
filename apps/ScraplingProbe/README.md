@@ -457,3 +457,12 @@ python apps/ScraplingProbe/momo_search_data.py --keyword '咖啡' --limit 20 --o
 - 若搜尋卡片含「首購折扣價」或其他優惠字樣，一律把價格列為條件優惠候選，不宣稱為一般酷澎售價或結帳價；同商品不同 itemId / vendorItemId 必須分開。
 - 解析與安全條件由離線單元測試驗證，GitHub Runner 真實連線僅做本輪一次性 CI 探針；若 403/429 或驗證挑戰立即停止，不改用代理、不重試、不換身分繞過。
 - 若 GitHub Runner 仍不行，下一個可研究執行環境是 Cloudflare Worker（而非 D1）；D1 是資料庫、不能執行 HTTP 查詢，且不同執行環境是否被酷澎允許仍待測。
+
+### V0.5.1 官方搜尋單次連線實測結論
+
+- 測試日期：2026-11-16 臺灣時間，官方搜尋關鍵字 `3m膠帶`，URL 由本專案 `coupang_public_probe.py` 建立，主機 `www.tw.coupang.com`。
+- [GitHub Actions Run #43742394605](https://github.com/simonliu1118-byte/sandbox/actions/runs/43742394605)：單次匿名公開 HTTPS GET 回傳 `HTTP 403`，探針狀態 `http_denied`，**0 筆已取得的官方當次價格**。不能把搜尋引擎已收錄的頁面價格視為當次查價。
+- 程式單元測試 72/72、網站 Python 22/22、JavaScript 分類測試均成功；表示邏輯驗證成功，**不代表酷澎取價成功**。
+- 遵守一次性試驗與失敗即停止的規則，已移除本輪 GitHub Actions 線上查詢步驟，往後 PR 只執行離線測試；不重試 403、不代理輪換、不處理驗證。
+- 後續可在獲得部署授權時評估 Cloudflare Workers 作為公開網站的**另一個執行環境**，但不保證能避開酷澎 403。D1 只能用於資料儲存，不會自行執行 HTTP 擷取；先用 Worker 對官方搜尋 URL 單次測試可行性，再決定是否需要 D1。
+- Cloudflare 站點的公開入口、授權、配額、成本、資料保存方式及使用條款需部署前確認；原 `sandbox` Draft PR #31 不合併，現有 Vercel Preview 不更新。
