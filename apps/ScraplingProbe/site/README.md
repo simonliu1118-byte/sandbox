@@ -1,0 +1,34 @@
+# momo 一頁式私人查價預覽
+
+可直接輸入關鍵字，自動搜尋 momo 並列出商品名稱、品號、公開展示價與來源；價格預設低至高，可改高至低。使用 Vercel Python / Flask，與 CYWEB 完全分離。
+
+## 本機執行
+
+在 apps/ScraplingProbe/site 資料夾：
+1. pip install -r requirements.txt
+2. python app.py
+3. 在瀏覽器開啟 http://127.0.0.1:8765
+
+## Vercel 預覽部署
+
+- Git repo: simonliu1118-byte/sandbox
+- Root Directory: apps/ScraplingProbe/site
+- Framework: Other / Flask 自動偵測
+- Python: 3.12
+- 環境變數 APP_ACCESS_PASSWORD：必須設定私人測試密碼，且不得提交至 Public Git。
+- 若 VERCEL 環境未設定密碼，應用回應 503 並拒絕任何查詢。
+- 所有測試站頁面均需要 HTTPS Basic Auth，阻止未授權的正常存取；資料庫／登入／商品下單均不存在。
+- 本次僅允許獨立 Preview 部署，不合併既有 Draft PR、不改動 CYWEB、不發正式 Release。
+
+## 使用與限制
+
+- 僅單次一般公開 HTTPS 查詢，無登入、代理、CAPTCHA 繞過、重試、購買、排程。
+- 每個執行實例最多 20 筆，10 分鐘相同關鍵字快取，兩次不同查詢最少間隔 15 秒（記憶體最佳努力限制）。
+- 被站方拒絕後該執行實例暫停查詢 30 分鐘。Serverless 多實例並非全域防濫用；正式上線需要中央限額。
+- 來源使用 momo 非正式保證的搜尋介面，可能變動；Vercel 雲端 IP 也可能與 GitHub Actions 不同、遭遇封鎖。必須部署後再實測才可聲稱網站可用。
+- 價格為搜尋展示價，非特定規格或結帳價。沒有價格不以 NT$0 代表。
+- GitHub Actions Run #22：羅技 M331 實測 2 筆價格；Run #23：咖啡實測 14 筆價格；這是 GitHub Runner 結果，非 Vercel 部署成功證據。
+
+## 離線測試
+
+在 site 目錄執行 python -m unittest discover -s tests -p 'test_*.py' -v。
