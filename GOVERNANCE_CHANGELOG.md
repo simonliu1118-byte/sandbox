@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.7 — 2026/11/15
+
+- 新增個人可行性實驗 `apps/ScraplingProbe`：版本 0.1.0、Build 0，以及唯一 `PROJECT_RULES.md`。
+- 新增單筆公開商品頁測試 Python 程式、單元測試及 PR／手動 GitHub Actions 工作流程。
+- 報告僅保留經整理之價格候選值，不登入、不繞過驗證、不保存敏感資料；不部署、不發 Release。
+
 ## 1.2.6 — 2026/10/31
 
 - 依使用者停用決定，移除 `apps/TravelPlan/` 的 21 個檔案，包括 source、版本歷史與專案文件。
