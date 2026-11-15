@@ -101,3 +101,12 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 嘗試對已公開索引的 `/list/Logitech羅技/M331` 進行單次匿名 HTTPS 讀取，檢查 HTML 是否含有同時具備商品連結、shop/item ID 與價格的列表卡片。此次只作有限的可行性觀察，不登入、不換 IP、不重試、不解析驗證；不儲存原始 HTML 或完整回應。GitHub PR 觸發是一次性的，驗證結束後移除。
 
 搜尋引擎索引曾顯示 M331 商品價格，但索引資料可能過時，不能視作即時成交價。第三方 Apify 搜尋結果服務與蝦皮聯盟 API 為備案，尚未用我們的憑證驗證。
+
+### 實際測試結果：公開列表未能取得商品卡片
+
+2026-11-15 GitHub Actions [Run #7](https://github.com/simonliu1118-byte/sandbox/actions/runs/43689834708)：
+- 單次讀取 `https://shopee.tw/list/Logitech羅技/M331`，回應 HTTP 200，最終路徑未改變。
+- 讀取回應約 216 KB，但 HTML 解析的可見文字 token 為 0；`linked_price_cards=[]`，`status=no_linked_price_cards`。
+- 不得把 HTTP 200 解讀為抓價成功，也不能推論是被允許存取的完整商品列表；可能為純 JS 殼或不可解的頁面。
+- 已移除 PR 更新時的網路測試步驟，後續更新只跑離線單元測試。
+- 目前沒有逐規格價格、最低價或最高價的可靠實測結果。官方 Seller Shop API 的 model list 需要有資格及賣場授權，第三方公開資料也可能只有商品區間，不能當作競品逐規格價格來源。
