@@ -59,6 +59,15 @@ def valid_target(url: str) -> bool:
     return parsed.scheme == "https" and parsed.hostname in {"shopee.tw", "www.shopee.tw"} and not parsed.username and not parsed.password
 
 
+def is_challenge_page(status: int, final_path: str, page_sample: str) -> bool:
+    """A challenge page may return HTTP 200 after redirecting."""
+    return (
+        status in (403, 429)
+        or "/verify/traffic/" in final_path.lower()
+        or any(word in page_sample.lower() for word in BLOCK_WORDS)
+    )
+
+
 def probe(url: str) -> dict:
     """Exactly one top-level navigation, no retry, and no authentication."""
     if not valid_target(url):
@@ -69,6 +78,7 @@ def probe(url: str) -> dict:
         "tool": "Scrapling 0.5.1 / StealthySession",
         "status": "not_started",
         "http_status": None,
+        "final_path": None,
         "title": None,
         "rendered_price_candidates": [],
         "api_price_candidates": [],
@@ -92,6 +102,7 @@ def probe(url: str) -> dict:
                 solve_cloudflare=False,
             )
             result["http_status"] = page.status
+            result["final_path"] = urlparse(page.url).path
             result["title"] = (
                 page.css('meta[property="og:title"]::attr(content)').get()
                 or page.css("title::text").get()
@@ -122,7 +133,7 @@ def probe(url: str) -> dict:
                     break
 
             page_sample = (str(result["title"] or "") + " " + visible_text[:2500]).lower()
-            if page.status in (403, 429) or any(word in page_sample for word in BLOCK_WORDS):
+            if is_challenge_page(page.status, str(result["final_path"] or ""), page_sample):
                 result["status"] = "blocked_or_challenged"
             elif result["rendered_price_candidates"] or result["api_price_candidates"]:
                 result["status"] = "price_candidates_found"

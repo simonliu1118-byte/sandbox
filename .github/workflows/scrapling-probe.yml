@@ -37,14 +37,15 @@ jobs:
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
       - name: One public product page probe (no retries)
+        if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened'
         run: |
           python apps/ScraplingProbe/scrapling_probe.py --output apps/ScraplingProbe/probe-result.json
 
       - name: Upload JSON result
-        if: always()
+        if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened'
         uses: actions/upload-artifact@v4
         with:
-          name: scrapling-probe-v0.1.0
+          name: scrapling-probe-v0.1.0-build1
           path: apps/ScraplingProbe/probe-result.json
           if-no-files-found: warn
           retention-days: 3

@@ -36,12 +36,21 @@ python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
 ## GitHub Actions
 
-`.github/workflows/scrapling-probe.yml` 支援 Pull Request 與手動觸發。PR 建立後應自動執行一次，結果在該 run 的 `scrapling-probe-v0.1.0` Artifact（保存 3 天）。
+`.github/workflows/scrapling-probe.yml` 支援 Pull Request 與手動觸發。首次建立 PR 才進行一筆實際公開頁面讀取；後續更新 PR 僅執行離線單元測試，避免對遭阻擋目標重試。需要另一次公開頁面測試時，須先確認授權與執行方式。實際抓取結果在當次 Run 的 Artifact（保存 3 天）。
+
+## 首次實測結果（2026-11-15）
+
+[GitHub Actions Run #1](https://github.com/simonliu1118-byte/sandbox/actions/runs/43670891870) 完成套件安裝、Chromium 安裝與三項單元測試；對一筆已公開索引的商品頁只發送一次 top-level navigation。
+
+- 瀏覽器最終導向 `/verify/traffic/error`（流量驗證頁），回傳 HTTP 200。
+- 擷取到背景請求資訊 14 筆，但沒有商品價格候選值，也沒有取得可核對的商品名稱。
+- 第一版誤將此情況報為 `no_price_found`；Build 1 修正為能識別驗證頁的 `blocked_or_challenged`，以離線單元測試覆蓋。為尊重限制，沒有在修正時重新發送現場請求。
+- 結論：Scrapling 的 GitHub 執行環境可用；臺灣蝦皮商品頁匿名查價在本次條件下**不可行**。不代表所有時間、商品、網路條件下都必然失敗。
 
 ## 預期資料
 
 - `status`：`price_candidates_found`、`no_price_found`、`blocked_or_challenged` 或 `fetch_error`
-- `http_status`、`title`
+- `http_status`、`final_path`（最終跳轉路徑）、`title`
 - `rendered_price_candidates`、`api_price_candidates`（皆未核對）
 - `price_verified: false`
 

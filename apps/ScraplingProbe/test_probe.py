@@ -1,7 +1,7 @@
 """No-network tests for the candidate extraction contract."""
 import unittest
 
-from scrapling_probe import price_candidates_from_text, price_fields_from_json, valid_target
+from scrapling_probe import is_challenge_page, price_candidates_from_text, price_fields_from_json, valid_target
 
 
 class ProbeTests(unittest.TestCase):
@@ -17,6 +17,10 @@ class ProbeTests(unittest.TestCase):
                 {"field": "data.item.models[0].price", "raw": "6000000"},
             ],
         )
+
+    def test_redirected_challenge_is_not_missing_price(self):
+        self.assertTrue(is_challenge_page(200, "/verify/traffic/error", "蝦皮購物"))
+        self.assertFalse(is_challenge_page(200, "/product/1/2", "正常商品頁"))
 
     def test_only_public_shopee_https(self):
         self.assertTrue(valid_target("https://shopee.tw/product/1/2"))
