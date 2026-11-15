@@ -120,6 +120,16 @@ def fetch_once(keyword, page=1):
             section = data.get("rtnSearchData") if isinstance(data, dict) else None
             raw = section.get("goodsInfoList") if isinstance(section, dict) else None
             report["raw_count"] = len(raw) if isinstance(raw, list) else 0
+            if os.getenv("MOMO_DIAGNOSTICS") == "1" and isinstance(raw, list):
+                # Public product metadata only; never persist raw HTTP data.
+                report["source_diagnostics"] = [
+                    {"goodsCode": str(item.get("goodsCode") or "")[:24],
+                     "goodsCodeId": str(item.get("goodsCodeId") or "")[:24],
+                     "goodsName": str(item.get("goodsName") or "")[:100],
+                     "sale": str(item.get("SALE_PRICE") or "")[:24],
+                     "keys": sorted(item.keys())[:24]}
+                    for item in raw[:20] if isinstance(item, dict)
+                ]
             report["status"], report["results"] = parse_results(data, keyword)
     except Exception as exc:
         report["error_type"] = type(exc).__name__
