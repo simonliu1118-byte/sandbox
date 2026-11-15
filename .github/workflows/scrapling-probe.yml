@@ -33,19 +33,3 @@ jobs:
 
       - name: Unit tests
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
-
-      - name: One-time public Apify example availability check
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        run: python apps/ScraplingProbe/variant_provider_probe.py
-
-      - name: Upload summarized public-provider check
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        uses: actions/upload-artifact@v4
-        with:
-          name: shopee-variant-provider-v0.2.2
-          path: apps/ScraplingProbe/provider-public-check.json
-          if-no-files-found: warn
-          retention-days: 3
-      
-
-

@@ -123,3 +123,15 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 新增 `variant_provider_probe.py`：**不呼叫蝦皮、也不啟動付費 Actor**，僅對上述兩家 Apify 的公開 metadata 及公開 last-dataset 範例執行一次 GET，若無權限或沒有可公開讀取的多規格價格便記錄結果，絕不虛構成功。所讀公開輸出僅記錄欄位完整度統計，不儲存其他人的原始 Dataset。
 
 驗收以臺灣商品、至少兩個不同的 Model ID、逐筆非 null 的價格、可辨識的規格名稱為基準；只得到 `price_min` / `price_max`、只有規格名稱或單一 SKU 範例都不算完整成功。外部服務若需註冊、付費或授權，必須另外確認資格和條款。
+
+
+### 第三方 SKU 資料實測結果（2026-11-15）
+
+[GitHub Actions Run #9](https://github.com/simonliu1118-byte/sandbox/actions/runs/43698583202)：
+- khalid_alsaba 的 Apify metadata HTTP 200；最後一筆執行的公開 Dataset API 回傳 HTTP 401。
+- sian.agency 的 Apify metadata HTTP 200；最後一筆執行的公開 Dataset API 回傳 HTTP 401。
+- 因無法匿名讀取實際結果，兩者均無足以驗證臺灣商品逐規格價格的樣本；**不得把供應商網頁中的示例 JSON 當成我們實測成功**。
+- 14 項離線測試通過（含 5 個 SKU 驗收測試）。本次無付費執行、無蝦皮請求、無憑證。
+- Apify 供應商的實際商品擷取能力仍待有授權、可控成本的正式試用核對。第三方結果也需要實際比對蝦皮頁面及確認資料更新時間。
+- [Rebrowser Shopee Dataset](https://github.com/rebrowser/shopee-dataset) 提供臺灣商品資料集及 `models` 欄位規格，但公開免費樣本將 `models`、`price` 等欄位以 `[PREMIUM]` 遮蔽，無法用免費樣本證明逐規格價；其 Hugging Face 樣本採 `CC BY-NC 4.0`，不可直接當商業競品監測資料來源。
+- 已移除 GitHub PR `synchronize` 的一時性第三方網路探針，恢復只執行離線單元測試。
