@@ -102,9 +102,17 @@ def to_records(provider, payload):
     return normalized
 
 
-def assess(provider, payload):
+def assess(provider, payload, *, source_cost_model="paid",
+           free_terms_verified=False,
+           projected_volume_within_free_limit=False,
+           automatic_paid_overage_disabled=False):
     data = to_records(provider, payload)
-    result = evaluate(data)
+    result = evaluate(
+        data, source_cost_model=source_cost_model,
+        free_terms_verified=free_terms_verified,
+        projected_volume_within_free_limit=projected_volume_within_free_limit,
+        automatic_paid_overage_disabled=automatic_paid_overage_disabled,
+    )
     result["provider"] = provider
     result["normalized_rows"] = len(data)
     result["source_proof"] = "unverified_vendor_output"
@@ -118,11 +126,23 @@ def assess(provider, payload):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider", required=True, choices=SUPPORTED)
+    parser.add_argument("--source-cost-model", choices=[
+        "unknown", "paid", "trial", "signup_credits",
+        "free_unlimited", "free_recurring_limited"
+    ], default="paid")
+    parser.add_argument("--free-terms-verified", action="store_true")
+    parser.add_argument("--projected-volume-within-free-limit", action="store_true")
+    parser.add_argument("--automatic-paid-overage-disabled", action="store_true")
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", default="provider-adapter-report.json")
     args = parser.parse_args()
     payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
-    report = assess(args.provider, payload)
+    report = assess(
+        args.provider, payload, source_cost_model=args.source_cost_model,
+        free_terms_verified=args.free_terms_verified,
+        projected_volume_within_free_limit=args.projected_volume_within_free_limit,
+        automatic_paid_overage_disabled=args.automatic_paid_overage_disabled,
+    )
     dest = Path(args.output)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",

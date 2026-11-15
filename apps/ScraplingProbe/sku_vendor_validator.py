@@ -136,7 +136,33 @@ def normalize_fallback(row):
     return {"key": (str(shop), str(item)), "min": low, "max": high, "captured": dt}, None
 
 
-def evaluate(rows, as_of=None):
+def fallback_cost_gate(fallback_count, source_cost_model="unknown",
+                       free_terms_verified=False,
+                       projected_volume_within_free_limit=False,
+                       automatic_paid_overage_disabled=False):
+    """An available price bound is not an approved backup unless ongoing cost is zero.
+
+    Inputs are *operator* attestations, never read from provider-supplied JSON.
+    A one-time registration gift or trial does not qualify as ongoing free access.
+    """
+    if not fallback_count:
+        return {"decision": "not_applicable", "approved_product_count": 0}
+    if source_cost_model == "free_unlimited" and free_terms_verified:
+        return {"decision": "eligible_zero_cost", "approved_product_count": fallback_count}
+    if (source_cost_model == "free_recurring_limited"
+            and free_terms_verified
+            and projected_volume_within_free_limit
+            and automatic_paid_overage_disabled):
+        return {"decision": "eligible_zero_cost_with_hard_quota",
+                "approved_product_count": fallback_count}
+    return {"decision": "excluded_not_proven_permanently_free",
+            "approved_product_count": 0}
+
+
+def evaluate(rows, as_of=None, *, source_cost_model="unknown",
+             free_terms_verified=False,
+             projected_volume_within_free_limit=False,
+             automatic_paid_overage_disabled=False):
     now = as_of or datetime.now(timezone.utc)
     groups = defaultdict(dict)
     fallback_groups = {}
@@ -166,6 +192,13 @@ def evaluate(rows, as_of=None):
         key: product for key, product in fallback_groups.items()
         if key not in qualified_keys
     }
+    cost_gate = fallback_cost_gate(
+        len(backup_only),
+        source_cost_model=source_cost_model,
+        free_terms_verified=free_terms_verified,
+        projected_volume_within_free_limit=projected_volume_within_free_limit,
+        automatic_paid_overage_disabled=automatic_paid_overage_disabled,
+    )
     if qualified:
         status = "complete_multi_sku_price_evidence"
     elif backup_only:
@@ -180,6 +213,8 @@ def evaluate(rows, as_of=None):
         "multi_sku_products_with_distinct_prices": distinct_prices,
         "multi_sku_products_older_than_seven_days": stale,
         "fallback_product_count": len(backup_only),
+        "fallback_budget_eligibility": cost_gate["decision"],
+        "eligible_zero_cost_fallback_count": cost_gate["approved_product_count"],
         "fallback_range_count": sum(p["min"] is not None and p["max"] is not None for p in backup_only.values()),
         "fallback_min_only_count": sum(p["min"] is not None and p["max"] is None for p in backup_only.values()),
         "fallback_max_only_count": sum(p["min"] is None and p["max"] is not None for p in backup_only.values()),
@@ -194,9 +229,25 @@ def evaluate(rows, as_of=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, help="Local vendor CSV or JSON file; do not commit")
+    parser.add_argument("--source-cost-model", choices=[
+        "unknown", "paid", "trial", "signup_credits",
+        "free_unlimited", "free_recurring_limited"
+    ], default="unknown")
+    parser.add_argument("--free-terms-verified", action="store_true",
+                        help="Operator verified recurring free terms")
+    parser.add_argument("--projected-volume-within-free-limit", action="store_true",
+                        help="Operator verified expected volume stays within recurring free allowance")
+    parser.add_argument("--automatic-paid-overage-disabled", action="store_true",
+                        help="Hard-stop before any billable request")
     parser.add_argument("--output", default="vendor-sku-validation.json")
     opts = parser.parse_args()
-    report = evaluate(records_from_path(opts.input))
+    report = evaluate(
+        records_from_path(opts.input),
+        source_cost_model=opts.source_cost_model,
+        free_terms_verified=opts.free_terms_verified,
+        projected_volume_within_free_limit=opts.projected_volume_within_free_limit,
+        automatic_paid_overage_disabled=opts.automatic_paid_overage_disabled,
+    )
     output = Path(opts.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

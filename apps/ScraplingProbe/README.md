@@ -243,3 +243,28 @@ python apps/ScraplingProbe/provider_sample_adapter.py --provider sian --input lo
 | 500 | US$90 | US$66 |
 
 SIÁN 逐規格 Model 增補可能另計費，因此不能直接以基本價保證含完整 SKU 資料。所有價格都以供應商實際執行當時為準。Octoparse 正式方案已因使用者預算限制排除。
+
+## V0.2.7：備用價格資料只接受長期免費（使用者確認）
+
+已定為永久硬性限制，與前一版「技術上是否有最低／最高價」分開判斷：
+
+1. **主要方案**：有每個 SKU 的個別售價，可評估合理的按次費用及月費上限（尚未指定確切預算）。
+2. **備用方案**：只有商品 `price_min`、`price_max` 或區間者，必須**持續零成本**。按筆收費、月租、一次性註冊贈額、付費試用後續扣費者，全部不得正式採用。
+3. 有每月重置免費配額的服務，只有在「已核對供應商免費條款」「預計月查詢量低於免費配額」「超額硬性停止、無自動付款」三者皆成立時，才可列為受限免費備用；額度耗盡必須顯示資料過期／查價暫停，不能改用付費額度。
+4. 報告中的 `fallback_product_price_bounds` **只代表資料完整度**，不代表符合預算；新增 `fallback_budget_eligibility`、`eligible_zero_cost_fallback_count` 等獨立預算核准欄位。
+5. 新參數預設為 `unknown`（未證明免費），因此備用資格預設不通過。需要由操作人員依公開條款與實際預計用量人工確認，不能採信外部供應商 JSON 自行宣稱「免費」。
+
+費用核對範例（只使用供應商合法取得的本機測試資料，不在 Public Git 存放）：
+
+~~~bash
+# 未確認費用時，即使有價格區間也一律沒有正式備用資格
+python apps/ScraplingProbe/sku_vendor_validator.py --input local-sample.json
+
+# 已確認長期不限量免費，才可明確核准
+python apps/ScraplingProbe/sku_vendor_validator.py --input local-sample.json --source-cost-model free_unlimited --free-terms-verified
+
+# 每月重置免費額度，須同時確認免費配額足夠及停止付費超額
+python apps/ScraplingProbe/sku_vendor_validator.py --input local-sample.json --source-cost-model free_recurring_limited --free-terms-verified --projected-volume-within-free-limit --automatic-paid-overage-disabled
+~~~
+
+Apify Khalid／SIÁN 為按筆計價的來源，預設費用類型 `paid`：若只提供最低／最高價，**不得**進入正式備用方案；只有通過完整逐規格售價驗證，才有資格另外進行主要方案的價格評估。Wellbyte 若僅能提供區間，註冊贈送的 500 credits **不構成持續免費**，除非另外證實有可維持預計查價量的永久免費方案。

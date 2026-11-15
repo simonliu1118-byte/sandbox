@@ -38,6 +38,14 @@ class ProviderSampleAdapterTests(unittest.TestCase):
         self.assertEqual(result["multi_sku_products"], 1)
         self.assertEqual(result["fallback_product_count"], 0)
 
+    def test_paid_actor_fallback_not_deployable(self):
+        p = khalid({"price_min": 29900000, "price_max": 59900000, "models": []})
+        r = assess("khalid", [p])
+        self.assertEqual(r["status"], "fallback_product_price_bounds")
+        self.assertEqual(r["fallback_budget_eligibility"],
+                         "excluded_not_proven_permanently_free")
+        self.assertEqual(r["eligible_zero_cost_fallback_count"], 0)
+
     def test_khalid_missing_models_fallback(self):
         p = khalid({"price_min": 29900000, "price_max": 59900000, "models": []})
         result = evaluate(to_records("khalid", [p]), NOW)
