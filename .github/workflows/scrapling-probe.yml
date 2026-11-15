@@ -40,3 +40,6 @@ jobs:
       - name: One-page preview route and password tests
         working-directory: apps/ScraplingProbe/site
         run: python -m unittest discover -s tests -p 'test_*.py' -v
+      
+      - name: Generalized catalog parsing and statistics tests
+        run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs

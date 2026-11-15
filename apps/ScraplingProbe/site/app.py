@@ -173,7 +173,7 @@ def security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Content-Security-Policy"] = (
-        "default-src 'none'; style-src 'self'; form-action 'self'; base-uri 'none'"
+        "default-src 'none'; script-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'"
     )
     return response
 

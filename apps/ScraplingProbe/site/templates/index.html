@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#fbf8f3">
 <title>momo 免費查價｜一頁式原型</title><link rel="stylesheet" href="/static/style.css">
+<script defer src="/static/catalog_core.js"></script><script defer src="/static/catalog_ui.js"></script>
 </head>
 <body>
 <main>
@@ -40,6 +41,28 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 <td><a href="{{ item.url }}" rel="noopener noreferrer" target="_blank">商品頁</a></td>
 </tr>{% endfor %}
 </tbody></table></div>{% endif %}
+<script id="catalog-data" type="application/json">{{ rows|tojson }}</script>
+{% if rows %}
+<div id="analysis" hidden class="catalog-analytics">
+<div class="catalog-toolbar"><h3>商品規格與單位價格</h3><div class="rule-tools"><button type="button" id="export-rules">匯出人工分類</button><label class="import-label">匯入分類備份<input id="import-rules" type="file" accept=".json,application/json" hidden></label></div></div>
+<p class="hint">由商品標題初步解析；單價為公開展示價推算。若商品有不同規格或入數選項，請先人工確認，不會猜測。</p>
+<div id="catalog-facets" class="catalog-facets"></div>
+<p id="catalog-count" class="catalog-count"></p>
+<div id="catalog-rows"></div>
+<div class="catalog-groups-head"><h3>同型號價格彙整</h3><p id="group-count"></p></div>
+<div id="catalog-groups"></div>
+</div>
+<dialog id="catalog-dialog" class="catalog-dialog">
+<form id="catalog-editor" method="dialog">
+<h3>人工商品分類</h3><p id="edit-code" class="dim"></p><p id="edit-title"></p><p id="edit-warning" class="warn-text"></p>
+<label>型號<input name="model" maxlength="80" placeholder="例如 1530-0"></label>
+<div class="edit-grid"><label>包裝數量<input name="quantity" type="number" min="1" step="any" max="100000"></label><label>單價計算單位<input name="unit" maxlength="20" placeholder="例如 捲、入、盒、g"></label></div>
+<label>其他可比較規格（每行「名稱=內容」）<textarea name="attributes" rows="4" placeholder="尺寸=0.5吋&#10;顏色=白&#10;長度=9m"></textarea></label>
+<label>使用狀態<select name="decision"><option value="include">納入比較</option><option value="exclude">不使用</option></select></label>
+<p id="edit-error" class="warn-text" aria-live="polite"></p>
+<div class="dialog-actions"><button type="button" id="edit-reset">清除人工分類</button><button type="button" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="primary">儲存分類</button></div>
+</form></dialog>
+{% endif %}
 {% if keyword and status in ['ok','no_price','no_match'] %}
 <nav class="pager" aria-label="結果分頁">
 {% if page > 1 %}<a href="{{ url_for('homepage', keyword=keyword, page=page-1, sort=sort) }}">上一頁</a>{% endif %}
