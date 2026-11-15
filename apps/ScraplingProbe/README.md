@@ -448,3 +448,12 @@ python apps/ScraplingProbe/momo_search_data.py --keyword '咖啡' --limit 20 --o
 - Python 測試與網站測試 22/22、Node 分類測試、Governance Check 均通過；這只是 GitHub Runner 的網路測試，尚非 Vercel Preview 驗收。
 - 一次性飛比外部連網 CI 步驟已移除，後續 PR 僅執行離線測試。不記錄價格歷史、不追蹤更新時程、不建立資料庫或排程。
 - PR #31 保持 Draft、不合併、不正式部署；現有 Preview 尚未更新。
+
+## V0.5.1 — 酷澎官方公開搜尋頁直接取價研究（2026-11-16）
+
+- 使用者要求不透過飛比或其他第三方比價來源，優先測試酷澎臺灣站自己的 `/srp/` 搜尋結果。
+- 網頁搜尋索引可看見官方搜尋結果中的商品、規格和價格，但搜尋引擎收錄頁可能是歷史內容，不能當成程式當次直接取得的即時價格。
+- 強化 `coupang_public_probe.py`，只向 `www.tw.coupang.com` 直接發出一次匿名公開搜尋 HTTP GET；驗收區分 HTTP 狀態、HTML 商品連結及附著於商品卡片的價格候選值。
+- 若搜尋卡片含「首購折扣價」或其他優惠字樣，一律把價格列為條件優惠候選，不宣稱為一般酷澎售價或結帳價；同商品不同 itemId / vendorItemId 必須分開。
+- 解析與安全條件由離線單元測試驗證，GitHub Runner 真實連線僅做本輪一次性 CI 探針；若 403/429 或驗證挑戰立即停止，不改用代理、不重試、不換身分繞過。
+- 若 GitHub Runner 仍不行，下一個可研究執行環境是 Cloudflare Worker（而非 D1）；D1 是資料庫、不能執行 HTTP 查詢，且不同執行環境是否被酷澎允許仍待測。
