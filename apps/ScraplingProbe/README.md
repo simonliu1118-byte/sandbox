@@ -364,3 +364,25 @@ python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --shopee-da
 本版採用同一個公開搜尋資料介面、上游實證的移動端參數與一般瀏覽器 HTTPS 設定，**只執行一次**搜尋「羅技 M331」，不中途換 IP／代理、不登入、不處理 CAPTCHA／驗證、不自動重試。價格來自站方回傳 `SALE_PRICE`，以站方 `success=true` 為前提；若只回傳失敗或任何非 200 HTTP，結果仍標成失敗。實際是否可從 GitHub Runner 存取，須依本輪動態 CI 結果判定。
 
 引用原專案的公開技術作法（MIT）：[src/price_compare/platforms/momo.py](https://github.com/coseto6125/mcp-taiwan-price-compare/blob/master/src/price_compare/platforms/momo.py)，本專案保留獨立程式實作、單次請求、無自動重試。
+
+### V0.3.0 Build 3：momo 關鍵字查價成功，提供獨立原型頁面
+
+[Run #22（2026-11-15）](https://github.com/simonliu1118-byte/sandbox/actions/runs/43708558758) 使用「羅技 M331」關鍵字在 GitHub Ubuntu Runner **成功直接讀取 momo** `HTTP 200`、`success=true`、11 筆來源商品，精準匹配 2 筆（品號 4318322、9956761），兩筆公開展示價均為 **NT$699**。無需事先提供商品連結、不使用 momo 帳號、沒有代理或付費查詢。59 項單元測試通過。
+
+本版加入 `momo_web_app.py` 與 `momo_ui.py`：在本機 Python 3.12 執行，開啟瀏覽器輸入關鍵字即可即時查價並顯示多筆商品與價格；不需要人工準備商品 URL。搜尋依價格由低到高排序，保留品號與商店來源。價格是公開商品展示價，**不是個別 SKU 或會員券後價**。
+
+~~~bash
+pip install -r apps/ScraplingProbe/requirements.txt
+python apps/ScraplingProbe/momo_web_app.py
+# 瀏覽器開啟 http://127.0.0.1:8765
+~~~
+
+本機網站僅綁定 `127.0.0.1`，不會對外部署、沒有排程、不會自動重新查價，10 分鐘內相同關鍵字使用記憶體快取，避免短時間重複觸發站方查詢。網路拒絕時會顯示明確失敗，不能將空結果冒充 0 元。
+
+也可在 GitHub Runner／命令列查詢並產生可下載的靜態比價 HTML：
+
+~~~bash
+python apps/ScraplingProbe/momo_search_data.py --keyword '咖啡' --limit 20 --output momo-result.json --html momo-result.html
+~~~
+
+**原型驗收：**「羅技 M331」已得到兩筆真實價格。此版再針對比較廣泛的「咖啡」作一次 GitHub 雲端查詢，檢查是否可自動得到更多筆價格與可瀏覽的結果表；完成後撤除 PR 同步時的實際網路請求。原型不合併 CYWEB、未部署站點。

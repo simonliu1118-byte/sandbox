@@ -34,16 +34,18 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
-      - name: One-off momo mobile keyword data test
+      - name: One-off broad momo keyword and HTML prototype report
         if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
         run: |
-          python apps/ScraplingProbe/momo_search_data.py --keyword '羅技 M331' --limit 20 --output apps/ScraplingProbe/momo-mobile-test.json
+          python apps/ScraplingProbe/momo_search_data.py --keyword '咖啡' --limit 20 --output apps/ScraplingProbe/momo-broad-result.json --html apps/ScraplingProbe/momo-price-report.html
 
-      - name: Upload momo mobile keyword result
+      - name: Upload real momo price comparison page
         if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
         uses: actions/upload-artifact@v4
         with:
-          name: momo-mobile-keyword-build2
-          path: apps/ScraplingProbe/momo-mobile-test.json
+          name: momo-keyword-web-prototype-build3
+          path: |
+            apps/ScraplingProbe/momo-broad-result.json
+            apps/ScraplingProbe/momo-price-report.html
           if-no-files-found: warn
           retention-days: 3

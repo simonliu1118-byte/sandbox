@@ -128,6 +128,7 @@ def main():
     p.add_argument("--keyword", required=True)
     p.add_argument("--limit", type=int, default=20)
     p.add_argument("--output", default="momo-keyword-api-result.json")
+    p.add_argument("--html", help="Save a readable offline HTML report")
     args = p.parse_args()
     if not 1 <= args.limit <= 50:
         p.error("limit must be 1..50")
@@ -135,6 +136,11 @@ def main():
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.html:
+        from momo_ui import render_page
+        html_path = Path(args.html)
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(render_page(args.keyword, result), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
