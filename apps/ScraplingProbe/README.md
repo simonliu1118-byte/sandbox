@@ -339,3 +339,11 @@ python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --shopee-da
 ~~~
 
 下一步：若實測列表只能拿到商品連結，研究能否在合理免費請求量內自動讀取部分結果的 momo 商品頁價格；蝦皮則先取得可用的長期免費 keyword provider 並核對實際臺灣商品。查詢結果要依品牌、型號與規格分類，區間與異常才列入逐規格查價，後者暫不自動執行。
+
+### V0.3.0 Build 1 — momo 公開搜尋資料介面（單次實測）
+
+[Run #19](https://github.com/simonliu1118-byte/sandbox/actions/runs/43707027776) 的 momo 搜尋**網頁**返回 `no_linked_products_found`，實際找到零個商品與零筆價格，故目前不能把第一版當成可用的關鍵字比價。程式單元測試成功不代表網頁取價成功。
+
+另外找到公開社群程式範例，使用 momo 搜尋資料路徑 `https://apisearch.momoshop.com.tw/momoSearchCloud/moec/textSearch`，直接以 POST 查詢中文關鍵字、解析 `rtnSearchData.goodsInfoList[].goodsName/goodsPrice`。參考：[公開 Hugging Face 程式範例](https://huggingface.co/spaces/lin0804/momo_pchome_search2/blob/main/app.py)。
+
+新增 `momo_search_data.py`：由關鍵字自動產生搜尋請求，正確回傳每筆商品的品號、標題、公開展示價，異常價格或無 ID 的商品不能當成功；沒有使用者手動輸入網址。單次公開資料請求、無登入、無重試、無代理、無驗證繞過。這是**未公開承諾穩定性的站內資料介面**，可能調整或封鎖；只有成功取得多筆合法價格才算驗證成功。此輪使用 GH Actions PR 的一次性檢查，完成後移除同步請求步驟。
