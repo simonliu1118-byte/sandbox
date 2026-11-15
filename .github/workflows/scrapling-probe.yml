@@ -45,3 +45,6 @@ jobs:
         run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs
 
 
+
+      - name: One-off Feebee Shopee marketplace and mall probe
+        run: python apps/ScraplingProbe/feebee_shopee_probe.py --keyword "3m 1530-1"
