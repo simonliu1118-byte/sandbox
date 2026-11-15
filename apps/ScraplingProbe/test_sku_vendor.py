@@ -29,11 +29,38 @@ class SkuVendorValidatorTests(unittest.TestCase):
         self.assertEqual(r["multi_sku_products"], 1)
         self.assertEqual(r["multi_sku_products_with_distinct_prices"], 1)
 
-    def test_price_range_without_variant_prices_fails(self):
+    def test_price_range_without_variant_prices_is_fallback(self):
         r = evaluate([sku("a", None, price_min=299, price_max=399), sku("b", None)],
                      datetime(2026, 11, 15, tzinfo=timezone.utc))
+        self.assertEqual(r["status"], "fallback_product_price_bounds")
+        self.assertEqual(r["fallback_product_count"], 1)
+        self.assertEqual(r["fallback_range_count"], 1)
+        self.assertEqual(r["multi_sku_products"], 0)
+
+    def test_only_minimum_price_is_fallback(self):
+        r = evaluate([sku("a", None, price_min="NT$299")],
+                     datetime(2026, 11, 15, tzinfo=timezone.utc))
+        self.assertEqual(r["status"], "fallback_product_price_bounds")
+        self.assertEqual(r["fallback_min_only_count"], 1)
+        self.assertEqual(r["fallback_max_only_count"], 0)
+
+    def test_only_maximum_price_is_fallback(self):
+        r = evaluate([sku("a", None, max_price=599)],
+                     datetime(2026, 11, 15, tzinfo=timezone.utc))
+        self.assertEqual(r["status"], "fallback_product_price_bounds")
+        self.assertEqual(r["fallback_max_only_count"], 1)
+
+    def test_inverted_range_is_not_fallback(self):
+        r = evaluate([sku("a", None, price_min=599, price_max=299)])
         self.assertEqual(r["status"], "insufficient_evidence")
-        self.assertEqual(r["reject_reasons"].get("missing_individual_price"), 2)
+        self.assertEqual(r["fallback_product_count"], 0)
+
+    def test_variant_level_takes_priority_over_product_range(self):
+        r = evaluate([sku("a", 299, price_min=299, price_max=599),
+                      sku("b", 599, price_min=299, price_max=599)],
+                     datetime(2026, 11, 15, tzinfo=timezone.utc))
+        self.assertEqual(r["status"], "complete_multi_sku_price_evidence")
+        self.assertEqual(r["fallback_product_count"], 0)
 
     def test_region_and_currency_must_match(self):
         r = evaluate([sku("a", 299, currency="BRL"), sku("b", 399)])

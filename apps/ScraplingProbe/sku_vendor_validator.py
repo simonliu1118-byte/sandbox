@@ -102,16 +102,54 @@ def normalize(row):
     }, None
 
 
+def normalize_fallback(row):
+    """Validate product-level price bounds separately from SKU-level pricing."""
+    if not isinstance(row, dict):
+        return None, "invalid_row"
+    region = str(pick(row, "market", "region", "site", "country") or "").strip().lower()
+    currency = str(pick(row, "currency", "currency_code") or "").strip().upper()
+    if region not in {"tw", "taiwan", "taiwan (tw)"} or currency != "TWD":
+        return None, "not_taiwan_twd"
+    shop = pick(row, "shop_id", "shopId")
+    item = pick(row, "item_id", "itemId")
+    if not shop or not item:
+        return None, "missing_product_identity"
+    low = numeric_price(pick(row, "price_min", "min_price", "priceMin",
+                             "minPrice", "lowest_price"))
+    high = numeric_price(pick(row, "price_max", "max_price", "priceMax",
+                              "maxPrice", "highest_price"))
+    if low is None and high is None:
+        return None, "no_product_price_bounds"
+    if low is not None and high is not None and low > high:
+        return None, "inverted_price_range"
+    url = pick(row, "product_url", "productUrl", "source_url", "url")
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme != "https" or parsed.hostname not in {"shopee.tw", "www.shopee.tw"}:
+        return None, "missing_shopee_product_link"
+    captured = pick(row, "captured_at", "collected_at", "scraped_at", "timestamp", "checked_at")
+    try:
+        dt = datetime.fromisoformat(str(captured).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            raise ValueError("timezone required")
+    except (ValueError, TypeError, OverflowError):
+        return None, "missing_timestamp_timezone"
+    return {"key": (str(shop), str(item)), "min": low, "max": high, "captured": dt}, None
+
+
 def evaluate(rows, as_of=None):
     now = as_of or datetime.now(timezone.utc)
     groups = defaultdict(dict)
+    fallback_groups = {}
     errors = defaultdict(int)
     for record in rows:
-        normalized, error = normalize(record)
-        if error:
-            errors[error] += 1
-            continue
-        groups[normalized["key"]][normalized["sku"]] = normalized
+        normalized, sku_error = normalize(record)
+        if normalized:
+            groups[normalized["key"]][normalized["sku"]] = normalized
+        fallback, fallback_error = normalize_fallback(record)
+        if fallback:
+            fallback_groups[fallback["key"]] = fallback
+        if normalized is None and fallback is None:
+            errors[sku_error or fallback_error or "invalid_row"] += 1
     qualified = []
     stale = 0
     distinct_prices = 0
@@ -123,15 +161,33 @@ def evaluate(rows, as_of=None):
             distinct_prices += 1
         if any(abs((now - row["captured"]).total_seconds()) > 86400 * 7 for row in group.values()):
             stale += 1
+    qualified_keys = {next(iter(group.values()))["key"] for group in qualified}
+    backup_only = {
+        key: product for key, product in fallback_groups.items()
+        if key not in qualified_keys
+    }
+    if qualified:
+        status = "complete_multi_sku_price_evidence"
+    elif backup_only:
+        status = "fallback_product_price_bounds"
+    else:
+        status = "insufficient_evidence"
     return {
-        "status": "complete_multi_sku_price_evidence" if qualified else "insufficient_evidence",
+        "status": status,
         "rows_examined": len(rows),
         "valid_sku_rows": sum(len(g) for g in groups.values()),
         "multi_sku_products": len(qualified),
         "multi_sku_products_with_distinct_prices": distinct_prices,
         "multi_sku_products_older_than_seven_days": stale,
+        "fallback_product_count": len(backup_only),
+        "fallback_range_count": sum(p["min"] is not None and p["max"] is not None for p in backup_only.values()),
+        "fallback_min_only_count": sum(p["min"] is not None and p["max"] is None for p in backup_only.values()),
+        "fallback_max_only_count": sum(p["min"] is None and p["max"] is not None for p in backup_only.values()),
+        "fallback_older_than_seven_days": sum(
+            abs((now - p["captured"]).total_seconds()) > 86400 * 7 for p in backup_only.values()
+        ),
         "reject_reasons": dict(sorted(errors.items())),
-        "notice": "Price data is source-reported and not independently checked against checkout.",
+        "notice": "Backup bounds are product-level estimates, not prices of a chosen variant; checkout not verified.",
     }
 
 
