@@ -144,3 +144,15 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 - 檢查欄位 `sku_id`、`spu_id`、`sku_real_price` 並計算同商品是否至少有兩個不同的規格價格。
 - 巴西市場的 SKU 價格只能驗證資料形式，不能證明臺灣 Shopee 可取得同樣的逐規格售價。
 - 正式臺灣試用需向 Octoparse 申請指定商品的免費樣本，或使用 Apify 免費方案登入後執行單一測試商品。
+
+### 2026-11-15 GitHub Actions Run #11 實測結果
+
+[公開資料集實測 Run #11](https://github.com/simonliu1118-byte/sandbox/actions/runs/43701628587)：
+- Hugging Face Dataset Server `/splits` 及 `/rows` 均 HTTP 200。
+- 公開資料包含 `products`、`skus` 兩種 split/config；讀取每組最多 100 筆樣本。
+- SKU 示例中有 100/100 筆同時具備商品識別、SKU 識別及數值售價。
+- 將 SKU 按所屬商品群組後，15 組具有至少兩個 SKU；其中 15 組都存在不同個別價格。
+- 所有已核對 SKU 的市場代碼為 `br`（巴西），**不是臺灣**；`taiwan_multi_price_groups=0`。
+- 這證明 Octoparse 公開樣本確實提供逐規格價格資料結構，但**不證明臺灣蝦皮商用查價可行**。臺灣需進一步取得合法試用資料。
+- 無需登入、付費或啟動 Actor；此次沒有向蝦皮發送連線。
+- 已移除一次性資料集連線 CI，後續 GitHub PR 更新仍只執行離線單元測試。
