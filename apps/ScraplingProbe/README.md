@@ -189,3 +189,15 @@ python apps/ScraplingProbe/sku_vendor_validator.py --input vendor_sample.csv --o
 請求提供臺灣站（TW/TWD）至少三筆多規格商品，包含每筆 `shop_id`、`item_id`、商品網址、擷取日期，以及每個 `model_id`、完整規格名稱、各自的展示售價、原價、庫存狀態、優惠類型。須確認是否為登入前價格／會員價／券後價，並且提供一週或每日更新的費用、最小訂購量、資料商用授權。
 
 若供應商只能提供價格區間或展示最低價，不能滿足本專案指定規格比價需求。
+
+## 2026-11-15 預算決策：Octoparse 排除
+
+**使用者已明確表示 Octoparse 正式服務超出預算，不得再將它推薦為可採用的正式資料來源。** 既有公開巴西 SKU 樣本僅留作技術研究證據；不申請 Octoparse 正式付費服務，也不以其價格規劃未來架構。
+
+後續優先順序（本輪仍未啟動任何新付費 API）：
+
+1. [Wellbyte](https://www.wellbyte.net/en/pricing)：註冊免費 500 credits；Shopee SKU Models / Matrix 端點每次成功 39 credits，按標示換算單次約 US$0.039，可用贈額測約 12 次成功呼叫。**尚未證實具有逐 SKU 非空售價**；必須由授權帳號實際驗收，失敗不當成成功。
+2. [Apify](https://apify.com/pricing)：Free 方案提供 US$5 的月度使用額度；但各 Actor 定價與免費方案可用性不同，且過去公開 dataset 查詢 HTTP 401，不能當成已驗證的逐規格臺灣資料來源。
+3. 其他可提供合法授權與小額試用的臺灣蝦皮 SKU 價格來源，依逐規格價格欄位驗收結果決定。
+
+本專案不得要求或使用使用者日常蝦皮帳號，亦不得透過 VPN／新帳號反覆規避已顯示的流量限制；所有第三方 API 金鑰不得出現在 public Git、Actions log 或聊天文字。正式採購須另行確認可接受的月費上限、商用授權、最小請求量與資料更新頻率。
