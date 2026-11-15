@@ -47,3 +47,7 @@ jobs:
       - name: One-off Feebee Taiwan Coupang indexed price search test
         if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
         run: python apps/ScraplingProbe/feebee_coupang_probe.py
+
+      - name: One-off public Coupang Taiwan product detail test
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        run: python apps/ScraplingProbe/coupang_detail_probe.py
