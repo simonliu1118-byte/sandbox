@@ -174,6 +174,7 @@
   }
   $("export-rules").addEventListener("click",exportRules);
   $("import-rules").addEventListener("change",e=>{importRules(e.target.files?.[0]);e.target.value="";});
+  $("edit-cancel").addEventListener("click",()=>$("catalog-dialog").close());
   $("catalog-dialog").addEventListener("click",e=>{if(e.target===$("catalog-dialog"))e.target.close();});
   // The original server-rendered list stays as a no-JavaScript fallback.
   document.querySelector(".table")?.classList.add("raw-fallback-hidden");

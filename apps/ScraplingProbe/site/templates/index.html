@@ -60,7 +60,7 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 <label>其他可比較規格（每行「名稱=內容」）<textarea name="attributes" rows="4" placeholder="尺寸=0.5吋&#10;顏色=白&#10;長度=9m"></textarea></label>
 <label>使用狀態<select name="decision"><option value="include">納入比較</option><option value="exclude">不使用</option></select></label>
 <p id="edit-error" class="warn-text" aria-live="polite"></p>
-<div class="dialog-actions"><button type="button" id="edit-reset">清除人工分類</button><button type="button" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="primary">儲存分類</button></div>
+<div class="dialog-actions"><button type="button" id="edit-reset">清除人工分類</button><button type="button" id="edit-cancel">取消</button><button type="submit" class="primary">儲存分類</button></div>
 </form></dialog>
 {% endif %}
 {% if keyword and status in ['ok','no_price','no_match'] %}

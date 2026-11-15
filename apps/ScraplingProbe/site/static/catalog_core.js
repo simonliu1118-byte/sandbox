@@ -3,7 +3,7 @@
   "use strict";
   const normalize = v => String(v ?? "").normalize("NFKC").replace(/\s+/g," ").trim();
   const short = v => normalize(v).toUpperCase();
-  const fingerprint = title => short(title).replace(/[^\p{L}\p{N}]+/gu,"");
+  const fingerprint = title => short(title).replace(/[^\p{L}\p{N}./-]+/gu,"");
   const round = n => Math.round((n + Number.EPSILON)*100)/100;
   const UNIT = {卷:"捲",只:"個",件:"入",枚:"片",PCS:"入",PC:"入",套:"組"};
   const CATEGORIES = ["入","捲","卷","個","盒","包","組","瓶","罐","片","支","條","顆","袋","套","只"];
