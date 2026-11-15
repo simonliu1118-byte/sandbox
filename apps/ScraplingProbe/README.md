@@ -156,3 +156,36 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 - 這證明 Octoparse 公開樣本確實提供逐規格價格資料結構，但**不證明臺灣蝦皮商用查價可行**。臺灣需進一步取得合法試用資料。
 - 無需登入、付費或啟動 Actor；此次沒有向蝦皮發送連線。
 - 已移除一次性資料集連線 CI，後續 GitHub PR 更新仍只執行離線單元測試。
+
+## 臺灣蝦皮逐規格報價驗收工具（V0.2.4）
+
+新增純離線的 `sku_vendor_validator.py`，適用供應商試用 CSV 或 JSON，**不含任何自動登入或網路請求**。驗收重點：
+
+1. 市場必須為 `TW` 且幣別為 `TWD`。
+2. 同一個 `shop_id + item_id` 至少有兩個不同 `sku_id/model_id`，每個都要有規格名稱與獨立的數值售價。
+3. 必須包含臺灣蝦皮商品網址、帶時區的資料擷取時間。
+4. 只有價格區間 `price_min/price_max`，沒有 SKU 各自的價格，必定判定不合格。
+5. 同一個商品兩種規格同價仍可證明 SKU 價格欄位完整，另記錄有不同價格的商品組數。
+6. 超過七天的樣本另標示過舊；即使通過欄位驗證，也不代表現在的即時售價或結帳價。
+
+只顯示彙總驗收結果，不在 CI 或 GitHub 儲存供應商原始資料。使用前先將供應商欄位對應到以下標準欄位（或程式支援的 camelCase / 常見別名）：
+
+`site,currency,shop_id,item_id,sku_id,sku_name,sku_price,product_url,captured_at`
+
+本機離線執行：
+
+~~~bash
+python apps/ScraplingProbe/sku_vendor_validator.py --input vendor_sample.csv --output local-validation.json
+~~~
+
+本輪研究的重要供應商差異：
+
+- [Octoparse Shopee Managed Data Service](https://www.octoparse.com/data-service/shopee-data)：公開說明支援臺灣商品與 SKU 價格，接受免費客製樣本申請，但正式代管方案一次性從 US$699 起、持續監控從 US$599／月起。
+- [Wellbyte SKU Matrix](https://www.wellbyte.net/en/docs/api/shopee-product-item_sku_matrix_v1)：註冊贈送 500 credits，SKU 類端點成功呼叫 39 credits；但其公開回應描述偏向「規格組合／SKU 模型」，**不能據此認定每種規格均有獨立價格**，待實測。
+- [鏡海數據 Shopee API](https://jhzyapi.com/products/shopee/)：臺灣站商品詳情示例含價格區間、規格組合、展示 model ID，但示例並未證實所有規格皆有個別售價。
+
+### 免費試用資料需明確指定的欄位
+
+請求提供臺灣站（TW/TWD）至少三筆多規格商品，包含每筆 `shop_id`、`item_id`、商品網址、擷取日期，以及每個 `model_id`、完整規格名稱、各自的展示售價、原價、庫存狀態、優惠類型。須確認是否為登入前價格／會員價／券後價，並且提供一週或每日更新的費用、最小訂購量、資料商用授權。
+
+若供應商只能提供價格區間或展示最低價，不能滿足本專案指定規格比價需求。
