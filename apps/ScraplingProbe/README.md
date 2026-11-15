@@ -66,6 +66,25 @@ python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
 Copyright © 2026 C.C. Liu. All Rights Reserved.
 
+## 多平台第一次實測結果（2026/11/15）
+
+GitHub Actions [Run #5](https://github.com/simonliu1118-byte/sandbox/actions/runs/43689419536) 實際執行三個公開資料來源的各一次請求：
+
+- **momo 成功**：Logitech 羅技 M331 SilentPlus 靜音滑鼠（黑），品號 `9956761`，HTTP 200，促銷價 **NT$699**。
+- 酷澎失敗：HTTP 403，拒絕存取。
+- ECPRO 第三方 API 失敗：單次連線逾時。
+
+此次取得的價格是公開促銷價，並非已核實的購物車、會員或結帳實付價。此結果也不代表每筆 momo 商品都能讀取。
+
+### 可重複使用的 momo 單頁價格工具
+
+V0.2.0 Build 1 將實驗程式收斂為可輸入任意 momo `/product/<id>` 網址的單頁查價程式。以品號確認商品身分，並從明確標示的「促銷價／活動價／優惠價」取得價格。
+
+```bash
+python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.tw/product/9956761 --output momo-result.json
+```
+
+每次命令只送出一次公開 HTTPS 請求；不登入、不重試、不處理驗證、不使用代理。結果為 JSON，包含時間、來源、品號、標題、價格及狀態，失敗不會以 NT$0 代表。CI 的 PR 更新僅執行離線測試，不再自動抓取購物平台。
 ## 多平台公開價資料測試（V0.2.0）
 
 2026/11/15 新增 `market_price_probe.py`，以獨立公共來源各單次請求實驗：
