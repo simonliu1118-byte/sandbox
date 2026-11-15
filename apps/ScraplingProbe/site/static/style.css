@@ -26,3 +26,11 @@
 .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:8px}.dialog-actions .primary{background:#a45b3a;color:#fff}
 .warn-text{color:#a14d20;font-size:12px}.dim{color:#968c82;font-size:12px}
 @media(max-width:650px){.catalog-analytics{padding:17px 13px}.catalog-row{align-items:flex-start}.catalog-price{min-width:105px}.catalog-model strong{font-size:15px}.catalog-amount{font-size:15px}.catalog-unit-price{font-size:12px}.catalog-actions button{padding:6px}.group-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.range-row{grid-template-columns:80px minmax(65px,1fr) 75px}.catalog-dialog{padding:15px}}
+
+/* Feebee section: separate from momo analysis. */
+.feebee-section{margin-top:26px}.feebee-body{padding:21px 28px 24px}
+.feebee-disclaimer{border-left:3px solid #b7824b;background:#fbf5eb;color:#675648;
+ padding:12px 16px;margin:0 0 18px;line-height:1.75;font-size:13px}
+.feebee-search{box-shadow:none}.feebee-note,.feebee-empty,.feebee-source{font-size:13px;color:#75695e;line-height:1.7}
+.feebee-empty{padding:20px 8px}.feebee-source{margin:17px 0 0}.feebee-source a{color:#9c6243}
+@media(max-width:700px){.feebee-body{padding:16px}.feebee-disclaimer{padding:12px}}

@@ -43,3 +43,8 @@ jobs:
       
       - name: Generalized catalog parsing and statistics tests
         run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs
+
+      - name: One-off Feebee real HTML price-pair validation
+        env:
+          PYTHONPATH: apps/ScraplingProbe/site
+        run: python -m feebee_search --keyword "3m 1530-1"

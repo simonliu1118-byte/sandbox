@@ -1,4 +1,4 @@
-"""Protected, single-page momo keyword search preview for Vercel."""
+"""Separated momo and Feebee reference-price single-page preview."""
 import hmac
 import os
 import re
@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 import never_primp as primp
 from flask import Flask, make_response, render_template, request
+from feebee_search import make_search_url as feebee_url, safe_search as safe_feebee_search
 
 app = Flask(__name__)
 ENDPOINT = "https://apisearch.momoshop.com.tw/momoSearchCloud/moec/textSearch"
@@ -209,10 +210,23 @@ def homepage():
                 missing = [r for r in rows if r["price"] is None]
                 rows = sorted(priced, key=lambda r: r["price"],
                               reverse=(selected_sort == "desc")) + missing
+    feebee = {"keyword": "", "status": "idle", "rows": [],
+              "checked": None, "search_url": "", "error": ""}
+    feebee_raw = request.args.get("feebee_keyword", "")
+    if request.args.get("source") == "feebee" and feebee_raw.strip():
+        try:
+            feebee["keyword"] = normalize_keyword(feebee_raw)
+        except ValueError as exc:
+            feebee["error"] = str(exc)
+        else:
+            result = safe_feebee_search(feebee["keyword"])
+            feebee.update(status=result["status"], rows=result.get("results", []),
+                          checked=result.get("checked_at"),
+                          search_url=result.get("source_url", feebee_url(feebee["keyword"])))
     return render_template("index.html", keyword=keyword, status=status,
                            rows=rows, checked=checked, error=error, page=page,
                            raw_count=raw_count, has_next=(page < 5 and raw_count >= 20),
-                           sort=selected_sort)
+                           sort=selected_sort, feebee=feebee)
 
 
 if __name__ == "__main__":
