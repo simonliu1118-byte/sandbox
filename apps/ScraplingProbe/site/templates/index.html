@@ -44,7 +44,7 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 <script id="catalog-data" type="application/json">{{ rows|tojson }}</script>
 {% if rows %}
 <div id="analysis" hidden class="catalog-analytics">
-<div class="catalog-toolbar"><h3>商品規格與單位價格</h3><div class="rule-tools"><button type="button" id="export-rules">匯出人工分類</button><label class="import-label">匯入分類備份<input id="import-rules" type="file" accept=".json,application/json" hidden></label></div></div>
+<div class="catalog-toolbar"><h3>商品規格與單位價格</h3><span class="dim">人工分類會自動記住於此瀏覽器</span></div>
 <p class="hint">由商品標題初步解析；單價為公開展示價推算。若商品有不同規格或入數選項，請先人工確認，不會猜測。</p>
 <div id="catalog-facets" class="catalog-facets"></div>
 <p id="catalog-count" class="catalog-count"></p>

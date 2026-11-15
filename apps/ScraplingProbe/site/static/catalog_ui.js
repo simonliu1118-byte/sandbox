@@ -148,32 +148,6 @@
     }
   }
   function render(){renderFacets();renderRowsAndGroups();}
-  function exportRules(){
-    const exportData={type:"momo-price-prototype-rules",version:1,exportedAt:new Date().toISOString(),rules};
-    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob),a=node("a");a.href=url;a.download="momo-catalog-rules.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
-  }
-  function importRules(file){
-    if(!file || file.size>500000){alert("檔案太大或無效");return;}
-    file.text().then(text=>{
-      const data=JSON.parse(text);
-      if(data.type!=="momo-price-prototype-rules"||data.version!==1||typeof data.rules!=="object"||!data.rules||Array.isArray(data.rules))
-        throw Error("不是本系統匯出的分類備份");
-      if(Object.keys(data.rules).length>3000)throw Error("分類數量超過限制");
-      if(!confirm("匯入會取代這個瀏覽器現有的全部人工分類。確定繼續？"))return;
-      const accepted={};
-      for(const [key,rule] of Object.entries(data.rules)){
-        if(!/^momo:(?:\d{5,14}|TP\d{10,18})$/.test(key) || !rule || rule.version!==1 || !/^[\p{L}\p{N}]{1,400}$/u.test(rule.signature||""))continue;
-        accepted[key]={version:1,signature:rule.signature,decision:rule.decision==="exclude"?"exclude":"include",
-          model:core.normalize(rule.model).slice(0,80),quantity:Number(rule.quantity)||null,
-          unit:core.normalize(rule.unit).slice(0,20),attributes:core.sanitizeAttributes(rule.attributes)};
-      }
-      rules=accepted;if(!persist())throw Error("瀏覽器儲存失敗");
-      recompute();
-    }).catch(e=>alert("匯入失敗："+e.message));
-  }
-  $("export-rules").addEventListener("click",exportRules);
-  $("import-rules").addEventListener("change",e=>{importRules(e.target.files?.[0]);e.target.value="";});
   $("edit-cancel").addEventListener("click",()=>$("catalog-dialog").close());
   $("catalog-dialog").addEventListener("click",e=>{if(e.target===$("catalog-dialog"))e.target.close();});
   // The original server-rendered list stays as a no-JavaScript fallback.

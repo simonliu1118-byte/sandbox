@@ -81,6 +81,13 @@ class OnePageTests(unittest.TestCase):
         self.assertIn(b'name="keyword"', page.data)
         self.assertIn("查詢價格".encode(), page.data)
 
+    def test_no_export_import_controls(self):
+        with patch.dict(os.environ, {"VERCEL": ""}):
+            page = self.client.get("/?keyword=test")
+        self.assertNotIn(b'id="export-rules"', page.data)
+        self.assertNotIn(b'id="import-rules"', page.data)
+        self.assertNotIn("匯入分類備份".encode(), page.data)
+
     def test_no_secret_denies_remote(self):
         with patch.dict(os.environ, {"VERCEL": "1", "APP_ACCESS_PASSWORD": ""}):
             response = self.client.get("/")
