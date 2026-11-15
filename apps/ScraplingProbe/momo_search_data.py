@@ -36,6 +36,8 @@ def read_goods(payload, keyword, limit=20):
     if not isinstance(goods, list):
         return {"status": "unexpected_json_shape", "products": [],
                 "top_level_keys": sorted(str(k) for k in payload)[:12]}
+    if payload.get("success") is not True:
+        return {"status": "provider_response_not_successful", "products": [], "raw_goods_count": len(goods)}
     products, seen = [], set()
     for row in goods:
         if not isinstance(row, dict):
@@ -47,7 +49,9 @@ def read_goods(payload, keyword, limit=20):
         if not re.fullmatch(r"\d{5,14}", code) or code in seen:
             continue
         seen.add(code)
-        amount = price_value(row.get("goodsPrice"))
+        amount = price_value(row.get("SALE_PRICE"))
+        if amount is None:
+            amount = price_value(row.get("goodsPrice"))
         products.append({
             "platform": "momo", "product_id": code,
             "title": name[:180],
@@ -66,37 +70,54 @@ def read_goods(payload, keyword, limit=20):
 
 def fetch_keyword(keyword, limit=20):
     keyword = keyword_value(keyword)
-    payload = {"host": "momoshop", "flag": "searchEngine",
-               "data": {"searchValue": keyword, "curPage": "1", "priceS": "0",
-                        "priceE": "9999999", "searchType": "1"}}
+    payload = {
+        "host": "ecmobile", "flag": "searchEngine",
+        "data": {
+            "maxPage": 30, "cateLevel": -1, "serviceCode": "MT01",
+            "platform": 16, "has3P": "Y",
+            "NAM": "N", "china": "N", "cp": "N", "first": "N",
+            "freeze": "N", "prefere": "N", "stockYN": "N",
+            "superstore": "N", "threeHours": "N", "tomorrow": "N",
+            "tvshop": "N", "video": "N", "cycle": "N",
+            "cod": "N", "superstorePay": "N", "moCoinFeedback": "N",
+            "superstoreFree": "N", "discount": "N",
+            "isBrandSeriesPage": False, "isShowAdShop": False,
+            "curRecommendedWordsCnt": 0,
+            "searchValue": keyword, "curPage": 1,
+        },
+    }
     result = {"source": "momo_search_data", "keyword": keyword, "http_status": None,
               "checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "status": "not_started", "products": []}
-    request = Request(API, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-                      headers={"User-Agent": "Mozilla/5.0",
-                               "Accept": "application/json",
-                               "Content-Type": "application/json",
-                               "Accept-Language": "zh-TW,zh;q=0.9"}, method="POST")
     try:
-        with urlopen(request, timeout=22) as response:
-            result["http_status"] = response.status
-            raw = response.read(1600000).decode("utf-8", errors="replace")
-            final_url = response.geturl()
-        if final_url != API:
-            result["status"] = "unexpected_redirect"
-        elif any(marker in raw[:1500].lower() for marker in ("captcha", "access denied", "流量驗證")):
-            result["status"] = "blocked_or_challenged"
-        else:
+        import never_primp as primp
+        with primp.Client(
+                impersonate="chrome_142", impersonate_os="windows",
+                timeout=22.0, http2_only=True,
+                headers={"content-type": "application/json",
+                         "origin": "https://m.momoshop.com.tw",
+                         "referer": "https://m.momoshop.com.tw/"}
+        ) as client:
+            response = client.post(API, json=payload)
+            result["http_status"] = response.status_code
+            if response.status_code in (403, 429):
+                result["status"] = "http_denied"
+                return result
+            if response.status_code != 200:
+                result["status"] = "http_error"
+                return result
+            if any(marker in response.text[:1500].lower() for marker in
+                   ("captcha", "access denied", "流量驗證")):
+                result["status"] = "blocked_or_challenged"
+                return result
             try:
-                parsed = json.loads(raw)
+                parsed = response.json()
             except ValueError:
                 result["status"] = "not_json"
-            else:
-                result.update(read_goods(parsed, keyword, limit))
-    except HTTPError as exc:
-        result["http_status"] = exc.code
-        result["status"] = "http_denied" if exc.code in (403, 429) else "http_error"
-    except (TimeoutError, URLError, OSError) as exc:
+                return result
+            result["provider_success"] = parsed.get("success") if isinstance(parsed, dict) else False
+            result.update(read_goods(parsed, keyword, limit))
+    except (RuntimeError, OSError, TimeoutError, ValueError, Exception) as exc:
         result["status"] = "network_error"
         result["error_type"] = type(exc).__name__
     return result

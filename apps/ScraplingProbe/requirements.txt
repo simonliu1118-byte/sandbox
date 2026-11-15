@@ -1,1 +1,2 @@
 scrapling[fetchers]==0.5.1
+never-primp>=2.1.0

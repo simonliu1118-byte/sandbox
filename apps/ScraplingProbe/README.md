@@ -356,3 +356,11 @@ python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --shopee-da
 - 完整產品目標是「只輸入關鍵字就自動列出多平台商品、賣家、當前售價／區間及查詢時間」，不要求使用者事先提供商品連結。只找出 URL 或返回未驗證的索引價格**不算查價功能成功**。
 - 已移除 PR `synchronize` 的一次性 momo 網路檢查，避免後續提交時再向拒絕存取的資料介面反覆發送請求。
 - 下一個證據門檻：使用**已核准且不產生費用**的雲端關鍵字搜尋資料服務實測一個關鍵字至少三筆臺灣商品，且每筆有品號、名稱、有效售價和來源時間；蝦皮也需相同標準。若只有搜尋卡片價，仍屬可用的免費商品級備用，不能冒充逐規格價。
+
+### V0.3.0 Build 2 — 採用經開源比價工具使用的 momo 行動版搜尋格式
+
+發現 [coseto6125/mcp-taiwan-price-compare](https://github.com/coseto6125/mcp-taiwan-price-compare)（MIT）實際實作了關鍵字 momo 搜尋，2026-11-05 最近仍有更新；上游搜尋器使用 `never-primp` 的 Chrome profile、momo 行動站的 `host=ecmobile` 及完整搜尋參數，結果讀取 `rtnSearchData.goodsInfoList[].SALE_PRICE`。原本本專案使用錯誤 `host=momoshop` 與不完整 payload，前次 GitHub Runner 曾 HTTP 403。
+
+本版採用同一個公開搜尋資料介面、上游實證的移動端參數與一般瀏覽器 HTTPS 設定，**只執行一次**搜尋「羅技 M331」，不中途換 IP／代理、不登入、不處理 CAPTCHA／驗證、不自動重試。價格來自站方回傳 `SALE_PRICE`，以站方 `success=true` 為前提；若只回傳失敗或任何非 200 HTTP，結果仍標成失敗。實際是否可從 GitHub Runner 存取，須依本輪動態 CI 結果判定。
+
+引用原專案的公開技術作法（MIT）：[src/price_compare/platforms/momo.py](https://github.com/coseto6125/mcp-taiwan-price-compare/blob/master/src/price_compare/platforms/momo.py)，本專案保留獨立程式實作、單次請求、無自動重試。
