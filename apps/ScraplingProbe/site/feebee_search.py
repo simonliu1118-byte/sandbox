@@ -26,6 +26,9 @@ IGNORE = {"推薦商品", "找同款商品", "前往購買", "促銷", "Coupang 
 
 
 def make_search_url(keyword):
+    keyword = " ".join(str(keyword).split())
+    if not 2 <= len(keyword) <= 80 or any(ord(c) < 32 for c in keyword):
+        raise ValueError("keyword must be 2 to 80 characters")
     return BASE + "/s/" + quote(keyword, safe="") + "/"
 
 

@@ -135,7 +135,7 @@ class FeebeeTests(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         only_feebee.assert_called_once_with("3m 1530-1", market="shopee")
         momo.assert_not_called()
-        self.assertIn("蝦皮商城".encode(), page.data)
+        self.assertIn("蝦皮購物".encode(), page.data)
         self.assertIn("亮亮生活".encode(), page.data)
         self.assertIn(b"NT$ 230", page.data)
         self.assertIn(b'id="feebee-shopee"', page.data)

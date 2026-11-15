@@ -84,7 +84,7 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 <div class="feebee-body">
 <p class="feebee-disclaimer"><strong>注意：</strong>僅為飛比收錄的 {{ title }} <strong>商品級第三方參考價</strong>，
 不是 {{ title }} 即時售價或結帳價格。<strong>來源價格更新時間未確認。</strong>
-{% if market == 'shopee' %}蝦皮多規格商品無法由此確認各 SKU 售價，需另行核價。{% endif %}
+{% if market == 'shopee' %}蝦皮多規格商品無法由此確認逐規格 SKU 售價，需另行核價。{% endif %}
 不與 momo、其他平台價格統計混算。</p>
 <form action="/#feebee-{{ market }}" method="get" class="search feebee-search">
 <input type="hidden" name="source" value="feebee">
