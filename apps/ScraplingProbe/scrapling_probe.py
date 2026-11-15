@@ -68,14 +68,17 @@ def is_challenge_page(status: int, final_path: str, page_sample: str) -> bool:
     )
 
 
-def probe(url: str) -> dict:
+def probe(url: str, browser_mode: str = "chromium-headless") -> dict:
     """Exactly one top-level navigation, no retry, and no authentication."""
     if not valid_target(url):
         raise ValueError("Only https://shopee.tw public URLs are supported")
+    if browser_mode not in {"chromium-headless", "chrome-headed"}:
+        raise ValueError("Unsupported browser mode")
     result = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "target": url,
         "tool": "Scrapling 0.5.1 / StealthySession",
+        "browser_mode": browser_mode,
         "status": "not_started",
         "http_status": None,
         "final_path": None,
@@ -88,7 +91,8 @@ def probe(url: str) -> dict:
     }
     try:
         with StealthySession(
-            headless=True,
+            headless=(browser_mode != "chrome-headed"),
+            real_chrome=(browser_mode == "chrome-headed"),
             locale="zh-TW",
             record_requests=True,
             max_recorded_requests=200,
@@ -150,8 +154,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL, help="One public Shopee product URL")
     parser.add_argument("--output", default="probe-result.json", help="JSON output path")
+    parser.add_argument("--browser-mode", choices=["chromium-headless", "chrome-headed"], default="chromium-headless")
     options = parser.parse_args()
-    result = probe(options.url)
+    result = probe(options.url, options.browser_mode)
     destination = Path(options.output)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

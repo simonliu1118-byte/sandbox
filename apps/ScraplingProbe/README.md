@@ -47,10 +47,17 @@ python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 - 第一版誤將此情況報為 `no_price_found`；Build 1 修正為能識別驗證頁的 `blocked_or_challenged`，以離線單元測試覆蓋。為尊重限制，沒有在修正時重新發送現場請求。
 - 結論：Scrapling 的 GitHub 執行環境可用；臺灣蝦皮商品頁匿名查價在本次條件下**不可行**。不代表所有時間、商品、網路條件下都必然失敗。
 
+## 第二種模式：Google Chrome 有畫面測試（2026-11-15）
+
+依使用者本次指示，一次性比較 `StealthySession(real_chrome=True, headless=False)`，在 Linux Xvfb 使用 Runner 提供的 Google Chrome。這並非 CAPTCHA 解法；一旦仍遇到流量驗證就停止。測試記錄只保留最終路徑、HTTP 狀態與價格候選值。
+
+- GitHub PR 同步事件在本次測試暫時執行一次 Chrome headed 診斷。
+- 測試完成後會移除該同步觸發條件，恢復只跑離線測試，防止未來 PR 修改造成額外請求。
+
 ## 預期資料
 
 - `status`：`price_candidates_found`、`no_price_found`、`blocked_or_challenged` 或 `fetch_error`
-- `http_status`、`final_path`（最終跳轉路徑）、`title`
+- `browser_mode`、`http_status`、`final_path`（最終跳轉路徑）、`title`
 - `rendered_price_candidates`、`api_price_candidates`（皆未核對）
 - `price_verified: false`
 
