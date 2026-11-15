@@ -33,3 +33,19 @@ jobs:
 
       - name: Unit tests
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
+      
+      - name: One-off momo keyword search observation
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        run: |
+          python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --live-momo --limit 20 --output apps/ScraplingProbe/keyword-search-check.json --html apps/ScraplingProbe/keyword-search-report.html
+
+      - name: Upload keyword search diagnostic
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyword-prototype-v0.3.0
+          path: |
+            apps/ScraplingProbe/keyword-search-check.json
+            apps/ScraplingProbe/keyword-search-report.html
+          if-no-files-found: warn
+          retention-days: 3

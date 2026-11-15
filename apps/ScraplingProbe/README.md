@@ -313,3 +313,29 @@ Apify Khalid／SIÁN 為按筆計價的來源，預設費用類型 `paid`：若�
 3. 同時核對實際 US$ 費用與當月剩餘 Free 額度；不得自動升級、充值、超量執行或接入消費者蝦皮帳號。
 4. 若成功取得獨立 SKU 價格，送入既有 sku_vendor_validator.py 做主要驗收；若只有商品展示價或當前價格上下界，在**零付款且額度可長期支撐**的條件下才列免費備用。
 5. 到目前為止，**臺灣蝦皮真實逐規格售價的獨立成功驗證仍為零筆**。不以供應商文件、模擬測試或別國樣本冒充實測成功。
+
+## V0.3.0 — 關鍵字搜尋優先的競品查價原型
+
+**主要入口改為關鍵字**：使用者不必自行收集商品網址。原型維持 `sandbox/apps/ScraplingProbe/` 的獨立工作分支；不合併 CYWEB、不建立正式獨立站、不部署。商品連結只在搜尋結果中提供，供查證。
+
+新增 `keyword_search.py`：
+
+- `--keyword` 接受中文、英文與型號，例如「羅技 M331」，自動建構 momo 站內搜尋 URL。只有明確傳入 `--live-momo` 時才發送**一次**匿名公開關鍵字頁 HTTP GET，嘗試取得多筆商品的品號、名稱、展示價與連結。
+- 商品連結由程式自行發現；支援 momo `/product/<id>` 及舊式 `/goods/GoodsDetail.jsp?i_code=<id>`，不要求使用者提供。
+- 搜尋結果可能只有商品名稱與連結而沒有價格；不能把「找到商品」當成「已查到即時售價」，更不能將缺價轉換成 0 元。
+- 蝦皮關鍵字來源尚待實測。已有支援臺灣 keyword search 的第三方 Actor [Dami Studio](https://apify.com/dami_studio/shopee-product-scraper/input-schema)，輸入 `searchQueries`、`market=tw`、`maxItems`；但需經授權 Apify 帳號且免費額度與條款都需驗證。現階段**不執行付費 Actor**，僅可由 `--shopee-dataset` 匯入經授權的第三方關鍵字結果 JSON。
+- `--html` 可輸出獨立靜態 HTML 比較表，與 JSON 一起檢查，不是對外發布的網站。
+- 歷史已有一筆 momo 商品頁成功擷取 NT$699，但關鍵字搜尋與列表商品卡片價格必須透過本次實際關鍵字測試另外驗證。
+
+~~~bash
+# 離線模式：不對外發送任何請求
+python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --output search.json --html search.html
+
+# 一次 momo 關鍵字搜尋，產生搜尋結果表；沒有手動商品網址
+python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --live-momo --limit 20 --output search.json --html search.html
+
+# 經授權的蝦皮第三方搜尋結果可匯入，仍不直接請求蝦皮
+python apps/ScraplingProbe/keyword_search.py --keyword '羅技 M331' --shopee-dataset local-shopee-results.json --output search.json --html search.html
+~~~
+
+下一步：若實測列表只能拿到商品連結，研究能否在合理免費請求量內自動讀取部分結果的 momo 商品頁價格；蝦皮則先取得可用的長期免費 keyword provider 並核對實際臺灣商品。查詢結果要依品牌、型號與規格分類，區間與異常才列入逐規格查價，後者暫不自動執行。
