@@ -33,17 +33,3 @@ jobs:
 
       - name: Unit tests
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
-      
-      - name: One-off public momo search data endpoint test
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        run: |
-          python apps/ScraplingProbe/momo_search_data.py --keyword '羅技 M331' --limit 20 --output apps/ScraplingProbe/momo-api-test.json
-
-      - name: Upload momo keyword data observation
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        uses: actions/upload-artifact@v4
-        with:
-          name: momo-keyword-data-build1
-          path: apps/ScraplingProbe/momo-api-test.json
-          if-no-files-found: warn
-          retention-days: 3
