@@ -56,6 +56,21 @@ class OnePageTests(unittest.TestCase):
             result = self.client.get("/?keyword=%E7%BE%85%E6%8A%80+M331")
         self.assertNotIn("下一頁".encode(), result.data)
 
+    def test_actual_3m_1530_marketplace_ids_kept(self):
+        data = {"success": True, "rtnSearchData": {"goodsInfoList": [
+            {"goodsCode":"14011391", "goodsName":"3M 1530-0 通氣膠帶 6 組", "SALE_PRICE":"259"},
+            {"goodsCode":"TP00013930000165", "goodsName":"3M 1530-0 紙膠帶 12 入", "SALE_PRICE":"$190"},
+            {"goodsCode":"TP00065910000469", "goodsName":"3M Nexcare 1530CP 膠帶", "SALE_PRICE":"$54"},
+            {"goodsCode":"TP00052130002280", "goodsName":"來而康 1530-0 透氣膠帶", "SALE_PRICE":"$406"},
+            {"goodsCode":"TP00071080000060", "goodsName":"3M Nexcare 1530CP-1", "SALE_PRICE":"$69"},
+            {"goodsCode":"TP00094060000571", "goodsName":"3M 1530 盒裝", "SALE_PRICE":"$100"}]}}
+        status, rows = parse_results(data, "3m 1530")
+        self.assertEqual(status, "ok")
+        self.assertEqual(len(rows), 6)
+        self.assertEqual([r["price"] for r in rows], [259,190,54,406,69,100])
+        self.assertTrue(rows[1]["url"].endswith("GoodsDetail.jsp?i_code=TP00013930000165"))
+        self.assertTrue(rows[0]["url"].endswith("/product/14011391"))
+
     def test_explicit_provider_failure(self):
         self.assertEqual(parse_results({"success": False}, "羅技 M331"), ("provider_refused", []))
 

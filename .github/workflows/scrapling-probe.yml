@@ -46,4 +46,4 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
         working-directory: apps/ScraplingProbe/site
         run: |
-          MOMO_DIAGNOSTICS=1 python -c "from app import fetch_once; x=fetch_once('3m 1530',1); print({'status':x['status'],'raw_count':x.get('raw_count'),'retained_count':len(x['results']),'sample':x.get('source_diagnostics',[])})"
+          python -c "from app import fetch_once; x=fetch_once('3m 1530',1); print({'status':x['status'],'raw_count':x.get('raw_count'),'retained_count':len(x['results']),'prices':[r['price'] for r in x['results']]})"

@@ -51,7 +51,9 @@ def parse_results(data, keyword):
             continue
         code = str(item.get("goodsCode") or "").strip()
         name = str(item.get("goodsName") or "").strip()
-        if not re.fullmatch(r"\d{5,14}", code) or code in seen or not name:
+        # momo marketplace (3P) goods use TP-prefixed identifiers, not numeric codes.
+        # Do not drop these legitimate offers when building a competitor price list.
+        if not re.fullmatch(r"(?:\d{5,14}|TP\d{10,18})", code) or code in seen or not name:
             continue
         # Preserve the products momo returned; relevance is only an ordering hint.
         normalized = unicodedata.normalize("NFKC", name).casefold()
@@ -69,7 +71,9 @@ def parse_results(data, keyword):
             price = parse_price(item.get("goodsPrice"))
         found.append({"title": name[:220], "code": code, "price": price,
                       "relevance": relevance, "match_label": match_label,
-                      "url": "https://www.momoshop.com.tw/product/" + code})
+                      "url": ("https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code=" + code
+                              if code.startswith("TP") else
+                              "https://www.momoshop.com.tw/product/" + code)})
         if len(found) == 20:
             break
     return ("ok" if any(row["price"] is not None for row in found)
@@ -120,16 +124,6 @@ def fetch_once(keyword, page=1):
             section = data.get("rtnSearchData") if isinstance(data, dict) else None
             raw = section.get("goodsInfoList") if isinstance(section, dict) else None
             report["raw_count"] = len(raw) if isinstance(raw, list) else 0
-            if os.getenv("MOMO_DIAGNOSTICS") == "1" and isinstance(raw, list):
-                # Public product metadata only; never persist raw HTTP data.
-                report["source_diagnostics"] = [
-                    {"goodsCode": str(item.get("goodsCode") or "")[:24],
-                     "goodsCodeId": str(item.get("goodsCodeId") or "")[:24],
-                     "goodsName": str(item.get("goodsName") or "")[:100],
-                     "sale": str(item.get("SALE_PRICE") or "")[:24],
-                     "keys": sorted(item.keys())[:24]}
-                    for item in raw[:20] if isinstance(item, dict)
-                ]
             report["status"], report["results"] = parse_results(data, keyword)
     except Exception as exc:
         report["error_type"] = type(exc).__name__
