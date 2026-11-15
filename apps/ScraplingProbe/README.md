@@ -110,3 +110,16 @@ python apps/ScraplingProbe/market_price_probe.py --url https://www.momoshop.com.
 - 不得把 HTTP 200 解讀為抓價成功，也不能推論是被允許存取的完整商品列表；可能為純 JS 殼或不可解的頁面。
 - 已移除 PR 更新時的網路測試步驟，後續更新只跑離線單元測試。
 - 目前沒有逐規格價格、最低價或最高價的可靠實測結果。官方 Seller Shop API 的 model list 需要有資格及賣場授權，第三方公開資料也可能只有商品區間，不能當作競品逐規格價格來源。
+
+## 蝦皮逐規格價格：第三方來源研究（V0.2.2）
+
+已查到兩家 Apify Actor 宣稱可提供臺灣蝦皮的 SKU 規格 ID 與個別售價：
+
+- [khalid_alsaba/shopee-product-scraper](https://apify.com/khalid_alsaba/shopee-product-scraper)：文件示例含 `raw.get_pc.data.item.models[].{model_id,name,price}`，原始價格數值需除以 100000。
+- [sian.agency/shopee-product-scraper](https://apify.com/sian.agency/shopee-product-scraper)：文件示例含 `skuModels[].{model_id,price}` 與 coverage；公開示例只有一個規格，不能證明多規格價格。
+- [xtracto/shopee-product-detail](https://apify.com/xtracto/shopee-product-detail)：明言 2026 年公開商品資料的逐規格價格通常隱藏，只能取商品價格區間。
+- 蝦皮 Open Platform 的 `get_model_list` 需要賣場授權，不能假設能直接查競爭對手。
+
+新增 `variant_provider_probe.py`：**不呼叫蝦皮、也不啟動付費 Actor**，僅對上述兩家 Apify 的公開 metadata 及公開 last-dataset 範例執行一次 GET，若無權限或沒有可公開讀取的多規格價格便記錄結果，絕不虛構成功。所讀公開輸出僅記錄欄位完整度統計，不儲存其他人的原始 Dataset。
+
+驗收以臺灣商品、至少兩個不同的 Model ID、逐筆非 null 的價格、可辨識的規格名稱為基準；只得到 `price_min` / `price_max`、只有規格名稱或單一 SKU 範例都不算完整成功。外部服務若需註冊、付費或授權，必須另外確認資格和條款。
