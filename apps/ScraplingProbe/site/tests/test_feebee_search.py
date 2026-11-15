@@ -29,6 +29,21 @@ class FeebeeTests(unittest.TestCase):
         self.assertEqual(rows[0]["title"], "3M 1530-1 紙膠帶 1個")
         self.assertTrue(rows[0]["url"].startswith("https://feebee.com.tw/p/"))
 
+    def test_first_item_must_not_use_site_header_as_title(self):
+        html = ('<header><a href="/">Feebee 飛比價格</a></header>'
+                '<nav><a href="/s/3m/">熱門搜尋</a></nav>'
+                + card("3M 1530-1 透氣紙膠帶 1個", "179"))
+        status, rows = parse_feebee_results(html, self.url)
+        self.assertEqual(status, "ok")
+        self.assertEqual(rows[0]["title"], "3M 1530-1 透氣紙膠帶 1個")
+
+    def test_missing_product_link_rejects_card(self):
+        html = ('<header><a href="/">Feebee 飛比價格</a></header>'
+                '<div>3M 1530-1 1個</div><span>175</span>'
+                '<span>Coupang 酷澎</span><a>前往購買</a>')
+        status, rows = parse_feebee_results(html, self.url)
+        self.assertEqual((status, rows), ("no_price", []))
+
     def test_reject_promo_and_title_numbers(self):
         html = ('<a href="/p/x">3M 1530-1 一盒12捲</a>'
                 '<span>促銷 99 元</span><span>Coupang 酷澎</span>'

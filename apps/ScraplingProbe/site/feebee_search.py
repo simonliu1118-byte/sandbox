@@ -71,14 +71,17 @@ def _card(parts, search_url):
     price = int(match.group(1).replace(",", ""))
     if price <= 0 or price > 10000000:
         return None
-    candidates = [(text, href) for text, href in parts[:price_idx]
-                  if len(text) >= 6 and text not in IGNORE
+    # A global header link can appear before the first listing. Product titles
+    # must be anchored nearby, directly preceding this card's price/merchant.
+    # When the site changes its markup, omit the card rather than mislabel it.
+    candidates = [(text, href) for text, href in parts[max(0, price_idx - 12):price_idx]
+                  if href and len(text) >= 8 and text not in IGNORE
+                  and "Feebee" not in text and "飛比價格" not in text
                   and not MERCHANT_RE.search(text) and not PRICE_RE.fullmatch(text)
                   and "精選商品優惠價格" not in text and "相關搜尋" not in text]
     if not candidates:
         return None
-    linked = [c for c in candidates if c[1] and len(c[0]) >= 8]
-    title, href = linked[0] if linked else candidates[0]
+    title, href = candidates[-1]
     return {"title": title[:200], "price": price,
             "url": _safe_link(href, search_url), "source": "飛比／酷澎"}
 
