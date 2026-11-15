@@ -36,6 +36,19 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
+      - name: One-off public platform / source tests
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        run: python apps/ScraplingProbe/market_price_probe.py --output apps/ScraplingProbe/market-result.json
+
+      - name: Upload market report
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrapling-market-v0.2.0
+          path: apps/ScraplingProbe/market-result.json
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: One public product page probe (no retries)
         if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened'
         run: |

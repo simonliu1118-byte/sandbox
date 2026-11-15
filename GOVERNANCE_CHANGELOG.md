@@ -1,5 +1,11 @@
 # Sandbox Governance Changelog
 
+## 1.2.8 — 2026/11/15
+
+- 擴充 ScraplingProbe 專案規則，將可行性測試涵蓋 momo、酷澎與第三方公開價格資料 API。
+- 新增有限次單頁公開讀取探針與離線測試，不使用使用者本機 IP、登入憑證、代理或驗證繞過。
+- 更新專案至 V0.2.0，其他 sandbox 專案維持不變。
+
 ## 1.2.7 — 2026/11/15
 
 - 新增個人可行性實驗 `apps/ScraplingProbe`：版本 0.1.0、Build 0，以及唯一 `PROJECT_RULES.md`。
