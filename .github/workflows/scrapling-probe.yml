@@ -43,7 +43,3 @@ jobs:
       
       - name: Generalized catalog parsing and statistics tests
         run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs
-
-      - name: Single public Coupang Taiwan search reachability test
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        run: python apps/ScraplingProbe/coupang_public_probe.py
