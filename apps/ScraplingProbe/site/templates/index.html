@@ -9,11 +9,12 @@
 <main>
 <div class="top"><strong>PRICE LAB</strong><span>momo 免費查價 · 私人測試版</span></div>
 <header><p class="eyebrow">KEYWORD PRICE LOOKUP</p><h1>搜尋商品，直接看到價格。</h1>
-<p class="lead">輸入商品名稱、品牌或型號，自動找 momo 商品並按公開展示價排序。不需要先整理商品網址。</p></header>
+<p class="lead">輸入商品名稱、品牌或型號，保留 momo 搜尋回傳的候選商品並按相關程度整理；可切換更多結果頁。不需要商品網址。</p></header>
 <form action="/" method="get" class="search">
 <input name="keyword" type="search" maxlength="80" minlength="2" required
 value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：羅技 M331、咖啡、3M 膠帶">
-<select name="sort" aria-label="價格排序"><option value="asc" {% if sort != 'desc' %}selected{% endif %}>價格低到高</option>
+<select name="sort" aria-label="排序方式"><option value="relevance" {% if sort == 'relevance' %}selected{% endif %}>相關程度優先</option>
+<option value="asc" {% if sort == 'asc' %}selected{% endif %}>價格低到高</option>
 <option value="desc" {% if sort == 'desc' %}selected{% endif %}>價格高到低</option></select>
 <button type="submit">查詢價格</button></form>
 <div class="examples">試試搜尋：<a href="/?keyword=羅技%20M331">羅技 M331</a><a href="/?keyword=咖啡">咖啡</a><a href="/?keyword=3M%20膠帶">3M 膠帶</a></div>
@@ -23,7 +24,7 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 {% elif status == 'idle' %}<span class="pill">尚未查詢</span>
 {% else %}<span class="pill warn">未完整取得</span>{% endif %}</div>
 {% if status == 'ok' %}
-<p class="hint">符合條件 {{ rows|length }} 筆，其中 {{ rows|selectattr('price','ne',none)|list|length }} 筆含價格。
+<p class="hint">第 {{ page }} 頁：momo 回傳 {{ raw_count }} 筆，保留 {{ rows|length }} 筆，其中 {{ rows|selectattr('price','ne',none)|list|length }} 筆含價格。推薦商品不一定與關鍵字完全一致，請核對型號與入數。
 {% if checked %}查價時間：{{ checked|replace('T',' ')|truncate(19,True,'') }} UTC{% endif %}</p>
 {% elif error %}<p class="empty">{{ error }}</p>
 {% elif status in ['blocked','blocked_cooldown','provider_refused'] %}<p class="empty">站方拒絕或限制查詢，已停止重試。請稍後再試。</p>
@@ -34,11 +35,17 @@ value="{{ keyword }}" aria-label="搜尋商品關鍵字" placeholder="例如：�
 {% if rows %}
 <div class="table"><table><thead><tr><th>商品</th><th>公開展示價</th><th>來源</th></tr></thead><tbody>
 {% for item in rows %}<tr>
-<td><div class="name">{{ item.title }}</div><small>momo 品號 {{ item.code }}</small></td>
+<td><div class="name">{{ item.title }}</div><small>momo 品號 {{ item.code }} · {{ item.match_label }}</small></td>
 <td class="price">{% if item.price is not none %}NT$ {{ '{:,}'.format(item.price) }}{% else %}<span class="dim">未取得</span>{% endif %}</td>
 <td><a href="{{ item.url }}" rel="noopener noreferrer" target="_blank">商品頁</a></td>
 </tr>{% endfor %}
 </tbody></table></div>{% endif %}
+{% if keyword and status in ['ok','no_price','no_match'] %}
+<nav class="pager" aria-label="結果分頁">
+{% if page > 1 %}<a href="{{ url_for('homepage', keyword=keyword, page=page-1, sort=sort) }}">上一頁</a>{% endif %}
+<span>第 {{ page }} 頁（最多 5 頁）</span>
+{% if has_next %}<a href="{{ url_for('homepage', keyword=keyword, page=page+1, sort=sort) }}">下一頁</a>{% endif %}
+</nav>{% endif %}
 </section>
 <footer>展示價格不代表指定規格、會員折扣、折價券或實際結帳價格；無法取得時不會顯示 NT$0。原型沒有自動監控、登入或購買功能。</footer>
 </main>

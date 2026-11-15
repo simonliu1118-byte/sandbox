@@ -28,6 +28,34 @@ class OnePageTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]["price"], 699)
 
+    def test_3m_search_keeps_official_nonliteral_matches(self):
+        data = {"success": True, "rtnSearchData": {"goodsInfoList": [
+            {"goodsCode":"1234567", "goodsName":"3M Micropore 1530-0 通氣膠帶", "SALE_PRICE":"259"},
+            {"goodsCode":"1234568", "goodsName":"Nexcare 1530-1 紙膠帶", "SALE_PRICE":"190"},
+            {"goodsCode":"1234569", "goodsName":"3M 透氣膠帶 1吋", "SALE_PRICE":"54"},
+            {"goodsCode":"1234570", "goodsName":"醫療膠帶 12入", "SALE_PRICE":"160"}]}}
+        status, rows = parse_results(data, "3m 1530")
+        self.assertEqual(status, "ok")
+        self.assertEqual(len(rows), 4)
+        self.assertEqual([r["relevance"] for r in rows], [3, 2, 1, 0])
+
+    def test_pagination_navigation(self):
+        info = {"status":"ok", "results":parse_results(payload(),"羅技 M331")[1],
+                "raw_count":20, "checked_at":"2026-11-15T00:00:00+00:00"}
+        with patch.dict(os.environ, {"VERCEL": ""}), patch("app.safe_search", return_value=info) as mocked:
+            first = self.client.get("/?keyword=%E7%BE%85%E6%8A%80+M331")
+            second = self.client.get("/?keyword=%E7%BE%85%E6%8A%80+M331&page=2")
+        self.assertIn("下一頁".encode(), first.data)
+        self.assertIn("上一頁".encode(), second.data)
+        self.assertEqual(mocked.call_args.args, ("羅技 M331", 2))
+
+    def test_no_next_page_on_short_results(self):
+        info = {"status":"ok", "results":parse_results(payload(),"羅技 M331")[1],
+                "raw_count":2}
+        with patch.dict(os.environ, {"VERCEL": ""}), patch("app.safe_search", return_value=info):
+            result = self.client.get("/?keyword=%E7%BE%85%E6%8A%80+M331")
+        self.assertNotIn("下一頁".encode(), result.data)
+
     def test_explicit_provider_failure(self):
         self.assertEqual(parse_results({"success": False}, "羅技 M331"), ("provider_refused", []))
 
