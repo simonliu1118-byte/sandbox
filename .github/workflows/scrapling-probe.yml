@@ -43,3 +43,7 @@ jobs:
       
       - name: Generalized catalog parsing and statistics tests
         run: node --test apps/ScraplingProbe/site/tests/catalog_core.test.cjs
+
+      - name: One-off Feebee Taiwan Coupang indexed price search test
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        run: python apps/ScraplingProbe/feebee_coupang_probe.py
