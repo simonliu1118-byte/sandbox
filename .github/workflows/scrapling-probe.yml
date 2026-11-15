@@ -41,15 +41,8 @@ jobs:
         run: |
           python apps/ScraplingProbe/scrapling_probe.py --output apps/ScraplingProbe/probe-result.json
 
-      - name: One-off headful Google Chrome comparison
-        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-        run: |
-          command -v google-chrome
-          command -v xvfb-run
-          xvfb-run -a python apps/ScraplingProbe/scrapling_probe.py --browser-mode chrome-headed --output apps/ScraplingProbe/probe-result.json
-
       - name: Upload JSON result
-        if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened' || github.event.action == 'synchronize'
+        if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened'
         uses: actions/upload-artifact@v4
         with:
           name: scrapling-probe-v0.1.0-build2

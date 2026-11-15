@@ -51,8 +51,9 @@ python -m unittest discover -s apps/ScraplingProbe -p 'test_*.py' -v
 
 依使用者本次指示，一次性比較 `StealthySession(real_chrome=True, headless=False)`，在 Linux Xvfb 使用 Runner 提供的 Google Chrome。這並非 CAPTCHA 解法；一旦仍遇到流量驗證就停止。測試記錄只保留最終路徑、HTTP 狀態與價格候選值。
 
-- GitHub PR 同步事件在本次測試暫時執行一次 Chrome headed 診斷。
-- 測試完成後會移除該同步觸發條件，恢復只跑離線測試，防止未來 PR 修改造成額外請求。
+- [GitHub Actions Run #3](https://github.com/simonliu1118-byte/sandbox/actions/runs/43672133799)：套件安裝與單元測試通過；採用 Xvfb、系統 Google Chrome、`headless=False`、`real_chrome=True` 完成一次公開商品載入。
+- 同樣導向 `/verify/traffic/error`，回傳 HTTP 200，結果為 `blocked_or_challenged`，`api_responses_seen=9`，無商品名稱與價格候選值。
+- 已移除 PR 同步事件的線上測試步驟，避免未來 PR 更新重複讀取受限制的頁面。
 
 ## 預期資料
 
