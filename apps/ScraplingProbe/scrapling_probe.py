@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 from scrapling.fetchers import StealthySession
 
-DEFAULT_URL = "https://shopee.tw/product/293681214/23632340277"
+DEFAULT_URL = "https://shopee.tw/3M-%E7%BE%8E%E7%B4%8B%E7%B4%99%E8%86%A0%E5%B8%B6-2688%E9%81%AE%E8%94%BD%E8%86%A0%E5%B8%B6%E7%84%A1%E6%AE%98%E8%86%A0%E6%89%8B%E6%92%95-%E9%9B%BB%E9%8D%8D%E5%88%86%E8%89%B2%E6%B1%BD%E8%BB%8A%E9%AB%98%E6%BA%AB%E5%99%B4%E6%BC%86%E9%81%AE%E8%94%BD%E5%99%B4%E5%A1%97%E4%BF%9D%E8%AD%B7-%E8%A3%9D%E4%BF%AE%E9%81%AE%E8%94%BD%E7%84%A1%E7%97%95%E8%86%A0%E5%B8%B6%EF%BC%88%E5%8F%AF%E9%96%8B%E7%99%BC%E7%A5%A8%EF%BC%89-i.768064806.19160839433"
 PRICE_PATTERN = re.compile(r"(?:NT\$|\$)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)")
 API_PRICE_KEYS = {"price", "price_min", "price_max", "price_before_discount", "price_before_discount_min", "price_before_discount_max"}
 BLOCK_WORDS = ("流量驗證", "安全驗證", "robot check", "access denied", "unusual traffic", "captcha")
