@@ -4,7 +4,7 @@ import unittest
 from shopee_anonymous_sku_probe import analyse_json, evaluate_html, valid_price
 
 def fixture(models, price_min=None, price_max=None):
-    item={"shop_id":843636932, "item_id":14192813873, "models":models,
+    item={"shop_id":1133901773, "item_id":28163998437, "models":models,
           "price_min": price_min, "price_max":price_max}
     return {"initialState":{"DOMAIN_PDP":{"data":{"PDP_BFF_DATA":{
         "cachedMap":{"test":{"item":item}}}}}}}
@@ -18,6 +18,18 @@ class AnonymousSkuProbeTests(unittest.TestCase):
         self.assertEqual(report["status"],"complete_multi_sku_price_evidence")
         self.assertEqual(report["models_with_independent_price"],2)
         self.assertEqual([x["display_price_twd"] for x in report["samples"]],[200,250])
+
+    def test_four_models_require_four_independent_prices(self):
+        rows = [{"model_id": 101+i, "name": f"規格{i}", "price": (200+i*10)*100000}
+                for i in range(4)]
+        report = analyse_json(fixture(rows))
+        self.assertEqual(report["models_total"], 4)
+        self.assertEqual(report["models_with_full_evidence"], 4)
+        self.assertEqual(report["status"], "complete_multi_sku_price_evidence")
+        rows[2]["price"] = None
+        report = analyse_json(fixture(rows))
+        self.assertEqual(report["models_with_full_evidence"], 3)
+        self.assertEqual(report["status"], "partial_or_incomplete_sku_evidence")
 
     def test_price_range_and_models_without_prices_are_not_complete(self):
         a=fixture([

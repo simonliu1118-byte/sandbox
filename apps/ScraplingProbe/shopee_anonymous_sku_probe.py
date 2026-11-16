@@ -2,7 +2,7 @@
 
 Research basis: omkarcloud/shopee-scraper documents server-rendered
 mfe-initial-data including model IDs/names but null model prices when
-signed out. This experiment tests a real TW two-option listing, without
+signed out. This experiment tests a verified indexed TW four-option listing, without
 its retry/proxy fallback code, browser login or third-party price sources.
 
 One HTTPS GET; no cookies/login/proxy, no retries, no challenge handling,
@@ -14,8 +14,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 import never_primp as primp
 
-SHOP_ID = 843636932
-ITEM_ID = 14192813873
+SHOP_ID = 1133901773
+ITEM_ID = 28163998437
 URL = f"https://shopee.tw/product/{SHOP_ID}/{ITEM_ID}"
 BLOB_RE = re.compile(r'<script\s+type="text/mfe-initial-data"[^>]*>(.*?)</script>', re.S)
 DENOMINATOR = 100000
