@@ -1,5 +1,18 @@
 # ScraplingProbe 工作交接與接續清單（2026-11-16）
 
+## 2026-11-16 最新交接：先完成獨立站文件
+
+- 使用者決定開始準備**獨立查價網站**，這次明確要求**先在目前位置把文件依共通規則寫好**，不等同於授權立刻搬 Repo 或部署。
+- 最新獨立站需求、已完成／待完成能力、三來源分工、遷移順序及驗收清單詳見 [STANDALONE_SITE_PLAN.md](STANDALONE_SITE_PLAN.md)。
+- GitHub Source 基準為 **V0.5.4 Build 1**／[Draft PR #31](https://github.com/simonliu1118-byte/sandbox/pull/31)，三份共通規則與 AITeam main 同為 **2.11.0**。
+- momo 有分類／單價統計；飛比蝦皮與酷澎只完成共用搜尋＋分開結果列表。**三來源共用 momo 同級分類 UI 是尚未交付的下一階段**，不能將構想或未成功提交的修改寫成已上線。
+- 因目前仍是 Public 個人實驗 Repo，若未來改成公司使用，需先確認目標 Repo 與治理／隱私權限；不能將公司專有商品清單或密碼提交到 sandbox。
+- 已有舊版 Vercel 私人 Preview，沒有部署最新版；本輪不改程式、VERSION／BUILD、PROJECT_RULES、站點設定、不合併、不建立 D1 或啟動 Grok。
+- 飛比資料只代表商品級參考價，不是逐 SKU 現價；Grok BOT 的 2026-11-18（週三）額度重置後驗證仍屬待辦，**尚未排程**。
+
+---
+
+
 > 本文件彙整「評估 Scrapling 蝦皮爬價」對話截至 2026-11-15 的已確認決策、實際成果、限制及接續工作。此檔為**狀態／交接文件**，不是新的永久規則；規則優先依根目錄 `REPOSITORY_RULES.md`、`REPO_POLICY.md` 與本專案唯一的 `PROJECT_RULES.md`。
 
 ## 0. 前次對話最後的明確指示（接手時優先閱讀）

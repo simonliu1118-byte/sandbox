@@ -1,5 +1,19 @@
 # ScraplingProbe
 
+## 最新狀態（2026-11-16）：獨立網站準備階段
+
+> **請先閱讀 [STANDALONE_SITE_PLAN.md](STANDALONE_SITE_PLAN.md)**。本段為現況摘要；該文件是規劃／交接，不取代正式 PROJECT_RULES。
+
+- 目前 Source：`simonliu1118-byte/sandbox/apps/ScraplingProbe/`，工作分支 `governance/scrapling-probe-init`，**Draft PR #31，未合併**。
+- 真正已提交的版本：**V0.5.4 Build 1**。沙盒的三份共通規則文件與 AITeam main（`2.11.0`）已核對一致。
+- **momo** 已有搜尋、分類／篩選、單價與統計；**飛比蝦皮／酷澎** 已共用一套來源查詢器並分開顯示商品級參考價，但目前**還沒有與 momo 同等的分類、篩選及統計介面**。該需求列在獨立站 MVP 待辦。
+- 飛比參考價的來源更新時間未知，既非蝦皮／酷澎的即時報價，也不是完整逐 SKU 售價。
+- Vercel 已有舊版私人 Preview，**尚未部署或驗證最新三來源版本**；尚未建立獨立 Repo、新網站、D1、Grok BOT 自動流程。
+- 本輪**僅文件整理**；不改程式、VERSION、BUILD、正式規則或部署。
+
+---
+
+
 使用 [Scrapling](https://github.com/D4Vinci/Scrapling) 對**一筆公開臺灣蝦皮商品頁**進行最小可行性測試。專案是個人技術實驗，不是持續查價服務。
 
 ## 目的
