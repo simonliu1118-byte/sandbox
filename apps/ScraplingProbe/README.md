@@ -490,3 +490,12 @@ python apps/ScraplingProbe/momo_search_data.py --keyword '咖啡' --limit 20 --o
 - 既有 `feebee_shopee_probe.py` 精簡為共用解析器的歷史研究介面，不再自有第二套爬取或解析邏輯。
 - 所有飛比資料僅為第三方收錄的商品層級參考價，來源更新時間未確認；不提供完整 SKU 選項矩陣，也不記錄價格歷史或做跨平台精準價格比較。
 - 下一階段的 Grok BOT 逐 SKU 核價僅記入 WORK_HANDOFF，等 2026-11-18（週三）額度重置後再測試，目前沒有執行或自動排程。原型尚未更新 Vercel Preview，也不合併 Draft PR。
+
+## V0.5.4 — 免費開源匿名逐規格價格可行性單次測試
+
+- 本輪依使用者指示先試免費開源方法：**若匿名方法能完整取得蝦皮 TW 各 SKU ID、名稱及個別售價，未來可取代蝦皮飛比商品級參考價；未經驗證前保留現有飛比查價。**
+- 參考 [omkarcloud/shopee-scraper](https://github.com/omkarcloud/shopee-scraper) MIT 專案的公開文件和資料格式說明，針對臺灣 `shopee.tw` 商品頁 `mfe-initial-data` 進行獨立的最小驗證。**不套用該工具的代理／重試／切換 IP 程式碼**。
+- 實驗目標：蝦皮多規格商品 [3M 通氣膠帶 0.5 吋／1 吋](https://shopee.tw/product/843636932/14192813873)，一個商品 `shop_id=843636932`、`item_id=14192813873`，至少兩個規格。
+- 新增 `shopee_anonymous_sku_probe.py`：只發出 **1 次**無帳號、無 Cookie、無代理的普通 HTTPS 公開商品頁 GET；如果 HTTP 403/429 或驗證立即停止。若回傳 HTML 有公開 JSON，對照 item ID 與各 `model_id/name/price`。
+- **嚴格驗收標準：** 同商品至少 2 個不同 Model ID，且每筆皆有明確規格名稱及獨立數字售價；`price_min/price_max` 或只有規格名稱不算成功。原價/優惠/結帳價亦不能混淆。
+- 目前是單次 Actions 研究探針，完成後須移除一次性外部網路測試步驟；不變更 momo、飛比、網站 UI，不部署或付費，不導入登入方案。
