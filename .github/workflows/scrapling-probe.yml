@@ -47,5 +47,3 @@ jobs:
 
 
 
-      - name: One-off anonymous Shopee TW product SKU and price check
-        run: python apps/ScraplingProbe/shopee_anonymous_sku_probe.py
